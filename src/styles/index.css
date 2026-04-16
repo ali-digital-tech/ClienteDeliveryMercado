@@ -1,0 +1,23 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* Hide scrollbar for horizontal scroll elements */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth scrolling */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Full height for app */
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}

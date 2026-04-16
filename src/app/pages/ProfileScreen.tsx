@@ -1,0 +1,274 @@
+import { useNavigate } from "react-router";
+import {
+  ChevronRight,
+  MapPin,
+  Heart,
+  CreditCard,
+  ShoppingBag,
+  HelpCircle,
+  LogOut,
+  User,
+  Phone,
+  Mail,
+  Bell,
+  Shield,
+} from "lucide-react";
+import { useApp } from "../context/AppContext";
+import { BottomNav } from "../components/BottomNav";
+
+const menuItems = [
+  { icon: MapPin, label: "Meus endereços", path: "/addresses" },
+  { icon: Heart, label: "Favoritos", path: "/favorites" },
+  {
+    icon: CreditCard,
+    label: "Métodos de pagamento",
+    path: "/payment",
+  },
+  { icon: ShoppingBag, label: "Meus pedidos", path: "/orders" },
+  { icon: Bell, label: "Notificações", path: "/profile" },
+  {
+    icon: Shield,
+    label: "Privacidade e segurança",
+    path: "/profile",
+  },
+  { icon: HelpCircle, label: "Suporte", path: "/profile" },
+];
+
+export function ProfileScreen() {
+  const navigate = useNavigate();
+  const { logout, orders, favorites } = useApp();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div
+        className="flex-shrink-0 px-4 pt-12 pb-6"
+        style={{
+          background:
+            "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
+        }}
+      >
+        <h1
+          className="mb-4 text-white"
+          style={{ fontSize: "20px", fontWeight: 800 }}
+        >
+          Meu Perfil
+        </h1>
+
+        <div className="flex items-center gap-4">
+          <div
+            className="rounded-full flex items-center justify-center"
+            style={{
+              width: "64px",
+              height: "64px",
+              backgroundColor: "rgba(255,255,255,0.16)",
+              fontSize: "28px",
+            }}
+          >
+            👤
+          </div>
+
+          <div className="flex-1">
+            <p
+              className="text-white"
+              style={{ fontSize: "18px", fontWeight: 800 }}
+            >
+              Maria Santos
+            </p>
+
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <Mail size={12} color="#c7d7ee" />
+              <p style={{ fontSize: "12px", color: "#c7d7ee" }}>
+                maria@email.com
+              </p>
+            </div>
+
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <Phone size={12} color="#c7d7ee" />
+              <p style={{ fontSize: "12px", color: "#c7d7ee" }}>
+                (11) 99999-0000
+              </p>
+            </div>
+          </div>
+
+          <button
+            className="rounded-full p-2"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.14)",
+            }}
+          >
+            <User size={18} color="white" />
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div className="mt-4 flex gap-3">
+          {[
+            { label: "Pedidos", value: orders.length },
+            { label: "Favoritos", value: favorites.length },
+            { label: "Pontos", value: "320" },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="flex-1 rounded-2xl py-2 px-3 text-center backdrop-blur-sm"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.14)",
+              }}
+            >
+              <p
+                className="text-white"
+                style={{ fontSize: "18px", fontWeight: 800 }}
+              >
+                {stat.value}
+              </p>
+              <p style={{ fontSize: "10px", color: "#c7d7ee" }}>
+                {stat.label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Menu */}
+      <div
+        className="flex-1 overflow-y-auto px-4 pt-4 pb-4"
+        style={{ background: "#f8fafc" }}
+      >
+        <div
+          className="overflow-hidden rounded-2xl bg-white shadow-sm mb-4"
+          style={{ border: "1px solid #d9e4f2" }}
+        >
+          {menuItems.map((item, i) => {
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={item.label}
+                onClick={() => navigate(item.path)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50"
+                style={{
+                  borderBottom:
+                    i < menuItems.length - 1
+                      ? "1px solid #eef2f7"
+                      : "none",
+                }}
+              >
+                <div
+                  className="rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{
+                    width: "38px",
+                    height: "38px",
+                    backgroundColor: "#eef4fb",
+                  }}
+                >
+                  <Icon size={18} color="#122a4c" />
+                </div>
+
+                <span
+                  className="flex-1 text-left"
+                  style={{
+                    fontSize: "14px",
+                    color: "#334155",
+                    fontWeight: 500,
+                  }}
+                >
+                  {item.label}
+                </span>
+
+                <ChevronRight size={16} color="#94a3b8" />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Promo card */}
+        <div
+          className="relative mb-4 overflow-hidden rounded-2xl"
+          style={{
+            background:
+              "linear-gradient(135deg, #1b3d6d, #122a4c)",
+            padding: "16px",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <span style={{ fontSize: "36px" }}>🎁</span>
+            <div>
+              <p
+                className="text-white"
+                style={{ fontSize: "15px", fontWeight: 800 }}
+              >
+                Indique amigos
+              </p>
+              <p
+                style={{
+                  fontSize: "12px",
+                  lineHeight: 1.4,
+                  color: "#c7d7ee",
+                }}
+              >
+                Ganhe R$15 de desconto para cada amigo que fizer
+                a primeira compra
+              </p>
+            </div>
+          </div>
+
+          <button
+            className="mt-3 w-full rounded-xl bg-white px-4 py-2"
+            style={{
+              fontSize: "13px",
+              fontWeight: 700,
+              color: "#122a4c",
+            }}
+          >
+            Convidar amigos →
+          </button>
+        </div>
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="w-full rounded-2xl p-4 flex items-center gap-3 shadow-sm transition-all active:bg-slate-50"
+          style={{
+            backgroundColor: "#ffffff",
+            border: "1px solid #d9e4f2",
+          }}
+        >
+          <div
+            className="rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{
+              width: "38px",
+              height: "38px",
+              backgroundColor: "#eef4fb",
+            }}
+          >
+            <LogOut size={18} color="#122a4c" />
+          </div>
+
+          <span
+            style={{
+              fontSize: "14px",
+              color: "#122a4c",
+              fontWeight: 600,
+            }}
+          >
+            Sair da conta
+          </span>
+        </button>
+
+        <p
+          className="mt-4 pb-2 text-center"
+          style={{ fontSize: "11px", color: "#94a3b8" }}
+        >
+          FrescaMart v2.1.0 · Termos de uso · Privacidade
+        </p>
+      </div>
+
+      <BottomNav />
+    </div>
+  );
+}
