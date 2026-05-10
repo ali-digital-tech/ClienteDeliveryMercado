@@ -14,7 +14,7 @@ export function FavoritesScreen() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 bg-white px-4 pt-12 pb-4 border-b border-gray-100">
+      <div className="flex-shrink-0 bg-white px-4 pt-12 md:pt-5 pb-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-gray-800" style={{ fontSize: '20px', fontWeight: 800 }}>Favoritos</h1>

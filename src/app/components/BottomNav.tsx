@@ -14,7 +14,7 @@ export function BottomNav() {
   const location = useLocation();
 
   return (
-    <div className="flex-shrink-0 bg-white border-t border-gray-100 flex items-center justify-around py-2 px-1 safe-area-bottom">
+    <div className="md:hidden flex-shrink-0 bg-white border-t border-gray-100 flex items-center justify-around py-2 px-1 safe-area-bottom">
       {navItems.map(({ label, icon: Icon, path }) => {
         const active = location.pathname === path;
         return (

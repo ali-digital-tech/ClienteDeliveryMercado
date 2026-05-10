@@ -11,7 +11,7 @@ export function CategoriesScreen() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 px-4 pt-12 pb-4 bg-white border-b border-gray-100">
+      <div className="flex-shrink-0 px-4 pt-12 md:pt-5 pb-4 bg-white border-b border-gray-100">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-gray-800" style={{ fontSize: '20px', fontWeight: 800 }}>Categorias</h1>
           <button className="relative bg-gray-100 rounded-full p-2" onClick={() => navigate('/cart')}>

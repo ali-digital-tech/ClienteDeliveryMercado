@@ -61,7 +61,7 @@ export function SearchScreen() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div
-        className="flex-shrink-0 bg-white px-4 pt-12 pb-3 border-b"
+        className="flex-shrink-0 bg-white px-4 pt-12 md:pt-5 pb-3 border-b"
         style={{ borderColor: "#d9e4f2" }}
       >
         <div className="mb-3 flex items-center gap-3">

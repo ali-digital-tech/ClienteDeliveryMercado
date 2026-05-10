@@ -66,7 +66,7 @@ export function OrderTrackingScreen() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div
-        className="flex-shrink-0 px-4 pt-12 pb-4 border-b"
+        className="flex-shrink-0 px-4 pt-12 md:pt-5 pb-4 border-b"
         style={{
           background:
             "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",

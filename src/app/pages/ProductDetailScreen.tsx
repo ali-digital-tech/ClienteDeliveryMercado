@@ -39,7 +39,7 @@ export function ProductDetailScreen() {
         <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
 
         {/* Overlay buttons */}
-        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pt-12">
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pt-12 md:pt-5">
           <button onClick={() => navigate(-1)} className="bg-white rounded-full p-2.5 shadow-lg">
             <ChevronLeft size={20} color="#374151" />
           </button>

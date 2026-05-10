@@ -25,7 +25,7 @@ export function LoginScreen() {
     >
       {/* Header */}
       <div
-        className="flex-shrink-0 px-4 pt-12 pb-6"
+        className="flex-shrink-0 px-4 pt-12 md:pt-5 pb-6"
         style={{
           background:
             "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",

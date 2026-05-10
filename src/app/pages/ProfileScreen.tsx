@@ -25,13 +25,13 @@ const menuItems = [
     path: "/payment",
   },
   { icon: ShoppingBag, label: "Meus pedidos", path: "/orders" },
-  { icon: Bell, label: "Notificações", path: "/profile" },
+  { icon: Bell, label: "Notificações", path: "/notifications" },
   {
     icon: Shield,
     label: "Privacidade e segurança",
-    path: "/profile",
+    path: "/privacy",
   },
-  { icon: HelpCircle, label: "Suporte", path: "/profile" },
+  { icon: HelpCircle, label: "Suporte", path: "/support" },
 ];
 
 export function ProfileScreen() {
@@ -47,7 +47,7 @@ export function ProfileScreen() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div
-        className="flex-shrink-0 px-4 pt-12 pb-6"
+        className="flex-shrink-0 px-4 pt-12 md:pt-5 pb-6"
         style={{
           background:
             "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
@@ -184,49 +184,6 @@ export function ProfileScreen() {
               </button>
             );
           })}
-        </div>
-
-        {/* Promo card */}
-        <div
-          className="relative mb-4 overflow-hidden rounded-2xl"
-          style={{
-            background:
-              "linear-gradient(135deg, #1b3d6d, #122a4c)",
-            padding: "16px",
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <span style={{ fontSize: "36px" }}>🎁</span>
-            <div>
-              <p
-                className="text-white"
-                style={{ fontSize: "15px", fontWeight: 800 }}
-              >
-                Indique amigos
-              </p>
-              <p
-                style={{
-                  fontSize: "12px",
-                  lineHeight: 1.4,
-                  color: "#c7d7ee",
-                }}
-              >
-                Ganhe R$15 de desconto para cada amigo que fizer
-                a primeira compra
-              </p>
-            </div>
-          </div>
-
-          <button
-            className="mt-3 w-full rounded-xl bg-white px-4 py-2"
-            style={{
-              fontSize: "13px",
-              fontWeight: 700,
-              color: "#122a4c",
-            }}
-          >
-            Convidar amigos →
-          </button>
         </div>
 
         {/* Logout */}

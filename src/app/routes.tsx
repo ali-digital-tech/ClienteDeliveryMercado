@@ -1,5 +1,6 @@
 import { createBrowserRouter, Outlet, Navigate } from 'react-router';
 import { AppProvider } from './context/AppContext';
+import { DesktopSidebar } from './components/DesktopSidebar';
 import { SplashScreen } from './pages/SplashScreen';
 import { WelcomeScreen } from './pages/WelcomeScreen';
 import { HomeScreen } from './pages/HomeScreen';
@@ -17,6 +18,11 @@ import { OrderConfirmedScreen } from './pages/OrderConfirmedScreen';
 import { OrderTrackingScreen } from './pages/OrderTrackingScreen';
 import { MyOrdersScreen } from './pages/MyOrdersScreen';
 import { ProfileScreen } from './pages/ProfileScreen';
+import { PrivacyScreen } from './pages/PrivacyScreen';
+import { NotificationsScreen } from './pages/NotificationsScreen';
+import { NotificationsFeedScreen } from './pages/NotificationsFeedScreen';
+import { SupportScreen } from './pages/SupportScreen';
+import { AddCardScreen } from './pages/AddCardScreen';
 
 function RedirectToSplash() {
   return <Navigate to="/splash" replace />;
@@ -28,49 +34,19 @@ function RedirectToHome() {
 function Root() {
   return (
     <AppProvider>
-      <div className="size-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0d1b2a 0%, #162032 100%)' }}>
-        {/* Background glow */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute rounded-full"
-            style={{ width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(22,163,74,0.15) 0%, transparent 70%)', top: '-150px', left: '-100px' }} />
-          <div className="absolute rounded-full"
-            style={{ width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(74,222,128,0.1) 0%, transparent 70%)', bottom: '-100px', right: '-50px' }} />
-        </div>
+      <div className="size-full flex overflow-hidden" style={{ background: '#f1f5f9' }}>
+        {/* Desktop sidebar — only shown on md+ */}
+        <DesktopSidebar />
 
-        {/* Phone frame container */}
-        <div
-          className="relative flex flex-col overflow-hidden"
-          style={{
-            width: '100%',
-            maxWidth: '390px',
-            height: '100%',
-            maxHeight: '844px',
-            background: 'white',
-            borderRadius: 'clamp(0px, 2vw, 40px)',
-            boxShadow: '0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06)',
-          }}
-        >
-          {/* Notch - only visible at full phone size */}
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col overflow-hidden md:items-start">
+          {/* Content column: full-width on mobile, constrained on desktop */}
           <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 z-50"
-            style={{
-              width: '126px',
-              height: '34px',
-              backgroundColor: '#000',
-              borderRadius: '0 0 20px 20px',
-            }}
-          />
-
-          {/* Content */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+            className="flex-1 flex flex-col overflow-hidden w-full bg-white md:shadow-sm"
+            style={{ minWidth: 0 }}
+          >
             <Outlet />
           </div>
-
-          {/* Home indicator bar */}
-          <div
-            className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full pointer-events-none z-50"
-            style={{ width: '120px', height: '4px', backgroundColor: 'rgba(0,0,0,0.15)' }}
-          />
         </div>
       </div>
     </AppProvider>
@@ -100,6 +76,11 @@ export const router = createBrowserRouter([
       { path: 'order-tracking', Component: OrderTrackingScreen },
       { path: 'orders', Component: MyOrdersScreen },
       { path: 'profile', Component: ProfileScreen },
+      { path: 'privacy', Component: PrivacyScreen },
+      { path: 'notifications', Component: NotificationsScreen },
+      { path: 'notifications-feed', Component: NotificationsFeedScreen },
+      { path: 'support', Component: SupportScreen },
+      { path: 'add-card', Component: AddCardScreen },
       { path: '*', Component: RedirectToHome },
     ],
   },

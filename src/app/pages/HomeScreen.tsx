@@ -45,7 +45,7 @@ export function HomeScreen() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div
-        className="flex-shrink-0 px-4 pt-12 pb-3"
+        className="flex-shrink-0 px-4 pt-12 md:pt-5 pb-3"
         style={{
           background:
             "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
@@ -73,8 +73,17 @@ export function HomeScreen() {
               style={{
                 backgroundColor: "rgba(255,255,255,0.14)",
               }}
+              onClick={() => navigate("/notifications-feed")}
             >
               <Bell size={18} color="white" />
+              <span
+                className="absolute -top-1 -right-1 rounded-full"
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  backgroundColor: "#ef4444",
+                }}
+              />
             </button>
 
             <button

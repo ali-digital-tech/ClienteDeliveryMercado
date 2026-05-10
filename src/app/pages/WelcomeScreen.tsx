@@ -24,7 +24,7 @@ export function WelcomeScreen() {
 
   return (
     <div
-      className="flex flex-1 flex-col"
+      className="flex flex-1 flex-col px-[15px] py-[0px]"
       style={{ background: "#f8fafc" }}
     >
       {/* Header */}

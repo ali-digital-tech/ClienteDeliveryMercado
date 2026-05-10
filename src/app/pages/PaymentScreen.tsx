@@ -24,32 +24,17 @@ const methods = [
     desc: "•••• 9891 — Mastercard",
     badge: "",
   },
-  {
-    id: "cash",
-    label: "Dinheiro",
-    icon: "💵",
-    desc: "Pague na entrega",
-    badge: "",
-  },
-  {
-    id: "pickup_pay",
-    label: "Pagar na retirada",
-    icon: "🏪",
-    desc: "Qualquer forma na loja",
-    badge: "",
-  },
 ];
 
 export function PaymentScreen() {
   const navigate = useNavigate();
   const [selected, setSelected] = useState("pix");
-  const [change, setChange] = useState("");
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div
-        className="flex-shrink-0 bg-white px-4 pt-12 pb-4 border-b"
+        className="flex-shrink-0 bg-white px-4 pt-12 md:pt-5 pb-4 border-b"
         style={{ borderColor: "#d9e4f2" }}
       >
         <div className="flex items-center gap-3">
@@ -222,46 +207,9 @@ export function PaymentScreen() {
           </div>
         )}
 
-        {/* Dinheiro - troco */}
-        {selected === "cash" && (
-          <div
-            className="bg-white rounded-2xl p-4 shadow-sm mb-4"
-            style={{ border: "1px solid #d9e4f2" }}
-          >
-            <p
-              style={{
-                fontSize: "13px",
-                fontWeight: 700,
-                color: "#334155",
-                marginBottom: "8px",
-              }}
-            >
-              Troco para quanto?
-            </p>
-
-            <div
-              className="flex items-center gap-2 rounded-xl px-3 py-2.5"
-              style={{ backgroundColor: "#eef4fb" }}
-            >
-              <span
-                style={{ fontSize: "14px", color: "#122a4c" }}
-              >
-                R$
-              </span>
-              <input
-                type="number"
-                placeholder="0,00"
-                value={change}
-                onChange={(e) => setChange(e.target.value)}
-                className="flex-1 bg-transparent outline-none placeholder:text-gray-400"
-                style={{ fontSize: "14px", color: "#334155" }}
-              />
-            </div>
-          </div>
-        )}
-
         {/* Add new card */}
         <button
+          onClick={() => navigate("/add-card")}
           className="w-full bg-white rounded-2xl p-4 border-2 border-dashed flex items-center justify-center gap-2 shadow-sm"
           style={{ borderColor: "#cbd5e1" }}
         >
