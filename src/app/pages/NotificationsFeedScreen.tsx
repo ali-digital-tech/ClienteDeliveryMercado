@@ -9,6 +9,7 @@ import {
   Star,
   Settings,
 } from "lucide-react";
+import { useApp } from '@/app/providers/AppProvider';
 
 interface Notification {
   id: string;
@@ -86,6 +87,7 @@ const notifications: Notification[] = [
 
 export function NotificationsFeedScreen() {
   const navigate = useNavigate();
+  const { tenantPath } = useApp();
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#f8fafc" }}>
@@ -110,7 +112,7 @@ export function NotificationsFeedScreen() {
           </div>
         </div>
         <button
-          onClick={() => navigate("/notifications")}
+          onClick={() => navigate(tenantPath("notifications"))}
           className="rounded-full p-2 flex items-center justify-center"
           style={{ backgroundColor: "rgba(255,255,255,0.14)" }}
         >

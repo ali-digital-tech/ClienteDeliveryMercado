@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { CheckCircle2, Home, Eye } from "lucide-react";
-import { useApp } from "../context/AppContext";
+import { useApp } from '@/app/providers/AppProvider';
 
 export function OrderConfirmedScreen() {
   const navigate = useNavigate();
-  const { placeOrder, cartTotal, discount } = useApp();
+  const { placeOrder, cartTotal, discount, tenantPath } = useApp();
   const [orderId, setOrderId] = useState("");
   const [show, setShow] = useState(false);
   const [savedTotal, setSavedTotal] = useState(0);
@@ -285,7 +285,7 @@ export function OrderConfirmedScreen() {
         }}
       >
         <button
-          onClick={() => navigate("/order-tracking")}
+          onClick={() => navigate(tenantPath("order-tracking"))}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           style={{ backgroundColor: "#122a4c" }}
         >
@@ -296,7 +296,7 @@ export function OrderConfirmedScreen() {
         </button>
 
         <button
-          onClick={() => navigate("/home")}
+          onClick={() => navigate(tenantPath())}
           className="w-full rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           style={{ backgroundColor: "#eef4fb" }}
         >

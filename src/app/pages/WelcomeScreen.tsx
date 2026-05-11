@@ -1,24 +1,28 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { MapPin, Navigation, ChevronRight } from "lucide-react";
+import { useApp } from '@/app/providers/AppProvider';
 
 export function WelcomeScreen() {
   const navigate = useNavigate();
+  const { currentMarket, tenantPath } = useApp();
   const [cep, setCep] = useState("");
   const [locating, setLocating] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
+  const showLogo = currentMarket.logo && !logoFailed;
 
   const handleLocation = () => {
     setLocating(true);
 
     setTimeout(() => {
       setLocating(false);
-      navigate("/home");
+      navigate(tenantPath());
     }, 1500);
   };
 
   const handleCep = () => {
     if (cep.length >= 8) {
-      navigate("/home");
+      navigate(tenantPath());
     }
   };
 
@@ -31,31 +35,46 @@ export function WelcomeScreen() {
       <div
         className="flex flex-col items-center pt-14 pb-8"
         style={{
-          background:
-            "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
+          background: `linear-gradient(160deg, ${currentMarket.secondaryColor} 0%, ${currentMarket.primaryColor} 100%)`,
         }}
       >
         <div
-          className="mb-4 flex items-center justify-center"
+          className="mb-4 flex items-center justify-center overflow-hidden"
           style={{
-            width: "240px",
-            height: "100px",
+            width: "104px",
+            height: "104px",
+            borderRadius: "24px",
+            backgroundColor: "rgba(255,255,255,0.16)",
+            border: "1px solid rgba(255,255,255,0.22)",
           }}
         >
-          <img
-            src="https://wfmxfnwbmzetzygoanjh.supabase.co/storage/v1/object/public/ALI%20Digital/ALI%20Agenda/ChatGPT%20Image%2015%20abr%202026,%2008_39_58.png"
-            alt="Logo FrescaMart"
-            className="h-full w-full object-contain"
-          />
+          {showLogo ? (
+            <img
+              src={currentMarket.logo}
+              alt={currentMarket.name}
+              className="h-full w-full object-cover"
+              onError={() => setLogoFailed(true)}
+            />
+          ) : (
+            <span style={{ fontSize: "44px" }}>🛒</span>
+          )}
         </div>
 
+        <h1
+          className="text-white"
+          style={{ fontSize: "24px", fontWeight: 800, lineHeight: 1.1 }}
+        >
+          {currentMarket.name}
+        </h1>
         <p
+          className="mt-2 max-w-xs text-center"
           style={{
             fontSize: "14px",
             color: "#c7d7ee",
+            lineHeight: 1.5,
           }}
         >
-          Supermercado Digital
+          {currentMarket.description}
         </p>
       </div>
 
@@ -63,8 +82,7 @@ export function WelcomeScreen() {
       <div
         style={{
           height: "30px",
-          background:
-            "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
+          background: `linear-gradient(160deg, ${currentMarket.secondaryColor} 0%, ${currentMarket.primaryColor} 100%)`,
           borderRadius: "0 0 30px 30px",
         }}
       />
@@ -88,8 +106,7 @@ export function WelcomeScreen() {
               color: "#5b6b80",
             }}
           >
-            Informe sua localização para vermos se entregamos na
-            sua área
+            Informe sua localização para verificar a entrega do {currentMarket.name}
           </p>
         </div>
 
@@ -201,13 +218,13 @@ export function WelcomeScreen() {
               color: "#1e3a5f",
             }}
           >
-            Entregamos em Floriano e cidades vizinhas. Entrega
-            em até 2h disponível em regiões selecionadas.
+            Entregamos em {currentMarket.neighborhood}. Estimativa de entrega: {currentMarket.deliveryEstimate}.
+            {currentMarket.minimumOrder > 0 && ` Pedido mínimo de R$ ${currentMarket.minimumOrder.toFixed(2)}.`}
           </p>
         </div>
 
         <button
-          onClick={() => navigate("/home")}
+          onClick={() => navigate(tenantPath())}
           className="pb-4 text-center underline"
           style={{
             fontSize: "13px",

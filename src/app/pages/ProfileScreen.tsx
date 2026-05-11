@@ -13,34 +13,38 @@ import {
   Bell,
   Shield,
 } from "lucide-react";
-import { useApp } from "../context/AppContext";
-import { BottomNav } from "../components/BottomNav";
+import { useApp } from '@/app/providers/AppProvider';
+import { BottomNav } from '@/shared/components/BottomNav';
 
 const menuItems = [
-  { icon: MapPin, label: "Meus endereços", path: "/addresses" },
-  { icon: Heart, label: "Favoritos", path: "/favorites" },
+  { icon: MapPin, label: "Meus endereços", path: "addresses" },
+  { icon: Heart, label: "Favoritos", path: "favorites" },
   {
     icon: CreditCard,
     label: "Métodos de pagamento",
-    path: "/payment",
+    path: "payment",
   },
-  { icon: ShoppingBag, label: "Meus pedidos", path: "/orders" },
-  { icon: Bell, label: "Notificações", path: "/notifications" },
+  { icon: ShoppingBag, label: "Meus pedidos", path: "orders" },
+  { icon: Bell, label: "Notificações", path: "notifications" },
   {
     icon: Shield,
     label: "Privacidade e segurança",
-    path: "/privacy",
+    path: "privacy",
   },
-  { icon: HelpCircle, label: "Suporte", path: "/support" },
+  { icon: HelpCircle, label: "Suporte", path: "support" },
 ];
 
 export function ProfileScreen() {
   const navigate = useNavigate();
-  const { logout, orders, favorites } = useApp();
+  const { logout, orders, favorites, tenantPath, currentUser, isLoggedIn } = useApp();
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate(tenantPath("login"));
+  };
+
+  const handleLogin = () => {
+    navigate(tenantPath("login"));
   };
 
   return (
@@ -78,22 +82,24 @@ export function ProfileScreen() {
               className="text-white"
               style={{ fontSize: "18px", fontWeight: 800 }}
             >
-              Maria Santos
+              {currentUser?.nome || (isLoggedIn ? "Cliente" : "Visitante")}
             </p>
 
             <div className="mt-0.5 flex items-center gap-1.5">
               <Mail size={12} color="#c7d7ee" />
               <p style={{ fontSize: "12px", color: "#c7d7ee" }}>
-                maria@email.com
+                {currentUser?.email || "Entre para acessar sua conta"}
               </p>
             </div>
 
-            <div className="mt-0.5 flex items-center gap-1.5">
-              <Phone size={12} color="#c7d7ee" />
-              <p style={{ fontSize: "12px", color: "#c7d7ee" }}>
-                (11) 99999-0000
-              </p>
-            </div>
+            {currentUser?.telefone && (
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <Phone size={12} color="#c7d7ee" />
+                <p style={{ fontSize: "12px", color: "#c7d7ee" }}>
+                  {currentUser.telefone}
+                </p>
+              </div>
+            )}
           </div>
 
           <button
@@ -149,7 +155,7 @@ export function ProfileScreen() {
             return (
               <button
                 key={item.label}
-                onClick={() => navigate(item.path)}
+                onClick={() => navigate(tenantPath(item.path))}
                 className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50"
                 style={{
                   borderBottom:
@@ -188,7 +194,7 @@ export function ProfileScreen() {
 
         {/* Logout */}
         <button
-          onClick={handleLogout}
+          onClick={isLoggedIn ? handleLogout : handleLogin}
           className="w-full rounded-2xl p-4 flex items-center gap-3 shadow-sm transition-all active:bg-slate-50"
           style={{
             backgroundColor: "#ffffff",
@@ -213,7 +219,7 @@ export function ProfileScreen() {
               fontWeight: 600,
             }}
           >
-            Sair da conta
+            {isLoggedIn ? "Sair da conta" : "Entrar na conta"}
           </span>
         </button>
 

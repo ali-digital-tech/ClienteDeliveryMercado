@@ -10,6 +10,7 @@ import {
   ShoppingBag,
   Home,
 } from "lucide-react";
+import { useApp } from '@/app/providers/AppProvider';
 
 const steps = [
   {
@@ -61,6 +62,7 @@ const steps = [
 
 export function OrderTrackingScreen() {
   const navigate = useNavigate();
+  const { tenantPath } = useApp();
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -419,7 +421,7 @@ export function OrderTrackingScreen() {
               Resumo do pedido
             </p>
             <button
-              onClick={() => navigate("/orders")}
+              onClick={() => navigate(tenantPath("orders"))}
               style={{
                 fontSize: "12px",
                 color: "#122a4c",

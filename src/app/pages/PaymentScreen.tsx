@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, CreditCard, Plus } from "lucide-react";
+import { useApp } from '@/app/providers/AppProvider';
 
 const methods = [
   {
@@ -28,6 +29,7 @@ const methods = [
 
 export function PaymentScreen() {
   const navigate = useNavigate();
+  const { tenantPath } = useApp();
   const [selected, setSelected] = useState("pix");
 
   return (
@@ -209,7 +211,7 @@ export function PaymentScreen() {
 
         {/* Add new card */}
         <button
-          onClick={() => navigate("/add-card")}
+          onClick={() => navigate(tenantPath("add-card"))}
           className="w-full bg-white rounded-2xl p-4 border-2 border-dashed flex items-center justify-center gap-2 shadow-sm"
           style={{ borderColor: "#cbd5e1" }}
         >
@@ -233,7 +235,7 @@ export function PaymentScreen() {
         style={{ borderColor: "#d9e4f2" }}
       >
         <button
-          onClick={() => navigate("/checkout")}
+          onClick={() => navigate(tenantPath("checkout"))}
           className="w-full rounded-2xl py-4 text-white transition-all active:scale-[0.98]"
           style={{
             backgroundColor: "#122a4c",

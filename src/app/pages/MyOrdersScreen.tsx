@@ -4,8 +4,9 @@ import {
   ChevronRight,
   RefreshCw,
 } from "lucide-react";
-import { useApp } from "../context/AppContext";
-import { BottomNav } from "../components/BottomNav";
+import { useApp } from '@/app/providers/AppProvider';
+import { BottomNav } from '@/shared/components/BottomNav';
+import { ProductImage } from '@/features/products';
 
 const statusConfig: Record<
   string,
@@ -40,13 +41,13 @@ const statusConfig: Record<
 
 export function MyOrdersScreen() {
   const navigate = useNavigate();
-  const { orders, addToCart, cartCount } = useApp();
+  const { orders, addToCart, cartCount, tenantPath } = useApp();
 
   const handleRepeat = (order: (typeof orders)[0]) => {
     order.items.forEach(({ product, qty }) => {
       for (let i = 0; i < qty; i++) addToCart(product);
     });
-    navigate("/cart");
+    navigate(tenantPath("carrinho"));
   };
 
   return (
@@ -75,7 +76,7 @@ export function MyOrdersScreen() {
           <button
             className="relative rounded-full p-2"
             style={{ backgroundColor: "#eef4fb" }}
-            onClick={() => navigate("/cart")}
+            onClick={() => navigate(tenantPath("carrinho"))}
           >
             <ShoppingCart size={20} color="#122a4c" />
             {cartCount > 0 && (
@@ -113,7 +114,7 @@ export function MyOrdersScreen() {
               Nenhum pedido ainda
             </p>
             <button
-              onClick={() => navigate("/home")}
+              onClick={() => navigate(tenantPath())}
               className="rounded-2xl px-6 py-3 text-white"
               style={{
                 backgroundColor: "#122a4c",
@@ -195,7 +196,7 @@ export function MyOrdersScreen() {
                       {order.items
                         .slice(0, 3)
                         .map(({ product }) => (
-                          <img
+                          <ProductImage
                             key={product.id}
                             src={product.image}
                             alt={product.name}
@@ -205,6 +206,7 @@ export function MyOrdersScreen() {
                               height: "44px",
                               borderColor: "#e2e8f0",
                             }}
+                            iconSize={18}
                           />
                         ))}
 
@@ -287,7 +289,7 @@ export function MyOrdersScreen() {
                       <button
                         onClick={() =>
                           isActive
-                            ? navigate("/order-tracking")
+                            ? navigate(tenantPath("order-tracking"))
                             : undefined
                         }
                         className="flex items-center gap-1 rounded-xl px-3 py-2"

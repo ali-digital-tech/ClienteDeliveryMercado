@@ -1,7 +1,9 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { Eye, EyeOff, Mail, Lock, Phone } from "lucide-react";
-import { useApp } from "../context/AppContext";
+import { useApp } from '@/app/providers/AppProvider';
+import { authService } from '@/features/auth';
 
 export function LoginScreen() {
   const navigate = useNavigate();
@@ -12,10 +14,42 @@ export function LoginScreen() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
-    login();
-    navigate(-1);
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError("");
+
+    if (!email.trim() || !password) {
+      setError("Preencha e-mail e senha.");
+      return;
+    }
+
+    if (mode === "signup" && !name.trim()) {
+      setError("Informe seu nome completo.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (mode === "signup") {
+        await authService.registerCustomer({
+          nome: name.trim(),
+          email: email.trim(),
+          telefone: phone.trim() || undefined,
+          senha: password,
+        });
+      }
+
+      await login({ email: email.trim(), password });
+      navigate(-1);
+    } catch (error: any) {
+      setError(error?.message || "Não foi possível autenticar. Verifique seus dados.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -92,7 +126,7 @@ export function LoginScreen() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-6 pb-6">
-        <div className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {mode === "signup" && (
             <div
               className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm"
@@ -167,7 +201,7 @@ export function LoginScreen() {
                 color: "#334155",
               }}
             />
-            <button onClick={() => setShowPass(!showPass)}>
+            <button type="button" onClick={() => setShowPass(!showPass)}>
               {showPass ? (
                 <EyeOff size={18} color="#64748b" />
               ) : (
@@ -178,6 +212,7 @@ export function LoginScreen() {
 
           {mode === "login" && (
             <button
+              type="button"
               className="text-right"
               style={{
                 fontSize: "13px",
@@ -189,49 +224,39 @@ export function LoginScreen() {
             </button>
           )}
 
+          {error && (
+            <div
+              className="rounded-2xl px-4 py-3"
+              style={{
+                backgroundColor: "#fef2f2",
+                border: "1px solid #fecaca",
+                color: "#b91c1c",
+                fontSize: "13px",
+                fontWeight: 600,
+              }}
+            >
+              {error}
+            </div>
+          )}
+
           <button
-            onClick={handleSubmit}
+            type="submit"
+            disabled={loading}
             className="rounded-2xl py-4 text-white transition-all active:scale-[0.98]"
             style={{
               backgroundColor: "#122a4c",
               fontSize: "15px",
               fontWeight: 700,
+              opacity: loading ? 0.75 : 1,
             }}
           >
-            {mode === "login"
-              ? "Entrar na conta"
-              : "Criar minha conta"}
+            {loading
+              ? "Aguarde..."
+              : mode === "login"
+                ? "Entrar na conta"
+                : "Criar minha conta"}
           </button>
-
-          <div className="my-1 flex items-center gap-3">
-            <div className="h-px flex-1 bg-gray-200" />
-            <span
-              style={{
-                fontSize: "12px",
-                color: "#94a3b8",
-              }}
-            >
-              ou entre com
-            </span>
-            <div className="h-px flex-1 bg-gray-200" />
-          </div>
-
-          <button
-            className="flex items-center justify-center gap-3 rounded-2xl bg-white py-3.5 shadow-sm transition-all active:scale-[0.98]"
-            style={{ border: "1px solid #d9e4f2" }}
-          >
-            <span style={{ fontSize: "20px" }}>📱</span>
-            <span
-              style={{
-                fontSize: "14px",
-                color: "#334155",
-                fontWeight: 600,
-              }}
-            >
-              Continuar com Google
-            </span>
-          </button>
-        </div>
+        </form>
       </div>
     </div>
   );

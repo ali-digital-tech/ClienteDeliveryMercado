@@ -7,11 +7,11 @@ import {
   Clock,
   Truck,
 } from "lucide-react";
-import { useApp } from "../context/AppContext";
+import { useApp } from '@/app/providers/AppProvider';
 
 export function DeliveryScreen() {
   const navigate = useNavigate();
-  const { cartTotal, discount } = useApp();
+  const { cartTotal, discount, currentMarket, tenantPath } = useApp();
   const [mode, setMode] = useState<"delivery" | "pickup">(
     "delivery",
   );
@@ -34,15 +34,15 @@ export function DeliveryScreen() {
   const pickupStores = [
     {
       id: "1",
-      name: "FrescaMart - Paulista",
-      address: "Av. Paulista, 1578",
+      name: currentMarket.name,
+      address: currentMarket.neighborhood,
       time: "30 min",
       isOpen: true,
     },
     {
       id: "2",
-      name: "FrescaMart - Pinheiros",
-      address: "R. dos Pinheiros, 450",
+      name: `${currentMarket.name} - Retirada`,
+      address: currentMarket.neighborhood,
       time: "25 min",
       isOpen: true,
     },
@@ -140,7 +140,7 @@ export function DeliveryScreen() {
                   Endereço de entrega
                 </span>
                 <button
-                  onClick={() => navigate("/addresses")}
+                  onClick={() => navigate(tenantPath("addresses"))}
                   style={{
                     fontSize: "12px",
                     color: "#122a4c",
@@ -258,7 +258,7 @@ export function DeliveryScreen() {
                       style={{
                         fontSize: "13px",
                         color:
-                          mode === "pickup" || deliveryFee === 0
+                          deliveryFee === 0
                             ? "#122a4c"
                             : "#334155",
                         fontWeight: 600,
@@ -442,7 +442,7 @@ export function DeliveryScreen() {
         style={{ borderTop: "1px solid #d9e4f2" }}
       >
         <button
-          onClick={() => navigate("/checkout")}
+          onClick={() => navigate(tenantPath("checkout"))}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           style={{ backgroundColor: "#122a4c" }}
         >
