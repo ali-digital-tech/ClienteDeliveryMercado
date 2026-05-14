@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router';
 import { ChevronLeft, Heart, Share2, ShoppingCart, Plus, Minus, ShieldCheck, Truck } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
+import { formatCartQuantity } from '@/features/cart';
 import { ProductCard, ProductImage, useProducts } from '@/features/products';
 
 export function ProductDetailsPage() {
@@ -29,10 +30,21 @@ export function ProductDetailsPage() {
   const related = products.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
 
   const handleAdd = () => {
-    if (qty === 0) addToCart(product);
-    else updateQty(product.id, qty + 1);
+    if (qty === 0) {
+      void addToCart(product).catch(error => {
+        console.error('Erro ao adicionar produto ao carrinho:', error);
+      });
+    } else {
+      void addToCart(product).catch(error => {
+        console.error('Erro ao adicionar produto ao carrinho:', error);
+      });
+    }
   };
-  const handleRemove = () => updateQty(product.id, qty - 1);
+  const handleRemove = () => {
+    void updateQty(product.id, qty - 1).catch(error => {
+      console.error('Erro ao atualizar quantidade do produto:', error);
+    });
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -105,7 +117,7 @@ export function ProductDetailsPage() {
                 <Minus size={18} color={qty === 0 ? '#d1d5db' : '#374151'} />
               </button>
               <span style={{ fontSize: '18px', fontWeight: 700, color: '#1f2937', minWidth: '24px', textAlign: 'center' }}>
-                {qty}
+                {formatCartQuantity(qty)}
               </span>
               <button
                 onClick={handleAdd}
@@ -120,7 +132,7 @@ export function ProductDetailsPage() {
               className="flex-1 rounded-2xl py-3 text-white transition-all active:scale-[0.98]"
               style={{ backgroundColor: '#16a34a', fontSize: '15px', fontWeight: 700 }}
             >
-              {qty === 0 ? 'Adicionar ao carrinho' : `Ver carrinho (${qty})`}
+              {qty === 0 ? 'Adicionar ao carrinho' : `Ver carrinho (${formatCartQuantity(qty)})`}
             </button>
           </div>
 

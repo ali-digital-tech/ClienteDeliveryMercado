@@ -1,3 +1,4 @@
+import { getOrCreateActiveCart } from '@/features/cart';
 import { apiRequest, getAuthToken, unwrapList } from '@/shared/lib/api';
 import type { Order } from '../types/order';
 
@@ -17,6 +18,15 @@ interface ApiOrder {
     cidade?: string | null;
     estado?: string | null;
   } | null;
+}
+
+export interface CreateCheckoutOrderInput {
+  marketId: string;
+  addressId: string;
+  type: 'delivery' | 'pickup';
+  deliveryFee: number;
+  discount?: number;
+  notes?: string;
 }
 
 function toNumber(value: string | number | null | undefined, fallback = 0) {
@@ -72,4 +82,24 @@ export async function getOrdersByMarketId(marketId: string): Promise<Order[]> {
   return unwrapList<ApiOrder>(response)
     .filter(order => !marketId || order.loja_id === marketId)
     .map(mapOrder);
+}
+
+export async function createCheckoutOrder(input: CreateCheckoutOrderInput) {
+  const cart = await getOrCreateActiveCart(input.marketId);
+
+  const response = await apiRequest<{ data: ApiOrder }>('/pedidos', {
+    method: 'POST',
+    body: {
+      loja_id: input.marketId,
+      endereco_cliente_id: input.addressId,
+      carrinho_id: cart.id,
+      tipo_pedido: input.type === 'pickup' ? 'retirada' : 'entrega',
+      taxa_entrega: input.deliveryFee,
+      desconto: input.discount || 0,
+      origem_checkout: 'app',
+      observacoes: input.notes || null,
+    },
+  });
+
+  return response.data;
 }

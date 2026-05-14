@@ -5,22 +5,26 @@ import { useApp } from '@/app/providers/AppProvider';
 
 export function OrderConfirmedScreen() {
   const navigate = useNavigate();
-  const { placeOrder, cartTotal, discount, tenantPath } = useApp();
+  const { cartTotal, discount, tenantPath } = useApp();
   const [orderId, setOrderId] = useState("");
   const [show, setShow] = useState(false);
   const [savedTotal, setSavedTotal] = useState(0);
 
   useEffect(() => {
     const total = cartTotal - discount;
-    setSavedTotal(total > 0 ? total : 64.83);
-    const id = placeOrder(
-      "Rua das Flores, 123 — Jardim Paulista",
-      "delivery",
-    );
-    setOrderId(id);
+    let order: { id?: string; total?: number | string } | null = null;
+
+    try {
+      const stored = sessionStorage.getItem('cliente_delivery_last_order');
+      order = stored ? JSON.parse(stored) : null;
+    } catch {
+      order = null;
+    }
+
+    setSavedTotal(Number(order?.total || total || 0));
+    setOrderId(order?.id || "");
     setTimeout(() => setShow(true), 100);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [cartTotal, discount]);
 
   return (
     <div
@@ -81,7 +85,7 @@ export function OrderConfirmedScreen() {
           >
             Seu pedido foi recebido e
             <br />
-            está sendo processado 🎉
+            está sendo processado
           </p>
         </div>
 

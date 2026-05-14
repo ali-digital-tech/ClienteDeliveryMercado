@@ -5,8 +5,13 @@ interface ApiStore {
   id: string;
   nome?: string;
   descricao?: string | null;
+  endereco?: string | null;
+  rua?: string | null;
+  logradouro?: string | null;
+  numero?: string | number | null;
   bairro?: string | null;
   cidade?: string | null;
+  estado?: string | null;
   status?: string | null;
   logo_url?: string | null;
   valor_minimo_pedido?: string | number | null;
@@ -23,11 +28,19 @@ function toNumber(value: string | number | null | undefined, fallback = 0) {
 }
 
 function mapStoreToMarket(store: ApiStore): Market {
+  const street = store.endereco || store.rua || store.logradouro;
+  const address = [
+    [street, store.numero].filter(Boolean).join(', '),
+    store.bairro,
+    [store.cidade, store.estado].filter(Boolean).join(' - '),
+  ].filter(Boolean).join(' · ');
+
   return {
     id: store.id,
     name: store.nome || 'Mercado',
     description: store.descricao || 'Mercado com entrega de produtos selecionados.',
     neighborhood: store.bairro || store.cidade || 'Sua região',
+    address: address || store.bairro || store.cidade || 'Endereco da loja nao informado',
     deliveryEstimate: '35-50 min',
     minimumOrder: toNumber(store.valor_minimo_pedido),
     deliveryFee: toNumber(store.taxa_entrega_padrao),

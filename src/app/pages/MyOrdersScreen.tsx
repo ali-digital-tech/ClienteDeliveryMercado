@@ -43,10 +43,13 @@ export function MyOrdersScreen() {
   const navigate = useNavigate();
   const { orders, addToCart, cartCount, tenantPath } = useApp();
 
-  const handleRepeat = (order: (typeof orders)[0]) => {
-    order.items.forEach(({ product, qty }) => {
-      for (let i = 0; i < qty; i++) addToCart(product);
-    });
+  const handleRepeat = async (order: (typeof orders)[0]) => {
+    for (const { product, qty } of order.items) {
+      for (let i = 0; i < qty; i++) {
+        await addToCart(product);
+      }
+    }
+
     navigate(tenantPath("carrinho"));
   };
 

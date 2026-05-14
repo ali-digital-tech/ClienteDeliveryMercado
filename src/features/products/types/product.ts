@@ -1,5 +1,6 @@
 export interface Product {
   id: string;
+  catalogProductId: string;
   marketId: string;
   name: string;
   brand: string;

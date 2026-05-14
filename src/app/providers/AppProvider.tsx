@@ -1,7 +1,16 @@
-import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { authService, type AuthUser, type LoginCredentials } from '@/features/auth';
-import { useCartStore, type CartItem } from '@/features/cart';
+import {
+  addProductToRemoteCart,
+  getRemoteCartItems,
+  removeRemoteCartItem,
+  updateRemoteCartItemQuantity,
+  useCartStore,
+  type AppliedCoupon,
+  type CartItem,
+} from '@/features/cart';
 import { useCategories, type Category } from '@/features/categories';
 import { useMarkets, type Market } from '@/features/markets';
 import { useOrdersStore, type Order } from '@/features/orders';
@@ -23,13 +32,13 @@ interface AppState {
   coupon: string;
   discount: number;
   currentScreen: string;
-  addToCart: (product: Product) => void;
-  removeFromCart: (productId: string) => void;
-  updateQty: (productId: string, qty: number) => void;
+  addToCart: (product: Product) => Promise<void>;
+  removeFromCart: (productId: string) => Promise<void>;
+  updateQty: (productId: string, qty: number) => Promise<void>;
   clearCart: () => void;
   toggleFavorite: (productId: string) => void;
   isFavorite: (productId: string) => boolean;
-  applyCoupon: (code: string) => boolean;
+  applyCoupon: (code: string) => Promise<AppliedCoupon>;
   placeOrder: (address: string, type: 'delivery' | 'pickup') => string;
   cartCount: number;
   cartTotal: number;
@@ -64,6 +73,8 @@ function saveFavoritesToStorage(favoritesByMarket: Record<string, string[]>) {
 }
 
 export function AppProvider({ children, marketId }: { children: React.ReactNode; marketId: string }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { currentMarket, isLoading } = useMarketContext();
   const { markets } = useMarkets();
   const { products: allProducts } = useProducts(marketId);
@@ -77,9 +88,10 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     discount,
     cartCount,
     cartTotal,
-    addToCart,
-    removeFromCart,
-    updateQty,
+    addToCart: addToLocalCart,
+    setCart,
+    removeFromCart: removeFromLocalCart,
+    updateQty: updateLocalQty,
     clearCart,
     applyCoupon,
   } = useCartStore(marketId);
@@ -88,6 +100,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getStoredUser());
 
   const favorites = favoritesByMarket[marketId] || [];
+  const storeId = currentMarket?.id || marketId;
 
   const toggleFavorite = useCallback((productId: string) => {
     setFavoritesByMarket(prevByMarket => {
@@ -109,17 +122,36 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   }, [favorites]);
 
   const placeOrder = useCallback((address: string, type: 'delivery' | 'pickup') => {
-    const orderId = createOrder(cart, cartTotal - discount, address, type);
+    const orderId = createOrder(cart, Math.max(cartTotal - discount, 0), address, type);
     clearCart();
     return orderId;
   }, [cart, cartTotal, clearCart, createOrder, discount]);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
-    const session = await authService.login(credentials);
+    const session = await authService.login({ ...credentials, loja_id: credentials.loja_id || storeId });
     const user = authService.persistSession(session);
     setCurrentUser(user);
     return user;
-  }, []);
+  }, [storeId]);
+
+  useEffect(() => {
+    const storedUser = currentUser || authService.getStoredUser();
+    if (!storedUser || products.length === 0) return;
+
+    let isActive = true;
+
+    getRemoteCartItems(storeId, products)
+      .then((items) => {
+        if (isActive) setCart(items);
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar carrinho remoto', error);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentUser, products, setCart, storeId]);
 
   const logout = useCallback(() => {
     authService.clearSession();
@@ -131,6 +163,50 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     const normalizedPath = path.replace(/^\/+/, '');
     return normalizedPath ? `/mercado/${marketId}/${normalizedPath}` : `/mercado/${marketId}`;
   }, [marketId]);
+
+  const addToCart = useCallback(async (product: Product) => {
+    if (product.marketId !== marketId) return;
+
+    const storedUser = authService.getStoredUser();
+    if (!currentUser && !storedUser) {
+      navigate(tenantPath('login'), {
+        state: {
+          redirectTo: `${location.pathname}${location.search}${location.hash}`,
+          pendingCartProductId: product.id,
+        },
+      });
+      return;
+    }
+
+    const remoteItem = await addProductToRemoteCart(storeId, product);
+    addToLocalCart(product, remoteItem.id, remoteItem.quantidade);
+  }, [addToLocalCart, currentUser, location.hash, location.pathname, location.search, marketId, navigate, storeId, tenantPath]);
+
+  const removeFromCart = useCallback(async (productId: string) => {
+    const item = cart.find(cartItem => cartItem.product.id === productId);
+
+    if (item?.remoteItemId) {
+      await removeRemoteCartItem(item.remoteItemId);
+    }
+
+    removeFromLocalCart(productId);
+  }, [cart, removeFromLocalCart]);
+
+  const updateQty = useCallback(async (productId: string, qty: number) => {
+    const item = cart.find(cartItem => cartItem.product.id === productId);
+
+    if (item?.remoteItemId) {
+      if (qty <= 0) {
+        await removeRemoteCartItem(item.remoteItemId);
+      } else {
+        const remoteItem = await updateRemoteCartItemQuantity(item.remoteItemId, qty);
+        updateLocalQty(productId, remoteItem.quantidade);
+        return;
+      }
+    }
+
+    updateLocalQty(productId, qty);
+  }, [cart, updateLocalQty]);
 
   if (isLoading) {
     return null;

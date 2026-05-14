@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   ChevronLeft,
@@ -8,14 +8,24 @@ import {
   Truck,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
+import {
+  formatAddressLine,
+  formatAddressLocation,
+  getAddressCoordinates,
+  getMyAddresses,
+  resolveSelectedAddress,
+  type CustomerAddress,
+} from '@/features/addresses';
 
 export function DeliveryScreen() {
   const navigate = useNavigate();
-  const { cartTotal, discount, currentMarket, tenantPath } = useApp();
+  const { cartTotal, discount, currentMarket, currentUser, marketId, tenantPath } = useApp();
   const [mode, setMode] = useState<"delivery" | "pickup">(
     "delivery",
   );
+  const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
 
+  const discountedSubtotal = Math.max(cartTotal - discount, 0);
   const deliveryFee = cartTotal >= 89 ? 0 : 6.99;
 
   const schedules = [
@@ -31,28 +41,27 @@ export function DeliveryScreen() {
   ];
   const [selectedSchedule, setSelectedSchedule] = useState("1");
 
-  const pickupStores = [
-    {
-      id: "1",
-      name: currentMarket.name,
-      address: currentMarket.neighborhood,
-      time: "30 min",
-      isOpen: true,
-    },
-    {
-      id: "2",
-      name: `${currentMarket.name} - Retirada`,
-      address: currentMarket.neighborhood,
-      time: "25 min",
-      isOpen: true,
-    },
-  ];
-  const [selectedStore, setSelectedStore] = useState("1");
+  const total = discountedSubtotal + (mode === "delivery" ? deliveryFee : 0);
+  const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
 
-  const total =
-    cartTotal -
-    discount +
-    (mode === "delivery" ? deliveryFee : 0);
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let isActive = true;
+
+    getMyAddresses()
+      .then((addresses) => {
+        if (!isActive) return;
+        setSelectedAddress(resolveSelectedAddress(marketId, addresses));
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar endereco de entrega:', error);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentUser, marketId]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -151,6 +160,7 @@ export function DeliveryScreen() {
                 </button>
               </div>
 
+              {selectedAddress ? (
               <div className="flex items-start gap-3">
                 <MapPin
                   size={18}
@@ -165,7 +175,7 @@ export function DeliveryScreen() {
                       color: "#122a4c",
                     }}
                   >
-                    Casa
+                    {selectedAddress.apelido || 'Endereço'}
                   </p>
                   <p
                     style={{
@@ -174,12 +184,26 @@ export function DeliveryScreen() {
                       lineHeight: 1.4,
                     }}
                   >
-                    Rua das Flores, 123
+                    {formatAddressLine(selectedAddress)}
                     <br />
-                    Jardim Paulista · São Paulo - SP
+                    {formatAddressLocation(selectedAddress)}
                   </p>
+                  {selectedCoordinates && (
+                    <p style={{ fontSize: "11px", color: "#16a34a", marginTop: "4px", fontWeight: 700 }}>
+                      GPS: {selectedCoordinates.latitude.toFixed(5)}, {selectedCoordinates.longitude.toFixed(5)}
+                    </p>
+                  )}
                 </div>
               </div>
+              ) : (
+                <button
+                  onClick={() => navigate(tenantPath("addresses"))}
+                  className="w-full rounded-2xl py-3 text-white"
+                  style={{ backgroundColor: "#122a4c", fontSize: "14px", fontWeight: 700 }}
+                >
+                  Cadastrar endereço
+                </button>
+              )}
             </div>
 
             {/* Schedule */}
@@ -274,95 +298,53 @@ export function DeliveryScreen() {
             </div>
           </>
         ) : (
-          <div className="flex flex-col gap-3 mb-4">
-            {pickupStores.map((store) => (
-              <button
-                key={store.id}
-                onClick={() => setSelectedStore(store.id)}
-                className="bg-white rounded-2xl p-4 shadow-sm text-left flex items-start gap-3 border-2 transition-all"
+          <div
+            className="bg-white rounded-2xl p-4 mb-4 shadow-sm flex items-start gap-3"
+            style={{ border: "1px solid #d9e4f2" }}
+          >
+            <div
+              className="rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{
+                width: "44px",
+                height: "44px",
+                backgroundColor: "#eef4fb",
+              }}
+            >
+              <Store size={22} color="#122a4c" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <p
                 style={{
-                  borderColor:
-                    selectedStore === store.id
-                      ? "#122a4c"
-                      : "#d9e4f2",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  color: "#122a4c",
                 }}
               >
-                <div
-                  className="rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{
-                    width: "44px",
-                    height: "44px",
-                    backgroundColor: "#eef4fb",
-                  }}
-                >
-                  <Store size={22} color="#122a4c" />
-                </div>
+                {currentMarket.name}
+              </p>
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#64748b",
+                  lineHeight: 1.4,
+                }}
+              >
+                {currentMarket.address}
+              </p>
 
-                <div className="flex-1">
-                  <p
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: 700,
-                      color: "#122a4c",
-                    }}
-                  >
-                    {store.name}
-                  </p>
-                  <p
-                    style={{
-                      fontSize: "12px",
-                      color: "#64748b",
-                    }}
-                  >
-                    {store.address}
-                  </p>
-
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span
-                      className="rounded-full px-2 py-0.5"
-                      style={{
-                        fontSize: "10px",
-                        fontWeight: 600,
-                        backgroundColor: "#eef4fb",
-                        color: "#1b3d6d",
-                      }}
-                    >
-                      Pronta em {store.time}
-                    </span>
-
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        color: "#122a4c",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Retirada grátis
-                    </span>
-                  </div>
-                </div>
-
-                {selectedStore === store.id && (
-                  <div
-                    className="rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{
-                      width: "22px",
-                      height: "22px",
-                      backgroundColor: "#122a4c",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "white",
-                        fontSize: "12px",
-                      }}
-                    >
-                      ✓
-                    </span>
-                  </div>
-                )}
-              </button>
-            ))}
+              <span
+                className="rounded-full px-2 py-0.5 mt-2 inline-block"
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  backgroundColor: "#eef4fb",
+                  color: "#1b3d6d",
+                }}
+              >
+                Retirada grátis
+              </span>
+            </div>
           </div>
         )}
 
@@ -384,7 +366,7 @@ export function DeliveryScreen() {
                 color: "#334155",
               }}
             >
-              R$ {cartTotal.toFixed(2)}
+              R$ {discountedSubtotal.toFixed(2)}
             </span>
           </div>
 

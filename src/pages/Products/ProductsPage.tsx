@@ -6,6 +6,7 @@ import {
   SlidersHorizontal,
   ChevronLeft,
   ShoppingCart,
+  PackageSearch,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
@@ -32,7 +33,7 @@ export function ProductsPage() {
   const [searchParams] = useSearchParams();
   const { marketId } = useMarketContext();
   const { cartCount, tenantPath } = useApp();
-  const { products } = useProducts(marketId);
+  const { products, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId);
   const { categories } = useCategories(marketId);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("Todos");
@@ -249,11 +250,40 @@ export function ProductsPage() {
               Populares agora
             </p>
 
-            <div className="flex flex-col gap-3">
-              {products.slice(0, 5).map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
+            {isLoadingProducts && products.length === 0 ? (
+              <div className="flex flex-col gap-3">
+                {[0, 1, 2, 3].map(item => (
+                  <div key={item} className="h-[92px] animate-pulse rounded-2xl bg-white" />
+                ))}
+              </div>
+            ) : productsError && products.length === 0 ? (
+              <div className="flex flex-col items-center gap-4 py-16">
+                <PackageSearch size={42} color="#94a3b8" />
+                <p className="text-center" style={{ fontSize: "15px", color: "#64748b", fontWeight: 600 }}>
+                  Não foi possível carregar os produtos
+                </p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="rounded-2xl px-5 py-2.5 text-white"
+                  style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 700 }}
+                >
+                  Recarregar
+                </button>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="flex flex-col items-center gap-4 py-16">
+                <PackageSearch size={42} color="#94a3b8" />
+                <p className="text-center" style={{ fontSize: "15px", color: "#64748b", fontWeight: 600 }}>
+                  Este mercado ainda não possui produtos disponíveis
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {products.slice(0, 5).map((p) => (
+                  <ProductCard key={p.id} product={p} />
+                ))}
+              </div>
+            )}
           </>
         ) : (
           <>

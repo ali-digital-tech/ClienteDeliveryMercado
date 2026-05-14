@@ -1,13 +1,14 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { Eye, EyeOff, Mail, Lock, Phone } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { authService } from '@/features/auth';
 
 export function LoginScreen() {
   const navigate = useNavigate();
-  const { login } = useApp();
+  const location = useLocation();
+  const { addToCart, currentMarket, login, marketId, products } = useApp();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [showPass, setShowPass] = useState(false);
   const [email, setEmail] = useState("");
@@ -34,17 +35,37 @@ export function LoginScreen() {
     setLoading(true);
 
     try {
+      const storeId = currentMarket.id || marketId;
+
       if (mode === "signup") {
         await authService.registerCustomer({
           nome: name.trim(),
           email: email.trim(),
           telefone: phone.trim() || undefined,
           senha: password,
+          loja_id: storeId,
         });
       }
 
-      await login({ email: email.trim(), password });
-      navigate(-1);
+      await login({ email: email.trim(), password, loja_id: storeId });
+
+      const navigationState = location.state as {
+        redirectTo?: string;
+        pendingCartProductId?: string;
+      } | null;
+      const pendingProduct = navigationState?.pendingCartProductId
+        ? products.find(product => product.id === navigationState.pendingCartProductId)
+        : null;
+
+      if (pendingProduct) {
+        await addToCart(pendingProduct);
+      }
+
+      if (navigationState?.redirectTo) {
+        navigate(navigationState.redirectTo, { replace: true });
+      } else {
+        navigate(-1);
+      }
     } catch (error: any) {
       setError(error?.message || "Não foi possível autenticar. Verifique seus dados.");
     } finally {

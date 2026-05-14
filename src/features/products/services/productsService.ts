@@ -33,6 +33,7 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
 
   return {
     id: product.id,
+    catalogProductId: product.produto_id || product.id,
     marketId: product.loja_id || '',
     name: product.nome || 'Produto',
     brand: product.marca || 'Mercado',

@@ -1,8 +1,9 @@
-import { Plus, Check, Heart } from 'lucide-react';
+import { Plus, Minus, Heart } from 'lucide-react';
 import type { Product } from '../types/product';
 import { useApp } from '@/app/providers/AppProvider';
 import { useNavigate } from 'react-router';
 import { ProductImage } from './ProductImage';
+import { formatCartQuantity } from '@/features/cart';
 
 interface ProductCardProps {
   product: Product;
@@ -10,13 +11,31 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, compact = false }: ProductCardProps) {
-  const { addToCart, cart, toggleFavorite, isFavorite, tenantPath } = useApp();
+  const { addToCart, updateQty, cart, toggleFavorite, isFavorite, tenantPath } = useApp();
   const navigate = useNavigate();
-  const inCart = cart.some(item => item.product.id === product.id);
+  const cartItem = cart.find(item => item.product.id === product.id);
+  const qty = cartItem?.qty || 0;
   const favorite = isFavorite(product.id);
   const discount = product.originalPrice
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : 0;
+  const handleIncrement = () => {
+    if (qty === 0) {
+      void addToCart(product).catch(error => {
+        console.error('Erro ao adicionar produto ao carrinho:', error);
+      });
+      return;
+    }
+
+    void updateQty(product.id, qty + 1).catch(error => {
+      console.error('Erro ao atualizar quantidade do produto:', error);
+    });
+  };
+  const handleDecrement = () => {
+    void updateQty(product.id, qty - 1).catch(error => {
+      console.error('Erro ao atualizar quantidade do produto:', error);
+    });
+  };
 
   if (compact) {
     return (
@@ -54,20 +73,43 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
                 R$ {product.price.toFixed(2)}
               </p>
             </div>
-            <button
-              onClick={e => { e.stopPropagation(); addToCart(product); }}
-              className="rounded-xl flex items-center justify-center transition-all active:scale-90"
-              style={{
-                backgroundColor: inCart ? '#dcfce7' : '#16a34a',
-                width: '30px',
-                height: '30px',
-              }}
-            >
-              {inCart
-                ? <Check size={14} color="#16a34a" strokeWidth={2.5} />
-                : <Plus size={14} color="white" strokeWidth={2.5} />
-              }
-            </button>
+            {qty > 0 ? (
+              <div
+                className="rounded-xl flex items-center justify-between bg-green-50 transition-all"
+                style={{ width: '82px', height: '30px' }}
+                onClick={e => e.stopPropagation()}
+              >
+                <button
+                  onClick={handleDecrement}
+                  className="flex items-center justify-center active:scale-90"
+                  style={{ width: '28px', height: '30px' }}
+                >
+                  <Minus size={13} color="#16a34a" strokeWidth={2.5} />
+                </button>
+                <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 700, minWidth: '18px', textAlign: 'center' }}>
+                  {formatCartQuantity(qty)}
+                </span>
+                <button
+                  onClick={handleIncrement}
+                  className="flex items-center justify-center active:scale-90"
+                  style={{ width: '28px', height: '30px' }}
+                >
+                  <Plus size={13} color="#16a34a" strokeWidth={2.5} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={e => { e.stopPropagation(); handleIncrement(); }}
+                className="rounded-xl flex items-center justify-center transition-all active:scale-90"
+                style={{
+                  backgroundColor: '#16a34a',
+                  width: '30px',
+                  height: '30px',
+                }}
+              >
+                <Plus size={14} color="white" strokeWidth={2.5} />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -104,16 +146,40 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
               R$ {product.price.toFixed(2)}
             </p>
           </div>
-          <button
-            onClick={e => { e.stopPropagation(); addToCart(product); }}
-            className="rounded-xl flex items-center gap-1 px-3 py-1.5 transition-all active:scale-90"
-            style={{ backgroundColor: inCart ? '#dcfce7' : '#16a34a' }}
-          >
-            {inCart
-              ? <><Check size={13} color="#16a34a" strokeWidth={2.5} /><span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>Adicionado</span></>
-              : <><Plus size={13} color="white" strokeWidth={2.5} /><span style={{ fontSize: '11px', color: 'white', fontWeight: 600 }}>Adicionar</span></>
-            }
-          </button>
+          {qty > 0 ? (
+            <div
+              className="rounded-xl flex items-center justify-between bg-green-50 transition-all"
+              style={{ width: '104px', height: '34px' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={handleDecrement}
+                className="flex items-center justify-center active:scale-90"
+                style={{ width: '34px', height: '34px' }}
+              >
+                <Minus size={14} color="#16a34a" strokeWidth={2.5} />
+              </button>
+              <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 700, minWidth: '24px', textAlign: 'center' }}>
+                {formatCartQuantity(qty)}
+              </span>
+              <button
+                onClick={handleIncrement}
+                className="flex items-center justify-center active:scale-90"
+                style={{ width: '34px', height: '34px' }}
+              >
+                <Plus size={14} color="#16a34a" strokeWidth={2.5} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={e => { e.stopPropagation(); handleIncrement(); }}
+              className="rounded-xl flex items-center gap-1 px-3 py-1.5 transition-all active:scale-90"
+              style={{ backgroundColor: '#16a34a' }}
+            >
+              <Plus size={13} color="white" strokeWidth={2.5} />
+              <span style={{ fontSize: '11px', color: 'white', fontWeight: 600 }}>Adicionar</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

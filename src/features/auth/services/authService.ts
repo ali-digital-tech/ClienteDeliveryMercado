@@ -3,23 +3,46 @@ import type { AuthUser, LoginCredentials, LoginResponse, RegisterCustomerPayload
 
 const AUTH_TOKEN_KEY = 'token';
 const AUTH_USER_KEY = 'user';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizeStoreId(storeId: string | undefined) {
+  if (!storeId || !UUID_REGEX.test(storeId)) return undefined;
+  return storeId;
+}
+
+function requireStoreId(storeId: string | undefined) {
+  const lojaId = normalizeStoreId(storeId);
+  if (!lojaId) {
+    throw new Error('Não foi possível identificar a loja atual. Recarregue a página do mercado e tente novamente.');
+  }
+
+  return lojaId;
+}
 
 export const authService = {
   async login(credentials: LoginCredentials) {
+    const lojaId = requireStoreId(credentials.loja_id);
+
     return apiRequest<LoginResponse>('/auth/login', {
       method: 'POST',
       body: {
         email: credentials.email,
         password: credentials.password,
         userType: 'cliente',
+        loja_id: lojaId,
       } as any,
     });
   },
 
   async registerCustomer(payload: RegisterCustomerPayload) {
+    const lojaId = requireStoreId(payload.loja_id);
+
     return apiRequest('/clientes', {
       method: 'POST',
-      body: payload as any,
+      body: {
+        ...payload,
+        loja_id: lojaId,
+      } as any,
     });
   },
 

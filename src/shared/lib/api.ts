@@ -52,8 +52,11 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const payload = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
-    const message = payload?.message || payload?.error || 'Erro ao buscar dados da API.';
-    throw new Error(message);
+    const message = payload?.message || payload?.error?.message || payload?.error || 'Erro ao buscar dados da API.';
+    const error = new Error(message) as Error & { status?: number; payload?: unknown };
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
   }
 
   return payload as T;

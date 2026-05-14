@@ -8,8 +8,12 @@ import { BottomNav } from '@/shared/components/BottomNav';
 export function CategoriesPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
-  const { cartCount, tenantPath } = useApp();
+  const { cartCount, products, tenantPath } = useApp();
   const { categories } = useCategories(marketId);
+  const productCountByCategory = products.reduce<Record<string, number>>((counts, product) => {
+    counts[product.category] = (counts[product.category] || 0) + 1;
+    return counts;
+  }, {});
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -39,24 +43,28 @@ export function CategoriesPage() {
       {/* Grid of categories */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6" style={{ background: '#f3f4f6' }}>
         <div className="grid grid-cols-2 gap-3">
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => navigate(`${tenantPath('produtos')}?categoria=${encodeURIComponent(cat.id)}`)}
-              className="flex items-center gap-4 rounded-2xl p-4 shadow-sm active:scale-[0.98] transition-transform bg-white"
-            >
-              <div className="rounded-2xl flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: cat.bgColor, width: '52px', height: '52px' }}>
-                <span style={{ fontSize: '26px' }}>{cat.emoji}</span>
-              </div>
-              <div className="text-left flex-1 min-w-0">
-                <p style={{ fontSize: '14px', fontWeight: 700, color: '#1f2937' }}>{cat.name}</p>
-                <p style={{ fontSize: '11px', color: cat.color, fontWeight: 500 }}>
-                  {Math.floor(8 + Math.random() * 30)} produtos
-                </p>
-              </div>
-            </button>
-          ))}
+          {categories.map(cat => {
+            const productCount = productCountByCategory[cat.id] || 0;
+
+            return (
+              <button
+                key={cat.id}
+                onClick={() => navigate(`${tenantPath('produtos')}?categoria=${encodeURIComponent(cat.id)}`)}
+                className="flex items-center gap-4 rounded-2xl p-4 shadow-sm active:scale-[0.98] transition-transform bg-white"
+              >
+                <div className="rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: cat.bgColor, width: '52px', height: '52px' }}>
+                  <span style={{ fontSize: '26px' }}>{cat.emoji}</span>
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p style={{ fontSize: '14px', fontWeight: 700, color: '#1f2937' }}>{cat.name}</p>
+                  <p style={{ fontSize: '11px', color: cat.color, fontWeight: 500 }}>
+                    {productCount} {productCount === 1 ? 'produto' : 'produtos'}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Promo strip */}

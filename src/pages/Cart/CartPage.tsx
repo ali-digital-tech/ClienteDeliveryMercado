@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ChevronLeft, Plus, Minus, Trash2, Tag, Truck, ShoppingBag } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
+import { formatCartQuantity } from '@/features/cart';
 import { ProductImage } from '@/features/products';
 
 export function CartPage() {
@@ -10,18 +11,27 @@ export function CartPage() {
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   const deliveryFee = cartTotal >= 89 ? 0 : 6.99;
-  const total = cartTotal - discount + deliveryFee;
+  const total = Math.max(cartTotal - discount + deliveryFee, 0);
+  const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
-  const handleCoupon = () => {
-    const ok = applyCoupon(couponInput);
-    if (ok) {
-      setCouponSuccess(`Cupom "${couponInput.toUpperCase()}" aplicado!`);
+  const handleCoupon = async () => {
+    setIsApplyingCoupon(true);
+    setCouponError('');
+    setCouponSuccess('');
+
+    try {
+      const appliedCoupon = await applyCoupon(couponInput);
+      setCouponSuccess(appliedCoupon.message || `Cupom "${appliedCoupon.code}" aplicado!`);
       setCouponError('');
-    } else {
-      setCouponError('Cupom inválido. Tente PROMO10.');
+      setCouponInput('');
+    } catch (error) {
+      setCouponError(error instanceof Error ? error.message : 'Nao foi possivel aplicar o cupom.');
       setCouponSuccess('');
+    } finally {
+      setIsApplyingCoupon(false);
     }
   };
 
@@ -36,7 +46,7 @@ export function CartPage() {
           <div>
             <h1 className="text-gray-800" style={{ fontSize: '18px', fontWeight: 800 }}>Meu Carrinho</h1>
             <p className="text-gray-400" style={{ fontSize: '12px' }}>
-              {cart.reduce((s, i) => s + i.qty, 0)} ite{cart.reduce((s, i) => s + i.qty, 0) !== 1 ? 'ns' : 'm'}
+              {formatCartQuantity(itemCount)} ite{itemCount !== 1 ? 'ns' : 'm'}
             </p>
           </div>
         </div>
@@ -97,22 +107,37 @@ export function CartPage() {
                     </p>
                   </div>
                   <div className="flex flex-col items-center gap-2">
-                    <button onClick={() => removeFromCart(item.product.id)} className="p-1">
+                    <button
+                      onClick={() => {
+                        void removeFromCart(item.product.id).catch(error => {
+                          console.error('Erro ao remover produto do carrinho:', error);
+                        });
+                      }}
+                      className="p-1"
+                    >
                       <Trash2 size={14} color="#ef4444" />
                     </button>
                     <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1">
                       <button
-                        onClick={() => updateQty(item.product.id, item.qty - 1)}
+                        onClick={() => {
+                          void updateQty(item.product.id, item.qty - 1).catch(error => {
+                            console.error('Erro ao atualizar quantidade do produto:', error);
+                          });
+                        }}
                         className="rounded-lg bg-white shadow-sm flex items-center justify-center"
                         style={{ width: '26px', height: '26px' }}
                       >
                         <Minus size={12} color="#374151" />
                       </button>
                       <span style={{ fontSize: '14px', fontWeight: 700, minWidth: '16px', textAlign: 'center' }}>
-                        {item.qty}
+                        {formatCartQuantity(item.qty)}
                       </span>
                       <button
-                        onClick={() => updateQty(item.product.id, item.qty + 1)}
+                        onClick={() => {
+                          void updateQty(item.product.id, item.qty + 1).catch(error => {
+                            console.error('Erro ao atualizar quantidade do produto:', error);
+                          });
+                        }}
                         className="rounded-lg flex items-center justify-center"
                         style={{ width: '26px', height: '26px', backgroundColor: '#16a34a' }}
                       >
@@ -133,7 +158,7 @@ export function CartPage() {
               {coupon ? (
                 <div className="bg-green-50 rounded-xl px-4 py-3 flex items-center gap-2">
                   <Tag size={14} color="#16a34a" />
-                  <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 600 }}>{couponSuccess || `Cupom "${coupon.toUpperCase()}" aplicado — R$ ${discount},00 de desconto`}</span>
+                  <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 600 }}>{couponSuccess || `Cupom "${coupon.toUpperCase()}" aplicado — R$ ${discount.toFixed(2)} de desconto`}</span>
                 </div>
               ) : (
                 <>
@@ -145,17 +170,22 @@ export function CartPage() {
                       onChange={e => setCouponInput(e.target.value.toUpperCase())}
                       className="flex-1 bg-gray-100 rounded-xl px-3 py-2.5 outline-none text-gray-700 placeholder-gray-400"
                       style={{ fontSize: '13px' }}
+                      disabled={isApplyingCoupon}
                     />
                     <button
                       onClick={handleCoupon}
+                      disabled={isApplyingCoupon || !couponInput.trim()}
                       className="rounded-xl px-4 py-2.5 text-white"
-                      style={{ backgroundColor: '#16a34a', fontSize: '13px', fontWeight: 700 }}
+                      style={{
+                        backgroundColor: isApplyingCoupon || !couponInput.trim() ? '#9ca3af' : '#16a34a',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                      }}
                     >
-                      Aplicar
+                      {isApplyingCoupon ? 'Validando...' : 'Aplicar'}
                     </button>
                   </div>
                   {couponError && <p className="text-red-500 mt-2" style={{ fontSize: '12px' }}>{couponError}</p>}
-                  <p className="text-gray-400 mt-2" style={{ fontSize: '11px' }}>Dica: use PROMO10 para R$10 de desconto</p>
                 </>
               )}
             </div>

@@ -6,6 +6,7 @@ import {
   Bell,
   ChevronRight,
   Zap,
+  PackageSearch,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
@@ -38,12 +39,13 @@ export function MarketPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
   const { cartCount, currentMarket, tenantPath } = useApp();
-  const { products } = useProducts(marketId);
+  const { products, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId);
   const { categories } = useCategories(marketId);
 
   const promoProducts = products.filter((p) => p.isPromo);
   const bestsellers = products.filter((p) => p.isBestseller);
   const featured = products.filter((p) => p.isFeatured);
+  const visibleFeatured = featured.length > 0 ? featured : products.slice(0, 6);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -270,6 +272,7 @@ export function MarketPage() {
         </div>
 
         {/* Ofertas do dia */}
+        {promoProducts.length > 0 && (
         <div className="pt-5">
           <div className="flex items-center justify-between px-4 mb-3">
             <div className="flex items-center gap-2">
@@ -310,8 +313,10 @@ export function MarketPage() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Mais Vendidos */}
+        {bestsellers.length > 0 && (
         <div className="pt-5 px-4">
           <div className="flex items-center justify-between mb-3">
             <h2
@@ -343,6 +348,7 @@ export function MarketPage() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Banner destacado */}
         <div className="px-4 pt-5">
@@ -424,11 +430,40 @@ export function MarketPage() {
             </h2>
           </div>
 
+          {isLoadingProducts && products.length === 0 ? (
+            <div className="flex flex-col gap-3">
+              {[0, 1, 2].map(item => (
+                <div key={item} className="h-[92px] animate-pulse rounded-2xl bg-white" />
+              ))}
+            </div>
+          ) : productsError && products.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-white px-6 py-10 text-center">
+              <PackageSearch size={34} color="#94a3b8" />
+              <p style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
+                Não foi possível carregar os produtos
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="rounded-2xl px-5 py-2.5 text-white"
+                style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 700 }}
+              >
+                Recarregar
+              </button>
+            </div>
+          ) : visibleFeatured.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-white px-6 py-10 text-center">
+              <PackageSearch size={34} color="#94a3b8" />
+              <p style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
+                Este mercado ainda não possui produtos disponíveis
+              </p>
+            </div>
+          ) : (
           <div className="flex flex-col gap-3">
-            {featured.map((p) => (
+            {visibleFeatured.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
           </div>
+          )}
         </div>
       </div>
 

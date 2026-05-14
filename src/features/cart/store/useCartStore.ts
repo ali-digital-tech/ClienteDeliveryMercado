@@ -1,6 +1,16 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Product } from '@/features/products';
+import { validateCoupon } from '../services/couponsService';
 import type { CartItem } from '../types/cart';
+
+function clearCouponState(
+  marketId: string,
+  setCouponByMarket: Dispatch<SetStateAction<Record<string, string>>>,
+  setDiscountByMarket: Dispatch<SetStateAction<Record<string, number>>>
+) {
+  setCouponByMarket(prev => ({ ...prev, [marketId]: '' }));
+  setDiscountByMarket(prev => ({ ...prev, [marketId]: 0 }));
+}
 
 export function useCartStore(marketId: string) {
   const [cartsByMarket, setCartsByMarket] = useState<Record<string, CartItem[]>>({});
@@ -13,7 +23,15 @@ export function useCartStore(marketId: string) {
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.qty, 0);
 
-  const addToCart = useCallback((product: Product) => {
+  const setCart = useCallback((items: CartItem[]) => {
+    setCartsByMarket(prevByMarket => ({
+      ...prevByMarket,
+      [marketId]: items,
+    }));
+    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket);
+  }, [marketId]);
+
+  const addToCart = useCallback((product: Product, remoteItemId?: string, quantity?: number) => {
     if (product.marketId !== marketId) return;
 
     setCartsByMarket(prevByMarket => {
@@ -24,13 +42,16 @@ export function useCartStore(marketId: string) {
         return {
           ...prevByMarket,
           [marketId]: currentCart.map(item =>
-            item.product.id === product.id ? { ...item, qty: item.qty + 1 } : item
+            item.product.id === product.id
+              ? { ...item, qty: quantity ?? item.qty + 1, remoteItemId: remoteItemId || item.remoteItemId }
+              : item
           ),
         };
       }
 
-      return { ...prevByMarket, [marketId]: [...currentCart, { product, qty: 1 }] };
+      return { ...prevByMarket, [marketId]: [...currentCart, { product, qty: quantity ?? 1, remoteItemId }] };
     });
+    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket);
   }, [marketId]);
 
   const removeFromCart = useCallback((productId: string) => {
@@ -38,6 +59,7 @@ export function useCartStore(marketId: string) {
       ...prevByMarket,
       [marketId]: (prevByMarket[marketId] || []).filter(item => item.product.id !== productId),
     }));
+    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket);
   }, [marketId]);
 
   const updateQty = useCallback((productId: string, qty: number) => {
@@ -51,6 +73,7 @@ export function useCartStore(marketId: string) {
           : currentCart.map(item => item.product.id === productId ? { ...item, qty } : item),
       };
     });
+    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket);
   }, [marketId]);
 
   const clearCart = useCallback(() => {
@@ -59,23 +82,14 @@ export function useCartStore(marketId: string) {
     setDiscountByMarket(prev => ({ ...prev, [marketId]: 0 }));
   }, [marketId]);
 
-  const applyCoupon = useCallback((code: string) => {
-    const normalizedCode = code.toUpperCase();
+  const applyCoupon = useCallback(async (code: string) => {
+    const appliedCoupon = await validateCoupon(marketId, code, cart, cartTotal);
 
-    if (normalizedCode === 'PROMO10') {
-      setCouponByMarket(prev => ({ ...prev, [marketId]: code }));
-      setDiscountByMarket(prev => ({ ...prev, [marketId]: 10 }));
-      return true;
-    }
+    setCouponByMarket(prev => ({ ...prev, [marketId]: appliedCoupon.code }));
+    setDiscountByMarket(prev => ({ ...prev, [marketId]: appliedCoupon.discount }));
 
-    if (normalizedCode === 'FRETE0') {
-      setCouponByMarket(prev => ({ ...prev, [marketId]: code }));
-      setDiscountByMarket(prev => ({ ...prev, [marketId]: 0 }));
-      return true;
-    }
-
-    return false;
-  }, [marketId]);
+    return appliedCoupon;
+  }, [cart, cartTotal, marketId]);
 
   return {
     cart,
@@ -84,6 +98,7 @@ export function useCartStore(marketId: string) {
     cartCount,
     cartTotal,
     addToCart,
+    setCart,
     removeFromCart,
     updateQty,
     clearCart,

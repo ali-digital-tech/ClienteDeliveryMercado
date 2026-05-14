@@ -3,6 +3,7 @@ export interface Market {
   name: string;
   description: string;
   neighborhood: string;
+  address: string;
   deliveryEstimate: string;
   minimumOrder: number;
   deliveryFee: number;
