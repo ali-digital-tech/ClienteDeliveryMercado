@@ -96,11 +96,11 @@ export function ProductDetailsPage() {
           {/* Price */}
           <div className="flex items-end gap-3 mb-4">
             <p style={{ fontSize: '28px', fontWeight: 800, color: '#16a34a' }}>
-              R$ {product.price.toFixed(2)}
+              R$ {product.price.toFixed(2).replace('.', ',')}
             </p>
             {product.originalPrice && (
               <p className="text-gray-400 line-through mb-1" style={{ fontSize: '16px' }}>
-                R$ {product.originalPrice.toFixed(2)}
+                R$ {product.originalPrice.toFixed(2).replace('.', ',')}
               </p>
             )}
           </div>

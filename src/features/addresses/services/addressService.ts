@@ -91,3 +91,31 @@ export async function lookupCep(cep: string) {
     estado: (payload.uf || '') as string,
   };
 }
+
+export async function reverseGeocode(lat: number, lon: number) {
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+    if (!response.ok) return null;
+    const payload = await response.json();
+    if (!payload?.address) return null;
+
+    const address = payload.address;
+    
+    // Attempt to extract UF from ISO3166-2-lvl4 (e.g. "BR-SP" -> "SP")
+    let uf = '';
+    if (address['ISO3166-2-lvl4']) {
+      uf = address['ISO3166-2-lvl4'].split('-')[1] || '';
+    }
+
+    return {
+      cep: (address.postcode || '').replace(/\D/g, ''),
+      rua: (address.road || address.pedestrian || ''),
+      bairro: (address.suburb || address.neighbourhood || ''),
+      cidade: (address.city || address.town || address.village || address.municipality || ''),
+      estado: uf || address.state || '',
+    };
+  } catch (error) {
+    console.error('Reverse geocode error:', error);
+    return null;
+  }
+}

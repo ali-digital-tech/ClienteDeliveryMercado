@@ -22,6 +22,7 @@ import {
   getAddressCoordinates,
   getMyAddresses,
   lookupCep,
+  reverseGeocode,
   resolveSelectedAddress,
   setAddressAsPrimary,
   setSelectedAddressId,
@@ -67,7 +68,7 @@ function coordinateFromInput(value: string) {
 
 export function AddressesScreen() {
   const navigate = useNavigate();
-  const { currentUser, marketId, tenantPath } = useApp();
+  const { currentUser, currentMarket, marketId, tenantPath } = useApp();
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -180,12 +181,31 @@ export function AddressesScreen() {
     setError('');
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setForm(prev => ({
-          ...prev,
-          latitude: String(Number(position.coords.latitude.toFixed(7))),
-          longitude: String(Number(position.coords.longitude.toFixed(7))),
-        }));
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+
+        try {
+          const address = await reverseGeocode(lat, lon);
+          setForm(prev => ({
+            ...prev,
+            latitude: String(Number(lat.toFixed(7))),
+            longitude: String(Number(lon.toFixed(7))),
+            ...(address && {
+              cep: address.cep || prev.cep,
+              rua: address.rua || prev.rua,
+              bairro: address.bairro || prev.bairro,
+              cidade: address.cidade || prev.cidade,
+              estado: address.estado || prev.estado,
+            }),
+          }));
+        } catch (e) {
+          setForm(prev => ({
+            ...prev,
+            latitude: String(Number(lat.toFixed(7))),
+            longitude: String(Number(lon.toFixed(7))),
+          }));
+        }
         setIsLocating(false);
       },
       () => {
@@ -412,6 +432,21 @@ export function AddressesScreen() {
             </div>
 
             <div className="flex flex-col gap-3">
+              <button
+                onClick={handleUseCurrentLocation}
+                disabled={isLocating}
+                className="rounded-xl px-4 py-3.5 flex items-center justify-center gap-2 w-full text-white shadow-sm transition-transform active:scale-[0.98]"
+                style={{ backgroundColor: currentMarket?.primaryColor || '#2563eb', fontSize: '14px', fontWeight: 700 }}
+              >
+                {isLocating ? <Loader2 size={18} className="animate-spin" /> : <Crosshair size={18} />}
+                Usar localização exata para preencher
+              </button>
+
+              <div className="flex items-center gap-3 my-1">
+                <div className="h-px flex-1 bg-gray-200" />
+                <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 600 }}>ou preencha manualmente</span>
+                <div className="h-px flex-1 bg-gray-200" />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <input value={form.apelido} onChange={e => updateForm('apelido', e.target.value)} placeholder="Apelido" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
                 <input value={form.nome_destinatario} onChange={e => updateForm('nome_destinatario', e.target.value)} placeholder="Nome do destinatário" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
@@ -436,19 +471,7 @@ export function AddressesScreen() {
 
               <input value={form.ponto_referencia} onChange={e => updateForm('ponto_referencia', e.target.value)} placeholder="Ponto de referência" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
 
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
-                <input value={form.latitude} onChange={e => updateForm('latitude', e.target.value)} placeholder="Latitude" inputMode="decimal" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
-                <input value={form.longitude} onChange={e => updateForm('longitude', e.target.value)} placeholder="Longitude" inputMode="decimal" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
-                <button
-                  onClick={handleUseCurrentLocation}
-                  disabled={isLocating}
-                  className="rounded-xl px-4 py-3 flex items-center justify-center gap-2"
-                  style={{ backgroundColor: '#eef4fb', color: '#122a4c', fontSize: '13px', fontWeight: 700 }}
-                >
-                  {isLocating ? <Loader2 size={15} className="animate-spin" /> : <Crosshair size={15} />}
-                  GPS
-                </button>
-              </div>
+
 
               {formHasCoordinates && (
                 <div className="overflow-hidden rounded-2xl border border-gray-200">

@@ -77,7 +77,7 @@ export function CartPage() {
               <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 flex items-center gap-2 mb-3">
                 <Truck size={16} color="#f97316" />
                 <p style={{ fontSize: '12px', color: '#ea580c', lineHeight: 1.4 }}>
-                  Adicione mais <b>R$ {(89 - cartTotal).toFixed(2)}</b> para ganhar frete grátis!
+                  Adicione mais <b>R$ {(89 - cartTotal).toFixed(2).replace('.', ',')}</b> para ganhar frete grátis!
                 </p>
               </div>
             )}
@@ -103,7 +103,7 @@ export function CartPage() {
                     <p className="text-gray-400 truncate" style={{ fontSize: '10px' }}>{item.product.brand}</p>
                     <p className="text-gray-800 truncate" style={{ fontSize: '13px', fontWeight: 600 }}>{item.product.name}</p>
                     <p style={{ fontSize: '14px', fontWeight: 700, color: '#16a34a' }}>
-                      R$ {(item.product.price * item.qty).toFixed(2)}
+                      R$ {(item.product.price * item.qty).toFixed(2).replace('.', ',')}
                     </p>
                   </div>
                   <div className="flex flex-col items-center gap-2">
@@ -158,7 +158,7 @@ export function CartPage() {
               {coupon ? (
                 <div className="bg-green-50 rounded-xl px-4 py-3 flex items-center gap-2">
                   <Tag size={14} color="#16a34a" />
-                  <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 600 }}>{couponSuccess || `Cupom "${coupon.toUpperCase()}" aplicado — R$ ${discount.toFixed(2)} de desconto`}</span>
+                  <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 600 }}>{couponSuccess || `Cupom "${coupon.toUpperCase()}" aplicado — R$ ${discount.toFixed(2).replace('.', ',')} de desconto`}</span>
                 </div>
               ) : (
                 <>
@@ -196,23 +196,23 @@ export function CartPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between">
                   <span className="text-gray-500" style={{ fontSize: '13px' }}>Subtotal</span>
-                  <span className="text-gray-800" style={{ fontSize: '13px', fontWeight: 600 }}>R$ {cartTotal.toFixed(2)}</span>
+                  <span className="text-gray-800" style={{ fontSize: '13px', fontWeight: 600 }}>R$ {cartTotal.toFixed(2).replace('.', ',')}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between">
                     <span className="text-green-600" style={{ fontSize: '13px' }}>Desconto cupom</span>
-                    <span className="text-green-600" style={{ fontSize: '13px', fontWeight: 600 }}>-R$ {discount.toFixed(2)}</span>
+                    <span className="text-green-600" style={{ fontSize: '13px', fontWeight: 600 }}>-R$ {discount.toFixed(2).replace('.', ',')}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span className="text-gray-500" style={{ fontSize: '13px' }}>Taxa de entrega</span>
                   <span style={{ fontSize: '13px', fontWeight: 600, color: deliveryFee === 0 ? '#16a34a' : '#374151' }}>
-                    {deliveryFee === 0 ? 'Grátis' : `R$ ${deliveryFee.toFixed(2)}`}
+                    {deliveryFee === 0 ? 'Grátis' : `R$ ${deliveryFee.toFixed(2).replace('.', ',')}`}
                   </span>
                 </div>
                 <div className="border-t border-gray-100 pt-2 flex justify-between">
                   <span className="text-gray-800" style={{ fontSize: '15px', fontWeight: 700 }}>Total</span>
-                  <span style={{ fontSize: '17px', fontWeight: 800, color: '#16a34a' }}>R$ {total.toFixed(2)}</span>
+                  <span style={{ fontSize: '17px', fontWeight: 800, color: '#16a34a' }}>R$ {total.toFixed(2).replace('.', ',')}</span>
                 </div>
               </div>
             </div>
@@ -226,7 +226,7 @@ export function CartPage() {
               style={{ backgroundColor: '#16a34a' }}
             >
               <span style={{ fontSize: '15px', fontWeight: 700 }}>Continuar para entrega</span>
-              <span style={{ fontSize: '15px', fontWeight: 800 }}>R$ {total.toFixed(2)} →</span>
+              <span style={{ fontSize: '15px', fontWeight: 800 }}>R$ {total.toFixed(2).replace('.', ',')} →</span>
             </button>
           </div>
         </>

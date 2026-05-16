@@ -219,7 +219,7 @@ export function WelcomeScreen() {
             }}
           >
             Entregamos em {currentMarket.neighborhood}. Estimativa de entrega: {currentMarket.deliveryEstimate}.
-            {currentMarket.minimumOrder > 0 && ` Pedido mínimo de R$ ${currentMarket.minimumOrder.toFixed(2)}.`}
+            {currentMarket.minimumOrder > 0 && ` Pedido mínimo de R$ ${currentMarket.minimumOrder.toFixed(2).replace('.', ',')}.`}
           </p>
         </div>
 

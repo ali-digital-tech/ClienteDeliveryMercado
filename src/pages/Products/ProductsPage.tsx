@@ -360,9 +360,9 @@ export function ProductsPage() {
             </p>
 
             {isLoadingProducts && products.length === 0 ? (
-              <div className="flex flex-col gap-3">
+              <div className="flex gap-3 overflow-x-auto px-1 pb-2 scrollbar-hide">
                 {[0, 1, 2, 3].map(item => (
-                  <div key={item} className="h-[92px] animate-pulse rounded-2xl bg-white" />
+                  <div key={item} className="h-[180px] w-[150px] shrink-0 animate-pulse rounded-2xl bg-white" />
                 ))}
               </div>
             ) : productsError && products.length === 0 ? (
@@ -387,9 +387,9 @@ export function ProductsPage() {
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex gap-3 overflow-x-auto px-1 pb-2 scrollbar-hide">
                 {products.slice(0, 5).map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard key={p.id} product={p} compact />
                 ))}
               </div>
             )}
@@ -422,9 +422,9 @@ export function ProductsPage() {
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3 pb-2">
                 {filtered.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard key={p.id} product={p} compact />
                 ))}
               </div>
             )}

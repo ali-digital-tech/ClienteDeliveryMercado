@@ -45,7 +45,7 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
         style={{ width: '150px', flexShrink: 0 }}
       >
         <div className="relative bg-gray-50 flex items-center justify-center" style={{ height: '110px' }}>
-          <ProductImage src={product.image} alt={product.name} className="w-full h-full object-cover" iconSize={30} />
+          <ProductImage src={product.image} alt={product.name} className="w-full h-full object-contain p-2" iconSize={30} />
           {discount > 0 && (
             <div className="absolute top-2 left-2 bg-orange-500 text-white rounded-full px-1.5 py-0.5" style={{ fontSize: '10px', fontWeight: 700 }}>
               -{discount}%
@@ -66,11 +66,11 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
             <div>
               {product.originalPrice && (
                 <p className="text-gray-400 line-through" style={{ fontSize: '9px' }}>
-                  R$ {product.originalPrice.toFixed(2)}
+                  R$ {product.originalPrice.toFixed(2).replace('.', ',')}
                 </p>
               )}
               <p style={{ fontSize: '14px', fontWeight: 700, color: '#16a34a' }}>
-                R$ {product.price.toFixed(2)}
+                R$ {product.price.toFixed(2).replace('.', ',')}
               </p>
             </div>
             {qty > 0 ? (
@@ -122,7 +122,7 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
       onClick={() => navigate(tenantPath(`product/${product.id}`))}
     >
       <div className="relative bg-gray-50 flex-shrink-0 flex items-center justify-center" style={{ width: '90px', height: '90px' }}>
-        <ProductImage src={product.image} alt={product.name} className="w-full h-full object-cover" iconSize={26} />
+        <ProductImage src={product.image} alt={product.name} className="w-full h-full object-contain p-2" iconSize={26} />
         {discount > 0 && (
           <div className="absolute top-1.5 left-1.5 bg-orange-500 text-white rounded-full px-1 py-0.5" style={{ fontSize: '9px', fontWeight: 700 }}>
             -{discount}%
@@ -139,11 +139,11 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
           <div>
             {product.originalPrice && (
               <p className="text-gray-400 line-through" style={{ fontSize: '10px' }}>
-                R$ {product.originalPrice.toFixed(2)}
+                R$ {product.originalPrice.toFixed(2).replace('.', ',')}
               </p>
             )}
             <p style={{ fontSize: '15px', fontWeight: 700, color: '#16a34a' }}>
-              R$ {product.price.toFixed(2)}
+              R$ {product.price.toFixed(2).replace('.', ',')}
             </p>
           </div>
           {qty > 0 ? (

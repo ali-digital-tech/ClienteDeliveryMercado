@@ -318,8 +318,8 @@ export function MarketPage() {
 
         {/* Mais Vendidos */}
         {bestsellers.length > 0 && (
-        <div className="pt-5 px-4">
-          <div className="flex items-center justify-between mb-3">
+        <div className="pt-5">
+          <div className="flex items-center justify-between px-4 mb-3">
             <h2
               style={{
                 fontSize: "16px",
@@ -343,9 +343,9 @@ export function MarketPage() {
             </button>
           </div>
 
-          <div className="flex flex-col gap-3">
-            {bestsellers.slice(0, 3).map((p) => (
-              <ProductCard key={p.id} product={p} />
+          <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
+            {bestsellers.map((p) => (
+              <ProductCard key={p.id} product={p} compact />
             ))}
           </div>
         </div>
@@ -418,8 +418,8 @@ export function MarketPage() {
         </div>
 
         {/* Produtos em destaque */}
-        <div className="pt-5 px-4 pb-6">
-          <div className="flex items-center justify-between mb-3">
+        <div className="pt-5 pb-6">
+          <div className="flex items-center justify-between px-4 mb-3">
             <h2
               style={{
                 fontSize: "16px",
@@ -432,13 +432,13 @@ export function MarketPage() {
           </div>
 
           {isLoadingProducts && products.length === 0 ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
               {[0, 1, 2].map(item => (
-                <div key={item} className="h-[92px] animate-pulse rounded-2xl bg-white" />
+                <div key={item} className="h-[180px] w-[150px] shrink-0 animate-pulse rounded-2xl bg-white" />
               ))}
             </div>
           ) : productsError && products.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 rounded-2xl bg-white px-6 py-10 text-center">
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-white px-6 py-10 text-center mx-4">
               <PackageSearch size={34} color="#94a3b8" />
               <p style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
                 Não foi possível carregar os produtos
@@ -452,16 +452,16 @@ export function MarketPage() {
               </button>
             </div>
           ) : visibleFeatured.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 rounded-2xl bg-white px-6 py-10 text-center">
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-white px-6 py-10 text-center mx-4">
               <PackageSearch size={34} color="#94a3b8" />
               <p style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
                 Este mercado ainda não possui produtos disponíveis
               </p>
             </div>
           ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
             {visibleFeatured.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} compact />
             ))}
           </div>
           )}

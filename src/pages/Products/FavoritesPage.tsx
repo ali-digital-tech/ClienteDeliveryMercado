@@ -52,9 +52,9 @@ export function FavoritesPage() {
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3 pb-2">
             {favoriteProducts.map(p => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} compact />
             ))}
           </div>
         )}

@@ -268,7 +268,7 @@ export function MyOrdersScreen() {
                         color: "#122a4c",
                       }}
                     >
-                      R$ {order.total.toFixed(2)}
+                      R$ {order.total.toFixed(2).replace('.', ',')}
                     </span>
 
                     <div className="flex gap-2">

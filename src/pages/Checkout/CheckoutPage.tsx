@@ -235,7 +235,7 @@ export function CheckoutPage() {
                   }}
                 >
                   R${" "}
-                  {(item.product.price * item.qty).toFixed(2)}
+                  {(item.product.price * item.qty).toFixed(2).replace('.', ',')}
                 </p>
               </div>
             ))}
@@ -433,7 +433,7 @@ export function CheckoutPage() {
                   color: "#334155",
                 }}
               >
-                R$ {cartTotal.toFixed(2)}
+                R$ {cartTotal.toFixed(2).replace('.', ',')}
               </span>
             </div>
 
@@ -451,7 +451,7 @@ export function CheckoutPage() {
                     color: "#122a4c",
                   }}
                 >
-                  -R$ {discount.toFixed(2)}
+                  -R$ {discount.toFixed(2).replace('.', ',')}
                 </span>
               </div>
             )}
@@ -472,7 +472,7 @@ export function CheckoutPage() {
               >
                 {deliveryFee === 0
                   ? "Grátis"
-                  : `R$ ${deliveryFee.toFixed(2)}`}
+                  : `R$ ${deliveryFee.toFixed(2).replace('.', ',')}`}
               </span>
             </div>
 
@@ -496,7 +496,7 @@ export function CheckoutPage() {
                   color: "#122a4c",
                 }}
               >
-                R$ {total.toFixed(2)}
+                R$ {total.toFixed(2).replace('.', ',')}
               </span>
             </div>
           </div>
@@ -556,7 +556,7 @@ export function CheckoutPage() {
           style={{ backgroundColor: "#122a4c" }}
         >
           <span style={{ fontSize: "16px", fontWeight: 800 }}>
-            {isSubmitting ? "Processando..." : paymentResult?.qr_code ? "Aguardando pagamento PIX" : `Finalizar pedido · R$ ${total.toFixed(2)}`}
+            {isSubmitting ? "Processando..." : paymentResult?.qr_code ? "Aguardando pagamento PIX" : `Finalizar pedido · R$ ${total.toFixed(2).replace('.', ',')}`}
           </span>
         </button>
 

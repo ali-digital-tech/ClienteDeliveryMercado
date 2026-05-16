@@ -290,7 +290,7 @@ export function DeliveryScreen() {
                     >
                       {deliveryFee === 0
                         ? "Grátis"
-                        : `R$ ${deliveryFee.toFixed(2)}`}
+                        : `R$ ${deliveryFee.toFixed(2).replace('.', ',')}`}
                     </span>
                   </button>
                 ))}
@@ -366,7 +366,7 @@ export function DeliveryScreen() {
                 color: "#334155",
               }}
             >
-              R$ {discountedSubtotal.toFixed(2)}
+              R$ {discountedSubtotal.toFixed(2).replace('.', ',')}
             </span>
           </div>
 
@@ -388,7 +388,7 @@ export function DeliveryScreen() {
             >
               {mode === "pickup" || deliveryFee === 0
                 ? "Grátis"
-                : `R$ ${deliveryFee.toFixed(2)}`}
+                : `R$ ${deliveryFee.toFixed(2).replace('.', ',')}`}
             </span>
           </div>
 
@@ -412,7 +412,7 @@ export function DeliveryScreen() {
                 color: "#122a4c",
               }}
             >
-              R$ {total.toFixed(2)}
+              R$ {total.toFixed(2).replace('.', ',')}
             </span>
           </div>
         </div>

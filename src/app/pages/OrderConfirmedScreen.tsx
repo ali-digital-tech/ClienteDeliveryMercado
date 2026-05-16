@@ -184,7 +184,7 @@ export function OrderConfirmedScreen() {
                   color: "#122a4c",
                 }}
               >
-                R$ {savedTotal.toFixed(2)}
+                R$ {savedTotal.toFixed(2).replace('.', ',')}
               </span>
             </div>
           </div>
