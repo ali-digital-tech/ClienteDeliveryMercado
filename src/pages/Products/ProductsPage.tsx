@@ -25,6 +25,47 @@ const sortOptions = [
   "Desconto",
 ];
 
+const RECENT_SEARCHES_CACHE_KEY = 'cliente_delivery_recent_searches_by_market';
+const DEFAULT_SEARCH_SUGGESTIONS = ["Leite", "Pão", "Frango", "Café", "Ovos"];
+const MAX_RECENT_SEARCHES = 8;
+
+function readRecentSearches(marketId: string): string[] {
+  try {
+    const stored = localStorage.getItem(RECENT_SEARCHES_CACHE_KEY);
+    if (!stored) return [];
+
+    const parsed = JSON.parse(stored);
+    const searches = parsed?.[marketId];
+    return Array.isArray(searches) ? searches.filter((item) => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentSearch(marketId: string, term: string) {
+  const normalized = term.trim();
+  if (normalized.length < 2) return readRecentSearches(marketId);
+
+  const current = readRecentSearches(marketId);
+  const next = [
+    normalized,
+    ...current.filter((item) => item.toLowerCase() !== normalized.toLowerCase()),
+  ].slice(0, MAX_RECENT_SEARCHES);
+
+  try {
+    const stored = localStorage.getItem(RECENT_SEARCHES_CACHE_KEY);
+    const parsed = stored ? JSON.parse(stored) : {};
+    localStorage.setItem(RECENT_SEARCHES_CACHE_KEY, JSON.stringify({
+      ...(parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}),
+      [marketId]: next,
+    }));
+  } catch {
+    // Recent searches should never block the product search flow.
+  }
+
+  return next;
+}
+
 function sortByOrder<T extends { order?: number; name: string }>(items: T[]) {
   return [...items].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name));
 }
@@ -37,6 +78,7 @@ export function ProductsPage() {
   const { products, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId);
   const { categories } = useCategories(marketId);
   const [query, setQuery] = useState("");
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentSearches(marketId));
   const [showSort, setShowSort] = useState(false);
   const [sort, setSort] = useState("Relevância");
 
@@ -60,7 +102,7 @@ export function ProductsPage() {
   );
   const selectedFilterCategoryId = selectedSubcategoryId || selectedLevel2Id || selectedDepartmentId;
   const selectedCategory = categories.find((cat) => cat.id === selectedFilterCategoryId);
-  const recents = ["Leite", "Pão", "Frango", "Café", "Ovos"];
+  const searchChips = recentSearches.length > 0 ? recentSearches : DEFAULT_SEARCH_SUGGESTIONS;
   const getCategoryPathIds = (categoryId: string) => {
     const ids = new Set<string>();
     let current = categories.find((cat) => cat.id === categoryId);
@@ -96,6 +138,21 @@ export function ProductsPage() {
 
     setSearchParams(next, { replace: true });
   };
+
+  useEffect(() => {
+    setRecentSearches(readRecentSearches(marketId));
+  }, [marketId]);
+
+  useEffect(() => {
+    const normalizedQuery = query.trim();
+    if (normalizedQuery.length < 2) return;
+
+    const timer = window.setTimeout(() => {
+      setRecentSearches(saveRecentSearch(marketId, normalizedQuery));
+    }, 800);
+
+    return () => window.clearTimeout(timer);
+  }, [marketId, query]);
 
   useEffect(() => {
     if (!selectedDepartmentId || selectedLevel2Id || level2Categories.length === 0) return;
@@ -183,6 +240,11 @@ export function ProductsPage() {
               placeholder="Buscar produtos..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setRecentSearches(saveRecentSearch(marketId, query));
+                }
+              }}
               className="flex-1 bg-transparent outline-none placeholder:text-gray-400"
               style={{ fontSize: "14px", color: "#334155" }}
             />
@@ -376,11 +438,11 @@ export function ProductsPage() {
               }}
               className="mb-3"
             >
-              Buscas recentes
+              {recentSearches.length > 0 ? "Buscas recentes" : "Sugestões de busca"}
             </p>
 
             <div className="mb-6 flex flex-wrap gap-2">
-              {recents.map((r) => (
+              {searchChips.map((r) => (
                 <button
                   key={r}
                   onClick={() => setQuery(r)}
@@ -408,13 +470,13 @@ export function ProductsPage() {
               }}
               className="mb-3"
             >
-              Populares agora
+              Produtos
             </p>
 
-            {isLoadingProducts && products.length === 0 ? (
-              <div className="flex gap-3 overflow-x-auto px-1 pb-2 scrollbar-hide">
+            {isLoadingProducts && filtered.length === 0 ? (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pb-2">
                 {[0, 1, 2, 3].map(item => (
-                  <div key={item} className="h-[180px] w-[150px] shrink-0 animate-pulse rounded-2xl bg-white" />
+                  <div key={item} className="h-[210px] animate-pulse rounded-2xl bg-white" />
                 ))}
               </div>
             ) : productsError && products.length === 0 ? (
@@ -439,9 +501,9 @@ export function ProductsPage() {
                 </p>
               </div>
             ) : (
-              <div className="flex gap-3 overflow-x-auto px-1 pb-2 scrollbar-hide">
-                {products.slice(0, 5).map((p) => (
-                  <ProductCard key={p.id} product={p} compact />
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pb-2">
+                {filtered.map((p) => (
+                  <ProductCard key={p.id} product={p} compact fluid />
                 ))}
               </div>
             )}
