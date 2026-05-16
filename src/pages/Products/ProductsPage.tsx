@@ -12,17 +12,14 @@ import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { BottomNav } from '@/shared/components/BottomNav';
 import { ProductCard, filterProducts, useProducts } from '@/features/products';
+import type { Product } from '@/features/products';
 import { useCategories } from '@/features/categories';
+import { BannerRenderer, getBannerProducts, useBanners } from '@/features/banners';
 
-const filters = [
-  "Todos",
-  "Promoção",
-  "Menor preço",
-  "Mais vendidos",
-  "Sem glúten",
-];
 const sortOptions = [
   "Relevância",
+  "Promoções",
+  "Mais vendidos",
   "Menor preço",
   "Maior preço",
   "Desconto",
@@ -36,17 +33,21 @@ export function ProductsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { marketId } = useMarketContext();
-  const { cartCount, tenantPath } = useApp();
+  const { cartCount, currentMarket, tenantPath } = useApp();
   const { products, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId);
   const { categories } = useCategories(marketId);
   const [query, setQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("Todos");
   const [showSort, setShowSort] = useState(false);
   const [sort, setSort] = useState("Relevância");
 
   const selectedDepartmentId = searchParams.get("categoria") || "";
   const selectedLevel2Id = searchParams.get("categoriaNivel2") || "";
   const selectedSubcategoryId = searchParams.get("subcategoria") || "";
+  const bannerId = searchParams.get("banner") || "";
+  const { banners } = useBanners(marketId, 'products');
+  const [bannerProducts, setBannerProducts] = useState<Product[] | null>(null);
+  const [bannerTitle, setBannerTitle] = useState("");
+  const [isLoadingBannerProducts, setIsLoadingBannerProducts] = useState(false);
   const selectedDepartment = categories.find((cat) => cat.id === selectedDepartmentId);
   const level2Categories = useMemo(
     () => sortByOrder(categories.filter((cat) => cat.parentId === selectedDepartmentId && cat.level === 2)),
@@ -101,15 +102,48 @@ export function ProductsPage() {
     updateNavigation({ categoriaNivel2: level2Categories[0].id, subcategoria: null });
   }, [level2Categories, selectedDepartmentId, selectedLevel2Id]);
 
-  const filtered = filterProducts(products, query)
+  useEffect(() => {
+    let ignore = false;
+
+    if (!bannerId) {
+      setBannerProducts(null);
+      setBannerTitle("");
+      return;
+    }
+
+    setIsLoadingBannerProducts(true);
+    getBannerProducts(marketId, bannerId)
+      .then((result) => {
+        if (ignore) return;
+        setBannerProducts(result.products);
+        setBannerTitle(result.banner.titulo);
+      })
+      .catch(() => {
+        if (ignore) return;
+        setBannerProducts([]);
+        setBannerTitle("");
+      })
+      .finally(() => {
+        if (!ignore) setIsLoadingBannerProducts(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [bannerId, marketId]);
+
+  const sourceProducts = bannerProducts ?? products;
+
+  const filtered = filterProducts(sourceProducts, query)
     .filter((p) => {
+      if (bannerId) return true;
       if (!selectedFilterCategoryId) return true;
       return getCategoryPathIds(p.category).has(selectedFilterCategoryId);
     })
     .filter((p) => {
-      if (activeFilter === "Promoção") return p.isPromo;
-      if (activeFilter === "Mais vendidos")
-        return p.isBestseller;
+      if (sort === "Promoções") return p.isPromo;
+      if (sort === "Mais vendidos") return p.isBestseller;
+      if (sort === "Desconto") return p.originalPrice && p.price < p.originalPrice;
       return true;
     })
     .sort((a, b) => {
@@ -197,116 +231,117 @@ export function ProductsPage() {
         )}
 
         {selectedDepartment && level2Categories.length > 0 && (
-          <div className="mb-2 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {level2Categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => updateNavigation({ categoriaNivel2: category.id, subcategoria: null })}
-                className="flex-shrink-0 rounded-full px-4 py-2 transition-all"
-                style={{
-                  backgroundColor: selectedLevel2Id === category.id ? "#122a4c" : "#eef4fb",
-                  color: selectedLevel2Id === category.id ? "white" : "#64748b",
-                  fontSize: "12px",
-                  fontWeight: selectedLevel2Id === category.id ? 700 : 600,
-                }}
-              >
-                {category.name}
-              </button>
-            ))}
+          <div className="mb-2 flex gap-2 overflow-x-auto pb-1 px-1 scrollbar-hide">
+            {level2Categories.map((category) => {
+              const isActive = selectedLevel2Id === category.id;
+              return (
+                <button
+                  key={category.id}
+                  onClick={() => updateNavigation({ categoriaNivel2: category.id, subcategoria: null })}
+                  className="flex-shrink-0 rounded-xl px-4 py-2 transition-all shadow-sm"
+                  style={{
+                    backgroundColor: isActive ? "white" : "#f1f5f9",
+                    color: isActive ? (currentMarket?.primaryColor || "#122a4c") : "#64748b",
+                    border: `1.5px solid ${isActive ? (currentMarket?.primaryColor || "#122a4c") : "transparent"}`,
+                    fontSize: "13px",
+                    fontWeight: isActive ? 700 : 600,
+                  }}
+                >
+                  {category.name}
+                </button>
+              );
+            })}
           </div>
         )}
 
         {selectedLevel2 && (
-          <div className="mb-2 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="mb-2 flex gap-2 overflow-x-auto pb-1 px-1 scrollbar-hide">
             <button
               onClick={() => updateNavigation({ subcategoria: null })}
-              className="flex-shrink-0 rounded-full px-4 py-2 transition-all"
+              className="flex-shrink-0 rounded-xl px-4 py-2 transition-all shadow-sm"
               style={{
-                backgroundColor: !selectedSubcategoryId ? "#16a34a" : "#eef4fb",
-                color: !selectedSubcategoryId ? "white" : "#64748b",
-                fontSize: "12px",
-                fontWeight: 700,
+                backgroundColor: !selectedSubcategoryId ? "white" : "#f1f5f9",
+                color: !selectedSubcategoryId ? (currentMarket?.primaryColor || "#16a34a") : "#64748b",
+                border: `1.5px solid ${!selectedSubcategoryId ? (currentMarket?.primaryColor || "#16a34a") : "transparent"}`,
+                fontSize: "13px",
+                fontWeight: !selectedSubcategoryId ? 700 : 600,
               }}
             >
               Todos
             </button>
-            {level3Categories.map((subcategory) => (
-              <button
-                key={subcategory.id}
-                onClick={() => updateNavigation({ subcategoria: subcategory.id })}
-                className="flex-shrink-0 rounded-full px-4 py-2 transition-all"
-                style={{
-                  backgroundColor: selectedSubcategoryId === subcategory.id ? "#16a34a" : "#eef4fb",
-                  color: selectedSubcategoryId === subcategory.id ? "white" : "#64748b",
-                  fontSize: "12px",
-                  fontWeight: selectedSubcategoryId === subcategory.id ? 700 : 600,
-                }}
-              >
-                {subcategory.name}
-              </button>
-            ))}
+            {level3Categories.map((subcategory) => {
+              const isActive = selectedSubcategoryId === subcategory.id;
+              return (
+                <button
+                  key={subcategory.id}
+                  onClick={() => updateNavigation({ subcategoria: subcategory.id })}
+                  className="flex-shrink-0 rounded-xl px-4 py-2 transition-all shadow-sm"
+                  style={{
+                    backgroundColor: isActive ? "white" : "#f1f5f9",
+                    color: isActive ? (currentMarket?.primaryColor || "#16a34a") : "#64748b",
+                    border: `1.5px solid ${isActive ? (currentMarket?.primaryColor || "#16a34a") : "transparent"}`,
+                    fontSize: "13px",
+                    fontWeight: isActive ? 700 : 600,
+                  }}
+                >
+                  {subcategory.name}
+                </button>
+              );
+            })}
           </div>
         )}
 
-        {/* Filter chips */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          {filters.map((f) => (
+        {/* Sort */}
+        <div className="flex justify-end px-1 mb-2">
+          <div className="relative">
             <button
-              key={f}
-              onClick={() => setActiveFilter(f)}
-              className="flex-shrink-0 rounded-full px-4 py-1.5 transition-all"
-              style={{
-                backgroundColor:
-                  activeFilter === f ? "#122a4c" : "#eef4fb",
-                color: activeFilter === f ? "white" : "#64748b",
-                fontSize: "12px",
-                fontWeight: activeFilter === f ? 700 : 500,
-              }}
+              onClick={() => setShowSort(!showSort)}
+              className="flex-shrink-0 flex items-center gap-1.5 rounded-xl px-4 py-2 shadow-sm transition-all"
+              style={{ backgroundColor: "#f1f5f9" }}
             >
-              {f}
+              <SlidersHorizontal size={14} color="#64748b" />
+              <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 600 }}>
+                Ordenar
+              </span>
             </button>
-          ))}
 
-          <button
-            onClick={() => setShowSort(!showSort)}
-            className="flex-shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5"
-            style={{ backgroundColor: "#eef4fb" }}
-          >
-            <SlidersHorizontal size={13} color="#64748b" />
-            <span
-              style={{ fontSize: "12px", color: "#64748b" }}
-            >
-              Ordenar
-            </span>
-          </button>
-        </div>
-
-        {/* Sort dropdown */}
-        {showSort && (
-          <div
-            className="mt-2 overflow-hidden rounded-2xl bg-white shadow-lg"
-            style={{ border: "1px solid #d9e4f2" }}
-          >
-            {sortOptions.map((opt) => (
-              <button
-                key={opt}
-                onClick={() => {
-                  setSort(opt);
-                  setShowSort(false);
-                }}
-                className="w-full text-left px-4 py-3 last:border-0"
-                style={{
-                  fontSize: "14px",
-                  color: sort === opt ? "#122a4c" : "#334155",
-                  fontWeight: sort === opt ? 600 : 400,
-                  borderBottom: "1px solid #eef2f7",
+            {/* Sort dropdown */}
+            {showSort && (
+              <div
+                className="absolute right-0 top-[calc(100%+8px)] w-48 overflow-hidden rounded-2xl bg-white shadow-xl z-[100]"
+                style={{ 
+                  border: "1px solid #d9e4f2",
+                  animation: "fadeIn 0.2s ease-out forwards"
                 }}
               >
-                {opt} {sort === opt && "✓"}
-              </button>
-            ))}
+                <style>{`
+                  @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                  }
+                `}</style>
+                {sortOptions.map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => {
+                      setSort(opt);
+                      setShowSort(false);
+                    }}
+                    className="w-full text-left px-4 py-3 last:border-0 hover:bg-gray-50 transition-colors"
+                    style={{
+                      fontSize: "14px",
+                      color: sort === opt ? "#122a4c" : "#334155",
+                      fontWeight: sort === opt ? 600 : 400,
+                      borderBottom: "1px solid #eef2f7",
+                    }}
+                  >
+                    {opt} {sort === opt && "✓"}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Content */}
@@ -314,7 +349,23 @@ export function ProductsPage() {
         className="flex-1 overflow-y-auto px-4 pt-4 pb-4"
         style={{ background: "#f8fafc" }}
       >
-        {!query && !selectedDepartmentId ? (
+        <BannerRenderer banners={banners} placement="products_top" page="products" className="mb-4" />
+
+        {bannerId && (
+          <div className="mb-4 flex items-center justify-between rounded-2xl px-4 py-3" style={{ backgroundColor: "#eef4fb" }}>
+            <span style={{ fontSize: "13px", color: "#122a4c", fontWeight: 700 }}>
+              {bannerTitle || "Ofertas do banner"}
+            </span>
+            <button
+              onClick={() => navigate(tenantPath("produtos"), { replace: true })}
+              style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}
+            >
+              Limpar
+            </button>
+          </div>
+        )}
+
+        {!query && !selectedDepartmentId && !bannerId ? (
           <>
             <p
               style={{
@@ -400,12 +451,18 @@ export function ProductsPage() {
               style={{ fontSize: "13px", color: "#64748b" }}
               className="mb-3"
             >
-              {filtered.length} resultado
+              {isLoadingBannerProducts ? "Carregando" : filtered.length} resultado
               {filtered.length !== 1 ? "s" : ""}
-              {query ? ` para "${query}"` : selectedCategory ? ` em ${selectedCategory.name}` : ""}
+              {query ? ` para "${query}"` : bannerId && bannerTitle ? ` em ${bannerTitle}` : selectedCategory ? ` em ${selectedCategory.name}` : ""}
             </p>
 
-            {filtered.length === 0 ? (
+            {isLoadingBannerProducts ? (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pb-2">
+                {[0, 1, 2, 3].map((item) => (
+                  <div key={item} className="h-[210px] animate-pulse rounded-2xl bg-white" />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center gap-4 py-16">
                 <span style={{ fontSize: "48px" }}>🔍</span>
                 <p
@@ -422,9 +479,9 @@ export function ProductsPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 pb-2">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pb-2">
                 {filtered.map((p) => (
-                  <ProductCard key={p.id} product={p} compact />
+                  <ProductCard key={p.id} product={p} compact fluid />
                 ))}
               </div>
             )}

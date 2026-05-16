@@ -3,6 +3,7 @@ import { ShoppingCart, Search } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { useCategories } from '@/features/categories';
+import { BannerRenderer, useBanners } from '@/features/banners';
 import { BottomNav } from '@/shared/components/BottomNav';
 
 export function CategoriesPage() {
@@ -10,6 +11,7 @@ export function CategoriesPage() {
   const { marketId } = useMarketContext();
   const { cartCount, products, tenantPath } = useApp();
   const { categories } = useCategories(marketId);
+  const { banners } = useBanners(marketId, 'categories');
   const departments = categories.filter((category) => category.level === 1);
   const getDescendantIds = (categoryId: string) => {
     const ids = new Set([categoryId]);
@@ -63,7 +65,8 @@ export function CategoriesPage() {
 
       {/* Grid of categories */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6" style={{ background: '#f3f4f6' }}>
-        <div className="grid grid-cols-2 gap-3">
+        <BannerRenderer banners={banners} placement="categories_top" page="categories" className="mb-4" />
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
           {departments.map(cat => {
             const productCount = productCountByCategory[cat.id] || 0;
 
@@ -88,21 +91,7 @@ export function CategoriesPage() {
           })}
         </div>
 
-        {/* Promo strip */}
-        <div className="mt-4 rounded-2xl overflow-hidden" style={{ height: '80px', position: 'relative' }}>
-          <img
-            src="https://images.unsplash.com/photo-1619617257069-3dc8f124c512?w=600&q=80"
-            alt="Promo"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 flex items-center px-5"
-            style={{ background: 'linear-gradient(90deg, rgba(22,163,74,0.9) 0%, rgba(22,163,74,0.2) 100%)' }}>
-            <div>
-              <p className="text-white" style={{ fontSize: '16px', fontWeight: 800 }}>Ofertas da semana</p>
-              <p className="text-green-100" style={{ fontSize: '12px' }}>Até 40% de desconto</p>
-            </div>
-          </div>
-        </div>
+
       </div>
 
       <BottomNav />

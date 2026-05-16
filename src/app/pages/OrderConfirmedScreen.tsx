@@ -128,16 +128,18 @@ export function OrderConfirmedScreen() {
               <span
                 style={{ fontSize: "13px", color: "#64748b" }}
               >
-                Previsão de entrega
+                Entrega
               </span>
               <span
                 style={{
-                  fontSize: "13px",
-                  fontWeight: 700,
+                  fontSize: "12px",
+                  fontWeight: 600,
                   color: "#334155",
+                  textAlign: "right",
+                  maxWidth: "180px",
                 }}
               >
-                Hoje, 14h - 16h
+                Por ordem de pedido. Avisaremos quando sair!
               </span>
             </div>
 

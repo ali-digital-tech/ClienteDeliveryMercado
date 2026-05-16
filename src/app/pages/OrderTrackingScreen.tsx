@@ -127,10 +127,10 @@ export function OrderTrackingScreen() {
               className="text-white"
               style={{ fontSize: "13px", fontWeight: 700 }}
             >
-              Previsão de entrega
+              Entrega por ordem de pedido
             </p>
             <p style={{ fontSize: "12px", color: "#c7d7ee" }}>
-              Hoje às 16h00 · em ~45 min
+              Avisaremos quando o entregador sair
             </p>
           </div>
 

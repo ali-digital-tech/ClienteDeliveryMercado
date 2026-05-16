@@ -12,28 +12,8 @@ import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { useCategories } from '@/features/categories';
 import { ProductCard, useProducts } from '@/features/products';
+import { BannerRenderer, useBanners } from '@/features/banners';
 import { BottomNav } from '@/shared/components/BottomNav';
-
-const banners = [
-  {
-    id: 1,
-    title: "Até 40% OFF",
-    subtitle: "em hortifruti selecionados",
-    badge: "OFERTA ESPECIAL",
-    image:
-      "https://images.unsplash.com/photo-1619617257069-3dc8f124c512?w=600&q=80",
-    color: "#122a4c",
-  },
-  {
-    id: 2,
-    title: "Frete Grátis",
-    subtitle: "em compras acima de R$ 89",
-    badge: "PROMOÇÃO",
-    image:
-      "https://images.unsplash.com/photo-1774312081005-cab8b6fa0c9b?w=600&q=80",
-    color: "#1b3d6d",
-  },
-];
 
 export function MarketPage() {
   const navigate = useNavigate();
@@ -41,6 +21,7 @@ export function MarketPage() {
   const { cartCount, currentMarket, tenantPath } = useApp();
   const { products, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId);
   const { categories } = useCategories(marketId);
+  const { banners } = useBanners(marketId, 'home');
   const departments = categories.filter((category) => category.level === 1);
 
   const promoProducts = products.filter((p) => p.isPromo);
@@ -140,78 +121,7 @@ export function MarketPage() {
         style={{ background: "#f8fafc" }}
       >
         {/* Banners */}
-        <div className="px-4 pt-4">
-          <div
-            className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide"
-            style={{ scrollSnapType: "x mandatory" }}
-          >
-            {banners.map((banner) => (
-              <div
-                key={banner.id}
-                className="flex-shrink-0 rounded-2xl overflow-hidden relative"
-                style={{
-                  width: "280px",
-                  height: "140px",
-                  scrollSnapAlign: "start",
-                }}
-              >
-                <img
-                  src={banner.image}
-                  alt={banner.title}
-                  className="w-full h-full object-cover"
-                />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: `linear-gradient(90deg, ${banner.color}ee 0%, ${banner.color}55 100%)`,
-                  }}
-                />
-                <div className="absolute inset-0 p-4 flex flex-col justify-between">
-                  <span
-                    className="text-white rounded-full px-2 py-0.5 self-start"
-                    style={{
-                      fontSize: "9px",
-                      fontWeight: 700,
-                      backgroundColor: "rgba(255,255,255,0.18)",
-                      backdropFilter: "blur(4px)",
-                    }}
-                  >
-                    {banner.badge}
-                  </span>
-
-                  <div>
-                    <h3
-                      className="text-white"
-                      style={{
-                        fontSize: "22px",
-                        fontWeight: 800,
-                        lineHeight: 1.1,
-                      }}
-                    >
-                      {banner.title}
-                    </h3>
-                    <p
-                      className="text-white/80"
-                      style={{ fontSize: "12px" }}
-                    >
-                      {banner.subtitle}
-                    </p>
-                    <button
-                      className="mt-2 bg-white rounded-full px-3 py-1"
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: "#122a4c",
-                      }}
-                    >
-                      Ver ofertas →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <BannerRenderer banners={banners} placement="home_top" page="home" className="px-4 pt-4" />
 
         {/* Categories */}
         <div className="px-4 pt-5">
@@ -271,6 +181,7 @@ export function MarketPage() {
             ))}
           </div>
         </div>
+        <BannerRenderer banners={banners} placement="below_categories" page="home" className="px-4 pt-5" />
 
         {/* Ofertas do dia */}
         {promoProducts.length > 0 && (
@@ -315,6 +226,7 @@ export function MarketPage() {
           </div>
         </div>
         )}
+        <BannerRenderer banners={banners} placement="below_promos" page="home" className="px-4 pt-5" />
 
         {/* Mais Vendidos */}
         {bestsellers.length > 0 && (
@@ -350,51 +262,9 @@ export function MarketPage() {
           </div>
         </div>
         )}
+        <BannerRenderer banners={banners} placement="below_bestsellers" page="home" className="px-4 pt-5" />
 
-        {/* Banner destacado */}
-        <div className="px-4 pt-5">
-          <div
-            className="rounded-2xl overflow-hidden relative"
-            style={{ height: "100px" }}
-          >
-            <img
-              src="https://images.unsplash.com/photo-1774312081005-cab8b6fa0c9b?w=600&q=80"
-              alt="Promo"
-              className="w-full h-full object-cover"
-            />
-            <div
-              className="absolute inset-0 flex items-center px-5"
-              style={{
-                background:
-                  "linear-gradient(90deg, rgba(18,42,76,0.94) 0%, rgba(18,42,76,0.35) 100%)",
-              }}
-            >
-              <div>
-                <p
-                  className="text-white"
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    opacity: 0.8,
-                  }}
-                >
-                  PROMOÇÃO EXCLUSIVA
-                </p>
-                <p
-                  className="text-white"
-                  style={{ fontSize: "18px", fontWeight: 800 }}
-                >
-                  Use PROMO10
-                </p>
-                <p
-                  style={{ fontSize: "12px", color: "#c7d7ee" }}
-                >
-                  R$10 OFF na sua compra!
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+
 
         {/* Compre novamente */}
         <div className="pt-5 px-4">
@@ -416,6 +286,7 @@ export function MarketPage() {
             ))}
           </div>
         </div>
+        <BannerRenderer banners={banners} placement="below_buy_again" page="home" className="px-4 pt-5" />
 
         {/* Produtos em destaque */}
         <div className="pt-5 pb-6">
@@ -466,6 +337,7 @@ export function MarketPage() {
           </div>
           )}
         </div>
+        <BannerRenderer banners={banners} placement="below_featured" page="home" className="px-4 pb-6" />
       </div>
 
       <BottomNav />

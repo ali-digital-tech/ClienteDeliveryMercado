@@ -138,7 +138,7 @@ export function DesktopSidebar() {
             style={{ width: '8px', height: '8px', backgroundColor: '#16a34a' }}
           />
           <p style={{ fontSize: '11px', color: '#15803d', fontWeight: 600 }}>
-            Entrega em {currentMarket.deliveryEstimate}
+            Entrega por ordem de pedido
           </p>
         </div>
       </div>

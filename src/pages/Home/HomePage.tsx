@@ -55,7 +55,7 @@ export function HomePage() {
                   </span>
                   <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: '#f0fdf4', color: '#15803d', fontSize: '11px', fontWeight: 700 }}>
                     <Timer size={12} />
-                    {market.deliveryEstimate}
+                    Por ordem de pedido
                   </span>
                 </div>
               </div>

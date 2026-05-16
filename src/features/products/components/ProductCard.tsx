@@ -8,10 +8,11 @@ import { formatCartQuantity } from '@/features/cart';
 interface ProductCardProps {
   product: Product;
   compact?: boolean;
+  fluid?: boolean;
 }
 
-export function ProductCard({ product, compact = false }: ProductCardProps) {
-  const { addToCart, updateQty, cart, toggleFavorite, isFavorite, tenantPath } = useApp();
+export function ProductCard({ product, compact = false, fluid = false }: ProductCardProps) {
+  const { addToCart, updateQty, cart, toggleFavorite, isFavorite, tenantPath, currentMarket } = useApp();
   const navigate = useNavigate();
   const cartItem = cart.find(item => item.product.id === product.id);
   const qty = cartItem?.qty || 0;
@@ -40,15 +41,22 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
   if (compact) {
     return (
       <div
-        className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform"
+        className={`bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform ${fluid ? 'w-full' : ''}`}
         onClick={() => navigate(tenantPath(`product/${product.id}`))}
-        style={{ width: '150px', flexShrink: 0 }}
+        style={fluid ? { minWidth: '150px' } : { width: '150px', flexShrink: 0 }}
       >
-        <div className="relative bg-gray-50 flex items-center justify-center" style={{ height: '110px' }}>
-          <ProductImage src={product.image} alt={product.name} className="w-full h-full object-contain p-2" iconSize={30} />
+        <div className="relative bg-white flex items-center justify-center overflow-hidden" style={{ height: '110px' }}>
+          <ProductImage src={product.image} alt={product.name} className="w-full h-full object-contain p-2 pb-5" iconSize={30} />
           {discount > 0 && (
-            <div className="absolute top-2 left-2 bg-orange-500 text-white rounded-full px-1.5 py-0.5" style={{ fontSize: '10px', fontWeight: 700 }}>
-              -{discount}%
+            <div 
+              className="absolute bottom-0 left-0 w-full text-center py-0.5 text-white" 
+              style={{ 
+                backgroundColor: currentMarket?.primaryColor || '#122a4c',
+                fontSize: '11px',
+                fontWeight: 800,
+              }}
+            >
+              -{discount}% OFF
             </div>
           )}
           <button
@@ -121,11 +129,18 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
       className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform flex"
       onClick={() => navigate(tenantPath(`product/${product.id}`))}
     >
-      <div className="relative bg-gray-50 flex-shrink-0 flex items-center justify-center" style={{ width: '90px', height: '90px' }}>
-        <ProductImage src={product.image} alt={product.name} className="w-full h-full object-contain p-2" iconSize={26} />
+      <div className="relative bg-white flex-shrink-0 flex items-center justify-center overflow-hidden" style={{ width: '90px', height: '90px' }}>
+        <ProductImage src={product.image} alt={product.name} className="w-full h-full object-contain p-1 pb-4" iconSize={26} />
         {discount > 0 && (
-          <div className="absolute top-1.5 left-1.5 bg-orange-500 text-white rounded-full px-1 py-0.5" style={{ fontSize: '9px', fontWeight: 700 }}>
-            -{discount}%
+          <div 
+            className="absolute bottom-0 left-0 w-full text-center py-0.5 text-white" 
+            style={{ 
+              backgroundColor: currentMarket?.primaryColor || '#122a4c',
+              fontSize: '10px',
+              fontWeight: 800,
+            }}
+          >
+            -{discount}% OFF
           </div>
         )}
       </div>

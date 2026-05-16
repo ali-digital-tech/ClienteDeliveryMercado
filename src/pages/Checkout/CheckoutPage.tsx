@@ -8,6 +8,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
+import { BannerRenderer, useBanners } from '@/features/banners';
 import {
   formatAddressLine,
   formatAddressLocation,
@@ -33,6 +34,7 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { cart, cartTotal, currentUser, discount, marketId, tenantPath, clearCart } = useApp();
+  const { banners } = useBanners(marketId, 'checkout');
   const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +177,7 @@ export function CheckoutPage() {
         className="flex-1 overflow-y-auto px-4 pt-4 pb-4"
         style={{ background: "#f8fafc" }}
       >
+        <BannerRenderer banners={banners} placement="checkout_top" page="checkout" className="mb-3" />
         {/* Itens */}
         <div
           className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
@@ -353,21 +356,9 @@ export function CheckoutPage() {
             </button>
           </div>
 
-          <p style={{ fontSize: "13px", color: "#64748b" }}>
-            Hoje, 14h - 16h
+          <p style={{ fontSize: "13px", color: "#64748b", lineHeight: 1.4 }}>
+            As entregas são feitas por ordem de pedido. Avisaremos você assim que o entregador sair.
           </p>
-
-          <span
-            className="rounded-full px-2 py-0.5 mt-1 inline-block"
-            style={{
-              fontSize: "10px",
-              fontWeight: 600,
-              backgroundColor: "#eef4fb",
-              color: "#122a4c",
-            }}
-          >
-            MAIS RÁPIDO
-          </span>
         </div>
 
         {/* Pagamento */}

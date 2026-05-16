@@ -28,18 +28,6 @@ export function DeliveryScreen() {
   const discountedSubtotal = Math.max(cartTotal - discount, 0);
   const deliveryFee = cartTotal >= 89 ? 0 : 6.99;
 
-  const schedules = [
-    {
-      id: "1",
-      label: "Hoje, 14h - 16h",
-      fee: 0,
-      badge: "MAIS RÁPIDO",
-    },
-    { id: "2", label: "Hoje, 16h - 18h", fee: 0 },
-    { id: "3", label: "Hoje, 18h - 20h", fee: 0 },
-    { id: "4", label: "Amanhã, 08h - 10h", fee: 0 },
-  ];
-  const [selectedSchedule, setSelectedSchedule] = useState("1");
 
   const total = discountedSubtotal + (mode === "delivery" ? deliveryFee : 0);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
@@ -206,12 +194,12 @@ export function DeliveryScreen() {
               )}
             </div>
 
-            {/* Schedule */}
+            {/* Info Entrega */}
             <div
               className="bg-white rounded-2xl p-4 mb-4 shadow-sm"
               style={{ border: "1px solid #d9e4f2" }}
             >
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-2">
                 <Clock size={16} color="#122a4c" />
                 <span
                   style={{
@@ -220,81 +208,12 @@ export function DeliveryScreen() {
                     color: "#334155",
                   }}
                 >
-                  Horário de entrega
+                  Previsão de entrega
                 </span>
               </div>
-
-              <div className="flex flex-col gap-2">
-                {schedules.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setSelectedSchedule(s.id)}
-                    className="flex items-center gap-3 p-3 rounded-xl border-2 transition-all"
-                    style={{
-                      borderColor:
-                        selectedSchedule === s.id
-                          ? "#122a4c"
-                          : "#e2e8f0",
-                      backgroundColor:
-                        selectedSchedule === s.id
-                          ? "#f8fbff"
-                          : "#ffffff",
-                    }}
-                  >
-                    <div
-                      className="rounded-full flex-shrink-0"
-                      style={{
-                        width: "18px",
-                        height: "18px",
-                        border: `2px solid ${selectedSchedule === s.id ? "#122a4c" : "#cbd5e1"}`,
-                        backgroundColor:
-                          selectedSchedule === s.id
-                            ? "#122a4c"
-                            : "white",
-                      }}
-                    />
-
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        color: "#334155",
-                        flex: 1,
-                      }}
-                    >
-                      {s.label}
-                    </span>
-
-                    {s.badge && (
-                      <span
-                        className="rounded-full px-2 py-0.5"
-                        style={{
-                          fontSize: "9px",
-                          fontWeight: 700,
-                          backgroundColor: "#eef4fb",
-                          color: "#122a4c",
-                        }}
-                      >
-                        {s.badge}
-                      </span>
-                    )}
-
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        color:
-                          deliveryFee === 0
-                            ? "#122a4c"
-                            : "#334155",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {deliveryFee === 0
-                        ? "Grátis"
-                        : `R$ ${deliveryFee.toFixed(2).replace('.', ',')}`}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <p style={{ fontSize: "13px", color: "#64748b", lineHeight: 1.4 }}>
+                As entregas são feitas por ordem de pedido. Avisaremos você assim que o entregador sair.
+              </p>
             </div>
           </>
         ) : (

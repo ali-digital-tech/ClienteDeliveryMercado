@@ -57,7 +57,7 @@ export function SplashScreen() {
             {currentMarket.description}
           </p>
           <p className="mt-2 text-white/70" style={{ fontSize: "12px", fontWeight: 600 }}>
-            Entrega em {currentMarket.deliveryEstimate}
+            Entregas por ordem de pedido
           </p>
         </div>
       </div>

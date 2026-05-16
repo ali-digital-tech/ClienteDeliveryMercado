@@ -218,7 +218,7 @@ export function WelcomeScreen() {
               color: "#1e3a5f",
             }}
           >
-            Entregamos em {currentMarket.neighborhood}. Estimativa de entrega: {currentMarket.deliveryEstimate}.
+            Entregamos em {currentMarket.neighborhood}. As entregas são feitas por ordem de pedido.
             {currentMarket.minimumOrder > 0 && ` Pedido mínimo de R$ ${currentMarket.minimumOrder.toFixed(2).replace('.', ',')}.`}
           </p>
         </div>

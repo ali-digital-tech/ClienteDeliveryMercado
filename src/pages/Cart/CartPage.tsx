@@ -2,12 +2,16 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ChevronLeft, Plus, Minus, Trash2, Tag, Truck, ShoppingBag } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
+import { useMarketContext } from '@/contexts/MarketContext';
+import { BannerRenderer, useBanners } from '@/features/banners';
 import { formatCartQuantity } from '@/features/cart';
 import { ProductImage } from '@/features/products';
 
 export function CartPage() {
   const navigate = useNavigate();
+  const { marketId } = useMarketContext();
   const { cart, updateQty, removeFromCart, cartTotal, coupon, discount, applyCoupon, tenantPath } = useApp();
+  const { banners } = useBanners(marketId, 'cart');
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
@@ -72,6 +76,7 @@ export function CartPage() {
       ) : (
         <>
           <div className="flex-1 overflow-y-auto px-4 pt-3" style={{ background: '#f3f4f6' }}>
+            <BannerRenderer banners={banners} placement="cart_top" page="cart" className="mb-3" />
             {/* Delivery banner */}
             {deliveryFee > 0 && (
               <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 flex items-center gap-2 mb-3">
