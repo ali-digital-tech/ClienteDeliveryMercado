@@ -11,7 +11,9 @@ export interface Product {
   categoryPath?: string;
   unit: string;
   description: string;
+  salesCount?: number;
   isPromo?: boolean;
   isFeatured?: boolean;
   isBestseller?: boolean;
+  isImmediateConsumption?: boolean;
 }

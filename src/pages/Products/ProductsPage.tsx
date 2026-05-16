@@ -147,6 +147,7 @@ export function ProductsPage() {
       return true;
     })
     .sort((a, b) => {
+      if (sort === "Mais vendidos") return (b.salesCount ?? 0) - (a.salesCount ?? 0) || a.name.localeCompare(b.name);
       if (sort === "Menor preço") return a.price - b.price;
       if (sort === "Maior preço") return b.price - a.price;
       return 0;

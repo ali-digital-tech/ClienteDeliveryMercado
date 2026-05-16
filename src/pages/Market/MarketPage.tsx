@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router";
 import {
   Search,
@@ -25,9 +26,17 @@ export function MarketPage() {
   const departments = categories.filter((category) => category.level === 1);
 
   const promoProducts = products.filter((p) => p.isPromo);
-  const bestsellers = products.filter((p) => p.isBestseller);
+  const immediateConsumptionProducts = products.filter((p) => p.isImmediateConsumption && p.isPromo);
+  const bestsellers = useMemo(
+    () => products
+      .filter((p) => p.isBestseller)
+      .sort((a, b) => (b.salesCount ?? 0) - (a.salesCount ?? 0) || a.name.localeCompare(b.name)),
+    [products],
+  );
   const featured = products.filter((p) => p.isFeatured);
-  const visibleFeatured = featured.length > 0 ? featured : products.slice(0, 6);
+  const visibleFeatured = featured.length > 0
+    ? featured
+    : (bestsellers.length > 0 ? bestsellers : products).slice(0, 6);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -227,6 +236,41 @@ export function MarketPage() {
         </div>
         )}
         <BannerRenderer banners={banners} placement="below_promos" page="home" className="px-4 pt-5" />
+
+        {/* Consumo imediato */}
+        {immediateConsumptionProducts.length > 0 && (
+        <div className="pt-5">
+          <div className="flex items-center justify-between px-4 mb-3">
+            <h2
+              style={{
+                fontSize: "16px",
+                fontWeight: 700,
+                color: "#122a4c",
+              }}
+            >
+              ⚡ Consumo imediato
+            </h2>
+            <button className="flex items-center gap-0.5">
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#122a4c",
+                  fontWeight: 600,
+                }}
+              >
+                Ver todos
+              </span>
+              <ChevronRight size={14} color="#122a4c" />
+            </button>
+          </div>
+
+          <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
+            {immediateConsumptionProducts.map((p) => (
+              <ProductCard key={p.id} product={p} compact />
+            ))}
+          </div>
+        </div>
+        )}
 
         {/* Mais Vendidos */}
         {bestsellers.length > 0 && (

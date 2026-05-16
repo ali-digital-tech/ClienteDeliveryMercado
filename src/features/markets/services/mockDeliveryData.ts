@@ -12,6 +12,7 @@ export interface Product {
   isPromo?: boolean;
   isFeatured?: boolean;
   isBestseller?: boolean;
+  isImmediateConsumption?: boolean;
 }
 
 export interface Category {
@@ -103,6 +104,7 @@ export const products: Product[] = [
     unit: '1L',
     description: 'Leite integral pasteurizado de alta qualidade, rico em cálcio e vitaminas. Ideal para consumo diário, cereais e receitas.',
     isPromo: true,
+    isImmediateConsumption: true,
     isBestseller: true,
   },
   {

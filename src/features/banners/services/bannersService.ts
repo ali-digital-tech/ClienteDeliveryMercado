@@ -19,6 +19,8 @@ interface ApiStoreProduct {
   unidade_medida?: string | null;
   descricao?: string | null;
   destaque?: boolean | null;
+  consumo_imediato?: boolean | null;
+  quantidade_vendida?: string | number | null;
 }
 
 function toNumber(value: string | number | null | undefined, fallback = 0) {
@@ -30,6 +32,7 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
   const regularPrice = toNumber(product.preco);
   const promoPrice = product.preco_promocional === null ? 0 : toNumber(product.preco_promocional);
   const hasPromo = promoPrice > 0 && regularPrice > 0 && promoPrice < regularPrice;
+  const salesCount = toNumber(product.quantidade_vendida);
 
   return {
     id: product.id,
@@ -44,9 +47,11 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
     categoryPath: product.categoria_caminho || product.categoria_nome || undefined,
     unit: product.unidade_medida || 'un',
     description: product.descricao || 'Produto disponível no mercado.',
+    salesCount,
     isPromo: hasPromo,
     isFeatured: Boolean(product.destaque),
-    isBestseller: Boolean(product.destaque),
+    isBestseller: salesCount > 0,
+    isImmediateConsumption: Boolean(product.consumo_imediato) && hasPromo,
   };
 }
 
