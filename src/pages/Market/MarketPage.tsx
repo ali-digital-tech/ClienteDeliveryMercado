@@ -41,6 +41,7 @@ export function MarketPage() {
   const { cartCount, currentMarket, tenantPath } = useApp();
   const { products, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId);
   const { categories } = useCategories(marketId);
+  const departments = categories.filter((category) => category.level === 1);
 
   const promoProducts = products.filter((p) => p.isPromo);
   const bestsellers = products.filter((p) => p.isBestseller);
@@ -242,7 +243,7 @@ export function MarketPage() {
           </div>
 
           <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-            {categories.slice(0, 7).map((cat) => (
+            {departments.slice(0, 7).map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => navigate(`${tenantPath("produtos")}?categoria=${encodeURIComponent(cat.id)}`)}

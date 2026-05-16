@@ -8,6 +8,7 @@ export interface Product {
   originalPrice?: number;
   image: string;
   category: string;
+  categoryPath?: string;
   unit: string;
   description: string;
   isPromo?: boolean;

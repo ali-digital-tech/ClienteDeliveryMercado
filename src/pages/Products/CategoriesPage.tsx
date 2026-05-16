@@ -10,8 +10,29 @@ export function CategoriesPage() {
   const { marketId } = useMarketContext();
   const { cartCount, products, tenantPath } = useApp();
   const { categories } = useCategories(marketId);
+  const departments = categories.filter((category) => category.level === 1);
+  const getDescendantIds = (categoryId: string) => {
+    const ids = new Set([categoryId]);
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+      categories.forEach((category) => {
+        if (category.parentId && ids.has(category.parentId) && !ids.has(category.id)) {
+          ids.add(category.id);
+          changed = true;
+        }
+      });
+    }
+
+    return ids;
+  };
   const productCountByCategory = products.reduce<Record<string, number>>((counts, product) => {
-    counts[product.category] = (counts[product.category] || 0) + 1;
+    categories.forEach((category) => {
+      if (getDescendantIds(category.id).has(product.category)) {
+        counts[category.id] = (counts[category.id] || 0) + 1;
+      }
+    });
     return counts;
   }, {});
 
@@ -43,7 +64,7 @@ export function CategoriesPage() {
       {/* Grid of categories */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6" style={{ background: '#f3f4f6' }}>
         <div className="grid grid-cols-2 gap-3">
-          {categories.map(cat => {
+          {departments.map(cat => {
             const productCount = productCountByCategory[cat.id] || 0;
 
             return (

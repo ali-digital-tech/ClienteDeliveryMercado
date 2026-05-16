@@ -7,6 +7,10 @@ interface ApiCategory {
   slug?: string | null;
   emoji?: string | null;
   ativa?: boolean | null;
+  categoria_pai_id?: string | null;
+  nivel?: number | null;
+  ordem_exibicao?: number | null;
+  caminho?: string | null;
 }
 
 const categoryColors = [
@@ -28,6 +32,11 @@ function mapCategory(category: ApiCategory, marketId: string, index: number): Ca
     emoji: category.emoji || '🛒',
     color: palette.color,
     bgColor: palette.bgColor,
+    slug: category.slug,
+    parentId: category.categoria_pai_id || null,
+    level: category.nivel || 1,
+    order: category.ordem_exibicao || 0,
+    path: category.caminho || category.nome || 'Categoria',
   };
 }
 
@@ -43,5 +52,6 @@ export async function getCategoriesByMarketId(marketId: string): Promise<Categor
 
   return unwrapList<ApiCategory>(response)
     .filter(category => category.ativa !== false)
+    .sort((a, b) => (a.nivel || 1) - (b.nivel || 1) || (a.ordem_exibicao || 0) - (b.ordem_exibicao || 0) || (a.nome || '').localeCompare(b.nome || ''))
     .map((category, index) => mapCategory(category, marketId, index));
 }

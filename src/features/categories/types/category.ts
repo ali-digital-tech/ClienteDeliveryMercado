@@ -5,4 +5,9 @@ export interface Category {
   emoji: string;
   color: string;
   bgColor: string;
+  slug?: string | null;
+  parentId?: string | null;
+  level: number;
+  order: number;
+  path?: string;
 }

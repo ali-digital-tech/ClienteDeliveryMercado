@@ -11,6 +11,8 @@ interface ApiStoreProduct {
   preco_promocional?: string | number | null;
   imagem_url?: string | null;
   categoria_id?: string | null;
+  categoria_final_id?: string | null;
+  categoria_caminho?: string | null;
   categoria_nome?: string | null;
   slug?: string | null;
   unidade_medida?: string | null;
@@ -29,7 +31,7 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
   const regularPrice = toNumber(product.preco);
   const promoPrice = product.preco_promocional === null ? 0 : toNumber(product.preco_promocional);
   const hasPromo = promoPrice > 0 && regularPrice > 0 && promoPrice < regularPrice;
-  const category = product.categoria_id || product.categoria_nome || 'geral';
+  const category = product.categoria_final_id || product.categoria_id || product.categoria_nome || 'geral';
 
   return {
     id: product.id,
@@ -41,6 +43,7 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
     originalPrice: hasPromo ? regularPrice : undefined,
     image: product.imagem_url || '',
     category,
+    categoryPath: product.categoria_caminho || product.categoria_nome || undefined,
     unit: product.unidade_medida || 'un',
     description: product.descricao || 'Produto disponível no mercado.',
     isPromo: hasPromo,
