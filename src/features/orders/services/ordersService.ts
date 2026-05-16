@@ -1,4 +1,3 @@
-import { getOrCreateActiveCart } from '@/features/cart';
 import { apiRequest, getAuthToken, unwrapList } from '@/shared/lib/api';
 import type { Order } from '../types/order';
 
@@ -22,6 +21,7 @@ interface ApiOrder {
 
 export interface CreateCheckoutOrderInput {
   marketId: string;
+  cartId: string;
   addressId: string;
   type: 'delivery' | 'pickup';
   deliveryFee: number;
@@ -85,14 +85,12 @@ export async function getOrdersByMarketId(marketId: string): Promise<Order[]> {
 }
 
 export async function createCheckoutOrder(input: CreateCheckoutOrderInput) {
-  const cart = await getOrCreateActiveCart(input.marketId);
-
   const response = await apiRequest<{ data: ApiOrder }>('/pedidos', {
     method: 'POST',
     body: {
       loja_id: input.marketId,
       endereco_cliente_id: input.addressId,
-      carrinho_id: cart.id,
+      carrinho_id: input.cartId,
       tipo_pedido: input.type === 'pickup' ? 'retirada' : 'entrega',
       taxa_entrega: input.deliveryFee,
       desconto: input.discount || 0,

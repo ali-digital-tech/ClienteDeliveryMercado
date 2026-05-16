@@ -1,5 +1,4 @@
-import { apiRequest, unwrapList } from '@/shared/lib/api';
-import type { Product } from '@/features/products';
+import { apiRequest } from '@/shared/lib/api';
 import type { CartItem } from '../types/cart';
 import { toCartQuantityNumber } from '../utils/formatCartQuantity';
 
@@ -50,75 +49,32 @@ export async function getOrCreateActiveCart(marketId: string) {
   }
 }
 
-export async function addProductToRemoteCart(marketId: string, product: Product) {
+export async function syncCartItemsBatch(marketId: string, items: CartItem[]) {
   const cart = await getOrCreateActiveCart(marketId);
 
-  const response = await apiRequest<{ data: ApiCartItem }>('/itens_carrinho', {
+  const response = await apiRequest<{
+    data: {
+      carrinho_id?: string;
+      itens: ApiCartItem[];
+    };
+  }>('/itens_carrinho/bulk', {
     method: 'POST',
     body: {
       carrinho_id: cart.id,
-      produto_id: product.catalogProductId,
-      quantidade: 1,
+      itens: items
+        .filter(item => toCartQuantityNumber(item.qty) > 0)
+        .map(item => ({
+          produto_id: item.product.catalogProductId,
+          quantidade: toCartQuantityNumber(item.qty),
+        })),
     },
   });
 
   return {
-    ...response.data,
-    quantidade: toCartQuantityNumber(response.data.quantidade),
+    carrinho_id: response.data.carrinho_id || cart.id,
+    itens: response.data.itens.map(item => ({
+      ...item,
+      quantidade: toCartQuantityNumber(item.quantidade),
+    })),
   };
-}
-
-export async function updateRemoteCartItemQuantity(remoteItemId: string, quantity: number) {
-  const response = await apiRequest<{ data: ApiCartItem }>(`/itens_carrinho/${remoteItemId}/quantidade`, {
-    method: 'PATCH',
-    body: {
-      quantidade: quantity,
-    },
-  });
-
-  return {
-    ...response.data,
-    quantidade: toCartQuantityNumber(response.data.quantidade),
-  };
-}
-
-export async function removeRemoteCartItem(remoteItemId: string) {
-  await apiRequest(`/itens_carrinho/${remoteItemId}`, {
-    method: 'DELETE',
-  });
-}
-
-export async function getRemoteCartItems(marketId: string, products: Product[]): Promise<CartItem[]> {
-  let cart: ApiCart;
-
-  try {
-    cart = await getActiveCart(marketId);
-  } catch (error) {
-    if (isNotFound(error)) return [];
-    throw error;
-  }
-
-  const response = await apiRequest('/itens_carrinho', {
-    params: {
-      carrinho_id: cart.id,
-      per_page: 100,
-    },
-  });
-  const items = unwrapList<ApiCartItem>(response);
-
-  return items
-    .map((item) => {
-      const product = products.find(
-        (candidate) => candidate.catalogProductId === item.produto_id || candidate.id === item.produto_id
-      );
-
-      if (!product) return null;
-
-      return {
-        product,
-        qty: toCartQuantityNumber(item.quantidade),
-        remoteItemId: item.id,
-      };
-    })
-    .filter((item): item is CartItem => item !== null);
 }

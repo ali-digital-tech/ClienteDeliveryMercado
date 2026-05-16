@@ -1,12 +1,7 @@
-import React, { createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { authService, type AuthUser, type LoginCredentials } from '@/features/auth';
 import {
-  addProductToRemoteCart,
-  getRemoteCartItems,
-  removeRemoteCartItem,
-  updateRemoteCartItemQuantity,
   useCartStore,
   type AppliedCoupon,
   type CartItem,
@@ -73,8 +68,6 @@ function saveFavoritesToStorage(favoritesByMarket: Record<string, string[]>) {
 }
 
 export function AppProvider({ children, marketId }: { children: React.ReactNode; marketId: string }) {
-  const navigate = useNavigate();
-  const location = useLocation();
   const { currentMarket, isLoading } = useMarketContext();
   const { markets } = useMarkets();
   const { products: allProducts } = useProducts(marketId);
@@ -89,12 +82,11 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     cartCount,
     cartTotal,
     addToCart: addToLocalCart,
-    setCart,
     removeFromCart: removeFromLocalCart,
     updateQty: updateLocalQty,
     clearCart,
     applyCoupon,
-  } = useCartStore(marketId);
+  } = useCartStore(marketId, products);
   const { orders, placeOrder: createOrder } = useOrdersStore(marketId);
   const [favoritesByMarket, setFavoritesByMarket] = useState<Record<string, string[]>>(() => readFavoritesFromStorage());
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getStoredUser());
@@ -134,25 +126,6 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     return user;
   }, [storeId]);
 
-  useEffect(() => {
-    const storedUser = currentUser || authService.getStoredUser();
-    if (!storedUser || products.length === 0) return;
-
-    let isActive = true;
-
-    getRemoteCartItems(storeId, products)
-      .then((items) => {
-        if (isActive) setCart(items);
-      })
-      .catch((error) => {
-        console.error('Erro ao carregar carrinho remoto', error);
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [currentUser, products, setCart, storeId]);
-
   const logout = useCallback(() => {
     authService.clearSession();
     setCurrentUser(null);
@@ -166,47 +139,16 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
 
   const addToCart = useCallback(async (product: Product) => {
     if (product.marketId !== marketId) return;
-
-    const storedUser = authService.getStoredUser();
-    if (!currentUser && !storedUser) {
-      navigate(tenantPath('login'), {
-        state: {
-          redirectTo: `${location.pathname}${location.search}${location.hash}`,
-          pendingCartProductId: product.id,
-        },
-      });
-      return;
-    }
-
-    const remoteItem = await addProductToRemoteCart(storeId, product);
-    addToLocalCart(product, remoteItem.id, remoteItem.quantidade);
-  }, [addToLocalCart, currentUser, location.hash, location.pathname, location.search, marketId, navigate, storeId, tenantPath]);
+    addToLocalCart(product);
+  }, [addToLocalCart, marketId]);
 
   const removeFromCart = useCallback(async (productId: string) => {
-    const item = cart.find(cartItem => cartItem.product.id === productId);
-
-    if (item?.remoteItemId) {
-      await removeRemoteCartItem(item.remoteItemId);
-    }
-
     removeFromLocalCart(productId);
-  }, [cart, removeFromLocalCart]);
+  }, [removeFromLocalCart]);
 
   const updateQty = useCallback(async (productId: string, qty: number) => {
-    const item = cart.find(cartItem => cartItem.product.id === productId);
-
-    if (item?.remoteItemId) {
-      if (qty <= 0) {
-        await removeRemoteCartItem(item.remoteItemId);
-      } else {
-        const remoteItem = await updateRemoteCartItemQuantity(item.remoteItemId, qty);
-        updateLocalQty(productId, remoteItem.quantidade);
-        return;
-      }
-    }
-
     updateLocalQty(productId, qty);
-  }, [cart, updateLocalQty]);
+  }, [updateLocalQty]);
 
   if (isLoading) {
     return null;

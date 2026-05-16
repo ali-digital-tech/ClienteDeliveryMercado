@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import {
   ChevronLeft,
   MapPin,
@@ -16,9 +16,10 @@ import {
   resolveSelectedAddress,
   type CustomerAddress,
 } from '@/features/addresses';
-import { formatCartQuantity } from '@/features/cart';
+import { formatCartQuantity, syncCartItemsBatch } from '@/features/cart';
 import { ProductImage } from '@/features/products';
 import { createCheckoutOrder } from '@/features/orders/services/ordersService';
+import { getAuthToken } from '@/shared/lib/api';
 import {
   createCardPayment,
   createPixPayment,
@@ -30,6 +31,7 @@ import {
 
 export function CheckoutPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { cart, cartTotal, currentUser, discount, marketId, tenantPath, clearCart } = useApp();
   const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,6 +93,15 @@ export function CheckoutPage() {
       return;
     }
 
+    if (!currentUser && !getAuthToken()) {
+      navigate(tenantPath("login"), {
+        state: {
+          redirectTo: `${location.pathname}${location.search}${location.hash}`,
+        },
+      });
+      return;
+    }
+
     if (!selectedAddress) {
       setError('Selecione um endereco de entrega.');
       return;
@@ -101,8 +112,10 @@ export function CheckoutPage() {
     try {
       const payer = resolvePayerData();
       const selection = getStoredPaymentSelection();
+      const syncedCart = await syncCartItemsBatch(marketId, cart);
       const order = await createCheckoutOrder({
         marketId,
+        cartId: syncedCart.carrinho_id,
         addressId: selectedAddress.id,
         type: 'delivery',
         deliveryFee,
