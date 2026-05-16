@@ -40,6 +40,13 @@ export function CheckoutPage() {
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
+  const paymentSelection = getStoredPaymentSelection();
+  const paymentLabel =
+    paymentSelection.method === 'pix'
+      ? 'PIX Mercado Pago'
+      : paymentSelection.method === 'cartao_debito'
+        ? 'Cartão de débito'
+        : 'Cartão de crédito';
 
   useEffect(() => {
     if (!currentUser) return;
@@ -389,7 +396,7 @@ export function CheckoutPage() {
               <CreditCard size={14} color="#122a4c" />
             </div>
             <p style={{ fontSize: "13px", color: "#64748b" }}>
-              Cartão de crédito •••• 4242
+              {paymentLabel}
             </p>
           </div>
         </div>
