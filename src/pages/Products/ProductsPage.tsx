@@ -103,6 +103,7 @@ export function ProductsPage() {
   const selectedFilterCategoryId = selectedSubcategoryId || selectedLevel2Id || selectedDepartmentId;
   const selectedCategory = categories.find((cat) => cat.id === selectedFilterCategoryId);
   const searchChips = recentSearches.length > 0 ? recentSearches : DEFAULT_SEARCH_SUGGESTIONS;
+  const primaryColor = currentMarket?.primaryColor || "#122a4c";
   const getCategoryPathIds = (categoryId: string) => {
     const ids = new Set<string>();
     let current = categories.find((cat) => cat.id === categoryId);
@@ -214,20 +215,20 @@ export function ProductsPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div
-        className="flex-shrink-0 bg-white px-4 pt-12 md:pt-5 pb-3 border-b"
+        className="flex-shrink-0 bg-white px-4 pt-10 md:pt-4 pb-2 border-b"
         style={{ borderColor: "#d9e4f2" }}
       >
-        <div className="mb-3 flex items-center gap-3">
+        <div className="mb-2 flex items-center gap-2">
           <button
             onClick={() => navigate(-1)}
-            className="rounded-full p-2"
+            className="rounded-full p-2 flex-shrink-0"
             style={{ backgroundColor: "#eef4fb" }}
           >
             <ChevronLeft size={20} color="#122a4c" />
           </button>
 
           <div
-            className="flex-1 flex items-center gap-3 rounded-2xl px-4 py-3"
+            className="flex-1 flex min-w-0 items-center gap-2 rounded-xl px-3 py-2"
             style={{
               backgroundColor: "#f8fafc",
               border: "1px solid #d9e4f2",
@@ -246,7 +247,7 @@ export function ProductsPage() {
                 }
               }}
               className="flex-1 bg-transparent outline-none placeholder:text-gray-400"
-              style={{ fontSize: "14px", color: "#334155" }}
+              style={{ fontSize: "13px", color: "#334155" }}
             />
             {query && (
               <button onClick={() => setQuery("")}>
@@ -255,124 +256,22 @@ export function ProductsPage() {
             )}
           </div>
 
-          <button
-            className="relative rounded-full p-2"
-            style={{ backgroundColor: "#eef4fb" }}
-            onClick={() => navigate(tenantPath("carrinho"))}
-          >
-            <ShoppingCart size={20} color="#122a4c" />
-            {cartCount > 0 && (
-              <span
-                className="absolute -top-1 -right-1 text-white rounded-full flex items-center justify-center"
-                style={{
-                  backgroundColor: "#122a4c",
-                  width: "18px",
-                  height: "18px",
-                  fontSize: "10px",
-                  fontWeight: 700,
-                }}
-              >
-                {cartCount}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Filter chips */}
-        {selectedDepartment && (
-          <div className="mb-2 flex items-center justify-between rounded-2xl px-3 py-2" style={{ backgroundColor: "#eef4fb" }}>
-            <span style={{ fontSize: "12px", color: "#122a4c", fontWeight: 700 }}>
-              {selectedDepartment.emoji} {selectedDepartment.name}
-            </span>
+          <div className="relative flex-shrink-0">
             <button
-              onClick={() => navigate(tenantPath("produtos"), { replace: true })}
-              style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}
-            >
-              Limpar
-            </button>
-          </div>
-        )}
-
-        {selectedDepartment && level2Categories.length > 0 && (
-          <div className="mb-2 flex gap-2 overflow-x-auto pb-1 px-1 scrollbar-hide">
-            {level2Categories.map((category) => {
-              const isActive = selectedLevel2Id === category.id;
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => updateNavigation({ categoriaNivel2: category.id, subcategoria: null })}
-                  className="flex-shrink-0 rounded-xl px-4 py-2 transition-all shadow-sm"
-                  style={{
-                    backgroundColor: isActive ? "white" : "#f1f5f9",
-                    color: isActive ? (currentMarket?.primaryColor || "#122a4c") : "#64748b",
-                    border: `1.5px solid ${isActive ? (currentMarket?.primaryColor || "#122a4c") : "transparent"}`,
-                    fontSize: "13px",
-                    fontWeight: isActive ? 700 : 600,
-                  }}
-                >
-                  {category.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {selectedLevel2 && (
-          <div className="mb-2 flex gap-2 overflow-x-auto pb-1 px-1 scrollbar-hide">
-            <button
-              onClick={() => updateNavigation({ subcategoria: null })}
-              className="flex-shrink-0 rounded-xl px-4 py-2 transition-all shadow-sm"
-              style={{
-                backgroundColor: !selectedSubcategoryId ? "white" : "#f1f5f9",
-                color: !selectedSubcategoryId ? (currentMarket?.primaryColor || "#16a34a") : "#64748b",
-                border: `1.5px solid ${!selectedSubcategoryId ? (currentMarket?.primaryColor || "#16a34a") : "transparent"}`,
-                fontSize: "13px",
-                fontWeight: !selectedSubcategoryId ? 700 : 600,
-              }}
-            >
-              Todos
-            </button>
-            {level3Categories.map((subcategory) => {
-              const isActive = selectedSubcategoryId === subcategory.id;
-              return (
-                <button
-                  key={subcategory.id}
-                  onClick={() => updateNavigation({ subcategoria: subcategory.id })}
-                  className="flex-shrink-0 rounded-xl px-4 py-2 transition-all shadow-sm"
-                  style={{
-                    backgroundColor: isActive ? "white" : "#f1f5f9",
-                    color: isActive ? (currentMarket?.primaryColor || "#16a34a") : "#64748b",
-                    border: `1.5px solid ${isActive ? (currentMarket?.primaryColor || "#16a34a") : "transparent"}`,
-                    fontSize: "13px",
-                    fontWeight: isActive ? 700 : 600,
-                  }}
-                >
-                  {subcategory.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Sort */}
-        <div className="flex justify-end px-1 mb-2">
-          <div className="relative">
-            <button
+              type="button"
+              aria-label="Ordenar produtos"
+              title="Ordenar"
               onClick={() => setShowSort(!showSort)}
-              className="flex-shrink-0 flex items-center gap-1.5 rounded-xl px-4 py-2 shadow-sm transition-all"
-              style={{ backgroundColor: "#f1f5f9" }}
+              className="rounded-full p-2 transition-all"
+              style={{ backgroundColor: "#eef4fb" }}
             >
-              <SlidersHorizontal size={14} color="#64748b" />
-              <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 600 }}>
-                Ordenar
-              </span>
+              <SlidersHorizontal size={20} color="#122a4c" />
             </button>
 
-            {/* Sort dropdown */}
             {showSort && (
               <div
                 className="absolute right-0 top-[calc(100%+8px)] w-48 overflow-hidden rounded-2xl bg-white shadow-xl z-[100]"
-                style={{ 
+                style={{
                   border: "1px solid #d9e4f2",
                   animation: "fadeIn 0.2s ease-out forwards"
                 }}
@@ -393,7 +292,7 @@ export function ProductsPage() {
                     className="w-full text-left px-4 py-3 last:border-0 hover:bg-gray-50 transition-colors"
                     style={{
                       fontSize: "14px",
-                      color: sort === opt ? "#122a4c" : "#334155",
+                      color: sort === opt ? primaryColor : "#334155",
                       fontWeight: sort === opt ? 600 : 400,
                       borderBottom: "1px solid #eef2f7",
                     }}
@@ -404,7 +303,103 @@ export function ProductsPage() {
               </div>
             )}
           </div>
+
+          <button
+            className="relative rounded-full p-2 flex-shrink-0"
+            style={{ backgroundColor: "#eef4fb" }}
+            onClick={() => navigate(tenantPath("carrinho"))}
+          >
+            <ShoppingCart size={20} color="#122a4c" />
+            {cartCount > 0 && (
+              <span
+                className="absolute -top-1 -right-1 text-white rounded-full flex items-center justify-center"
+                style={{
+                  backgroundColor: primaryColor,
+                  width: "18px",
+                  height: "18px",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                }}
+              >
+                {cartCount}
+              </span>
+            )}
+          </button>
         </div>
+
+        {/* Filter chips */}
+        {selectedDepartment && (
+          <div className="mb-1 flex items-center justify-between gap-3 px-1">
+            <span className="min-w-0 truncate" style={{ fontSize: "12px", color: primaryColor, fontWeight: 700 }}>
+              {selectedDepartment.emoji} {selectedDepartment.name}
+            </span>
+            <button
+              onClick={() => navigate(tenantPath("produtos"), { replace: true })}
+              className="flex-shrink-0"
+              style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}
+            >
+              Limpar
+            </button>
+          </div>
+        )}
+
+        {selectedDepartment && level2Categories.length > 0 && (
+          <div className="mb-1 flex gap-4 overflow-x-auto px-1 pb-1 scrollbar-hide">
+            {level2Categories.map((category) => {
+              const isActive = selectedLevel2Id === category.id;
+              return (
+                <button
+                  key={category.id}
+                  onClick={() => updateNavigation({ categoriaNivel2: category.id, subcategoria: null })}
+                  className="flex-shrink-0 py-1 transition-colors"
+                  style={{
+                    color: isActive ? primaryColor : "#64748b",
+                    borderBottom: `2px solid ${isActive ? primaryColor : "transparent"}`,
+                    fontSize: "12px",
+                    fontWeight: isActive ? 700 : 600,
+                  }}
+                >
+                  {category.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {selectedLevel2 && (
+          <div className="flex gap-4 overflow-x-auto px-1 pb-1 scrollbar-hide">
+            <button
+              onClick={() => updateNavigation({ subcategoria: null })}
+              className="flex-shrink-0 py-1 transition-colors"
+              style={{
+                color: !selectedSubcategoryId ? primaryColor : "#64748b",
+                borderBottom: `2px solid ${!selectedSubcategoryId ? primaryColor : "transparent"}`,
+                fontSize: "12px",
+                fontWeight: !selectedSubcategoryId ? 700 : 600,
+              }}
+            >
+              Todos
+            </button>
+            {level3Categories.map((subcategory) => {
+              const isActive = selectedSubcategoryId === subcategory.id;
+              return (
+                <button
+                  key={subcategory.id}
+                  onClick={() => updateNavigation({ subcategoria: subcategory.id })}
+                  className="flex-shrink-0 py-1 transition-colors"
+                  style={{
+                    color: isActive ? primaryColor : "#64748b",
+                    borderBottom: `2px solid ${isActive ? primaryColor : "transparent"}`,
+                    fontSize: "12px",
+                    fontWeight: isActive ? 700 : 600,
+                  }}
+                >
+                  {subcategory.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Content */}
