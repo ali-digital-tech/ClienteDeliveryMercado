@@ -27,6 +27,8 @@ export function DesktopSidebar() {
 
   const isActive = (path: string) => location.pathname === tenantPath(path);
   const showLogo = currentMarket.logo && !logoFailed;
+  const primaryColor = currentMarket?.primaryColor || '#122a4c';
+  const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
 
   return (
     <aside
@@ -73,8 +75,8 @@ export function DesktopSidebar() {
                 onClick={() => navigate(tenantPath(path))}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all w-full text-left"
                 style={{
-                  backgroundColor: active ? '#eef4fb' : 'transparent',
-                  color: active ? '#122a4c' : '#6b7280',
+                  backgroundColor: active ? primarySoftColor : 'transparent',
+                  color: active ? primaryColor : '#6b7280',
                 }}
               >
                 <div className="relative flex-shrink-0">
@@ -84,7 +86,7 @@ export function DesktopSidebar() {
                       className="absolute -top-1.5 -right-1.5 text-white rounded-full flex items-center justify-center"
                       style={{
                         width: '16px', height: '16px', fontSize: '9px', fontWeight: 700,
-                        backgroundColor: '#16a34a',
+                        backgroundColor: primaryColor,
                       }}
                     >
                       {cartCount}
@@ -95,7 +97,7 @@ export function DesktopSidebar() {
                 {active && (
                   <span
                     className="ml-auto rounded-full"
-                    style={{ width: '6px', height: '6px', backgroundColor: '#122a4c', flexShrink: 0 }}
+                    style={{ width: '6px', height: '6px', backgroundColor: primaryColor, flexShrink: 0 }}
                   />
                 )}
               </button>
@@ -115,8 +117,8 @@ export function DesktopSidebar() {
                 onClick={() => navigate(tenantPath(path))}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all w-full text-left"
                 style={{
-                  backgroundColor: active ? '#eef4fb' : 'transparent',
-                  color: active ? '#122a4c' : '#6b7280',
+                  backgroundColor: active ? primarySoftColor : 'transparent',
+                  color: active ? primaryColor : '#6b7280',
                 }}
               >
                 <Icon size={18} strokeWidth={active ? 2.5 : 1.8} />
@@ -131,13 +133,13 @@ export function DesktopSidebar() {
       <div className="flex-shrink-0 px-4 py-4 border-t border-gray-100">
         <div
           className="rounded-xl px-3 py-2.5 flex items-center gap-2"
-          style={{ backgroundColor: '#f0fdf4' }}
+          style={{ backgroundColor: primarySoftColor }}
         >
           <div
             className="rounded-full flex-shrink-0"
-            style={{ width: '8px', height: '8px', backgroundColor: '#16a34a' }}
+            style={{ width: '8px', height: '8px', backgroundColor: primaryColor }}
           />
-          <p style={{ fontSize: '11px', color: '#15803d', fontWeight: 600 }}>
+          <p style={{ fontSize: '11px', color: primaryColor, fontWeight: 600 }}>
             Entrega por ordem de pedido
           </p>
         </div>

@@ -29,6 +29,7 @@ import {
   type CustomerAddress,
   type CustomerAddressPayload,
 } from '@/features/addresses';
+import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
 const UF_OPTIONS = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
@@ -76,7 +77,6 @@ export function AddressesScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
-  const [error, setError] = useState('');
 
   const selectedAddress = useMemo(
     () => addresses.find(address => address.id === selected) || addresses.find(address => address.principal) || addresses[0],
@@ -93,8 +93,6 @@ export function AddressesScreen() {
     }
 
     setIsLoading(true);
-    setError('');
-
     try {
       const data = await getMyAddresses();
       const resolvedAddress = resolveSelectedAddress(marketId, data);
@@ -102,7 +100,7 @@ export function AddressesScreen() {
       setSelected(current => current || resolvedAddress?.id || null);
       if (resolvedAddress) setSelectedAddressId(marketId, resolvedAddress.id);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Nao foi possivel carregar seus enderecos.');
+      showSystemNotice(error || 'Não foi possível carregar seus endereços.');
     } finally {
       setIsLoading(false);
     }
@@ -123,8 +121,6 @@ export function AddressesScreen() {
   };
 
   const handleSetPrimary = async (addressId: string) => {
-    setError('');
-
     try {
       const updatedAddress = await setAddressAsPrimary(addressId);
       setAddresses(prev => prev.map(address => ({
@@ -134,19 +130,17 @@ export function AddressesScreen() {
       setSelected(updatedAddress.id);
       setSelectedAddressId(marketId, updatedAddress.id);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Nao foi possivel definir o endereco principal.');
+      showSystemNotice(error || 'Não foi possível definir o endereço principal.');
     }
   };
 
   const handleDelete = async (addressId: string) => {
-    setError('');
-
     try {
       await deleteAddress(addressId);
       setAddresses(prev => prev.filter(address => address.id !== addressId));
       if (selected === addressId) setSelected(null);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Nao foi possivel remover o endereco.');
+      showSystemNotice(error || 'Não foi possível remover o endereço.');
     }
   };
 
@@ -173,12 +167,11 @@ export function AddressesScreen() {
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setError('Seu navegador nao permite capturar localizacao.');
+      showSystemNotice('Seu navegador não permite capturar localização.');
       return;
     }
 
     setIsLocating(true);
-    setError('');
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -209,7 +202,7 @@ export function AddressesScreen() {
         setIsLocating(false);
       },
       () => {
-        setError('Nao foi possivel acessar sua localizacao.');
+        showSystemNotice('Não foi possível acessar sua localização.');
         setIsLocating(false);
       },
       {
@@ -221,8 +214,6 @@ export function AddressesScreen() {
   };
 
   const handleSave = async () => {
-    setError('');
-
     const payload: CustomerAddressPayload = {
       apelido: optionalText(form.apelido),
       nome_destinatario: optionalText(form.nome_destinatario),
@@ -241,7 +232,7 @@ export function AddressesScreen() {
     };
 
     if (!payload.cep || !payload.rua || !payload.bairro || !payload.cidade || !payload.estado) {
-      setError('Preencha CEP, rua, bairro, cidade e UF.');
+      showSystemNotice('Preencha CEP, rua, bairro, cidade e UF.');
       return;
     }
 
@@ -259,7 +250,7 @@ export function AddressesScreen() {
       setShowForm(false);
       setTimeout(() => navigate(-1), 250);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Nao foi possivel salvar o endereco.');
+      showSystemNotice(error || 'Não foi possível salvar o endereço.');
     } finally {
       setIsSaving(false);
     }
@@ -308,21 +299,6 @@ export function AddressesScreen() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6" style={{ background: '#f3f4f6' }}>
-        {error && (
-          <div
-            className="rounded-2xl px-4 py-3 mb-3"
-            style={{
-              backgroundColor: '#fef2f2',
-              border: '1px solid #fecaca',
-              color: '#b91c1c',
-              fontSize: '13px',
-              fontWeight: 600,
-            }}
-          >
-            {error}
-          </div>
-        )}
-
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 size={24} className="animate-spin" color="#122a4c" />

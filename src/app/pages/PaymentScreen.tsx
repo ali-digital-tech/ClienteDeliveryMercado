@@ -11,6 +11,7 @@ import {
   type PaymentMethod,
   type PayerData,
 } from '@/features/payments';
+import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
 declare global {
   interface Window {
@@ -28,34 +29,54 @@ const methodOptions: Array<{
   {
     id: "pix",
     label: "PIX",
-    desc: "QR Code e copia e cola gerados pelo Mercado Pago",
+    desc: "Pague com QR Code ou código copia e cola",
     badge: "Mais rápido",
     Icon: QrCode,
   },
   {
     id: "cartao_credito",
     label: "Cartão de crédito",
-    desc: "Tokenizado pelo MercadoPago.js",
+    desc: "Informe os dados do cartão e escolha o parcelamento",
     Icon: CreditCard,
   },
   {
     id: "cartao_debito",
     label: "Cartão de débito",
-    desc: "Tokenizado pelo MercadoPago.js",
+    desc: "Pagamento à vista com cartão de débito",
     Icon: Smartphone,
   },
 ];
 
-const cardBrands = [
-  { value: "visa", label: "Visa crédito" },
-  { value: "master", label: "Mastercard crédito" },
-  { value: "elo", label: "Elo crédito" },
-  { value: "debvisa", label: "Visa débito" },
-  { value: "debmaster", label: "Mastercard débito" },
+const cardBrandOptions = [
+  { name: "Visa", creditId: "visa", debitId: "debvisa", test: (digits: string) => /^4/.test(digits) },
+  { name: "Mastercard", creditId: "master", debitId: "debmaster", test: (digits: string) => /^(5[1-5]|2(2[2-9]|[3-6]|7[01]|720))/.test(digits) },
+  { name: "Elo", creditId: "elo", debitId: "elo", test: (digits: string) => /^(4011|4312|4389|4514|4576|504175|5067|509|627780|636297|636368)/.test(digits) },
 ];
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function detectCardBrand(cardNumber: string) {
+  const digits = onlyDigits(cardNumber);
+  if (digits.length < 4) return null;
+  return cardBrandOptions.find((brand) => brand.test(digits)) || null;
+}
+
+function formatCardNumber(value: string) {
+  return onlyDigits(value).slice(0, 19).replace(/(.{4})/g, "$1 ").trim();
+}
+
+function formatExpiry(value: string) {
+  const digits = onlyDigits(value).slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+}
+
+function maskCardPreview(value: string) {
+  const digits = onlyDigits(value);
+  const padded = `${digits}${"0000000000000000".slice(digits.length)}`.slice(0, 16);
+  return padded.replace(/(.{4})/g, "$1 ").trim();
 }
 
 function splitName(name?: string) {
@@ -76,7 +97,7 @@ function loadMercadoPagoSdk() {
 
     if (existingScript) {
       existingScript.addEventListener("load", () => resolve(), { once: true });
-      existingScript.addEventListener("error", () => reject(new Error("Nao foi possivel carregar MercadoPago.js.")), { once: true });
+      existingScript.addEventListener("error", () => reject(new Error("Não foi possível carregar o pagamento online.")), { once: true });
       return;
     }
 
@@ -84,14 +105,14 @@ function loadMercadoPagoSdk() {
     script.src = "https://sdk.mercadopago.com/js/v2";
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Nao foi possivel carregar MercadoPago.js."));
+    script.onerror = () => reject(new Error("Não foi possível carregar o pagamento online."));
     document.head.appendChild(script);
   });
 }
 
 export function PaymentScreen() {
   const navigate = useNavigate();
-  const { tenantPath, marketId, currentUser } = useApp();
+  const { tenantPath, marketId, currentUser, currentMarket } = useApp();
   const storedSelection = useMemo(() => getStoredPaymentSelection(), []);
   const storedPayer = useMemo(() => getStoredPayerData(), []);
   const nameParts = splitName(currentUser?.nome);
@@ -109,12 +130,18 @@ export function PaymentScreen() {
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
   const [securityCode, setSecurityCode] = useState("");
-  const [paymentMethodId, setPaymentMethodId] = useState(
-    storedSelection.payment_method_id || "visa"
-  );
   const [installments, setInstallments] = useState(storedSelection.installments || 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const primaryColor = currentMarket?.primaryColor || "#122a4c";
+  const secondaryColor = currentMarket?.secondaryColor || "#1b3d6d";
+  const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
+  const detectedBrand = detectCardBrand(cardNumber);
+  const effectivePaymentMethodId = selected === "cartao_debito"
+    ? detectedBrand?.debitId
+    : detectedBrand?.creditId;
+  const cardPreviewName = cardholderName.trim() || "Nome impresso";
+  const cardPreviewNumber = cardNumber ? maskCardPreview(cardNumber) : "0000 0000 0000 0000";
+  const cardPreviewExpiry = expiry || "MM/AA";
 
   useEffect(() => {
     let isActive = true;
@@ -123,18 +150,24 @@ export function PaymentScreen() {
       .then((config) => {
         if (!isActive) return;
         if (!config.connected) {
-          setError("Esta loja ainda nao esta conectada ao Mercado Pago.");
+          showSystemNotice("Esta loja ainda não possui pagamentos online configurados.");
         }
         setPublicKey(config.public_key || "");
       })
       .catch((err) => {
-        if (isActive) setError(err instanceof Error ? err.message : "Nao foi possivel carregar Mercado Pago.");
+        if (isActive) showSystemNotice(err || "Não foi possível carregar as formas de pagamento.");
       });
 
     return () => {
       isActive = false;
     };
   }, [marketId]);
+
+  useEffect(() => {
+    if (selected === "cartao_debito") {
+      setInstallments(1);
+    }
+  }, [selected]);
 
   const updatePayer = (field: keyof PayerData, value: string) => {
     setPayer((prev) => ({ ...prev, [field]: value }));
@@ -147,21 +180,24 @@ export function PaymentScreen() {
 
     const doc = onlyDigits(payer.doc_number);
     if (payer.doc_type === "CPF" && doc.length !== 11) {
-      throw new Error("Informe um CPF com 11 digitos.");
+      throw new Error("Informe um CPF com 11 dígitos.");
     }
     if (payer.doc_type === "CNPJ" && doc.length !== 14) {
-      throw new Error("Informe um CNPJ com 14 digitos.");
+      throw new Error("Informe um CNPJ com 14 dígitos.");
     }
 
     return { ...payer, doc_number: doc };
   };
 
   const createCardToken = async (normalizedPayer: PayerData) => {
-    if (!publicKey) throw new Error("Public key do Mercado Pago nao configurada.");
+    if (!publicKey) throw new Error("Pagamento online não configurado para esta loja.");
 
     const [month, year] = expiry.split("/").map((part) => part.trim());
     if (!month || !year || !cardholderName || !cardNumber || !securityCode) {
-      throw new Error("Preencha todos os dados do cartao.");
+      throw new Error("Preencha todos os dados do cartão.");
+    }
+    if (!effectivePaymentMethodId) {
+      throw new Error("Não foi possível identificar a bandeira do cartão. Confira o número informado.");
     }
 
     await loadMercadoPagoSdk();
@@ -177,7 +213,7 @@ export function PaymentScreen() {
     });
 
     if (!token?.id) {
-      throw new Error("Mercado Pago nao retornou o token do cartao.");
+      throw new Error("Não foi possível validar os dados do cartão.");
     }
 
     return token.id;
@@ -185,7 +221,6 @@ export function PaymentScreen() {
 
   const handleConfirm = async () => {
     setIsSubmitting(true);
-    setError(null);
 
     try {
       const normalizedPayer = validatePayer();
@@ -198,7 +233,7 @@ export function PaymentScreen() {
         savePaymentSelection({
           method: selected,
           card_token: cardToken,
-          payment_method_id: paymentMethodId,
+          payment_method_id: effectivePaymentMethodId,
           issuer_id: null,
           installments,
         });
@@ -206,7 +241,7 @@ export function PaymentScreen() {
 
       navigate(tenantPath("checkout"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nao foi possivel confirmar o pagamento.");
+      showSystemNotice(err || "Não foi possível confirmar o pagamento.");
     } finally {
       setIsSubmitting(false);
     }
@@ -240,17 +275,17 @@ export function PaymentScreen() {
               key={id}
               onClick={() => setSelected(id)}
               className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 border-2 text-left transition-all"
-              style={{ borderColor: selected === id ? "#122a4c" : "#d9e4f2" }}
+              style={{ borderColor: selected === id ? primaryColor : "#d9e4f2" }}
             >
               <div
                 className="rounded-2xl flex items-center justify-center flex-shrink-0"
                 style={{
                   width: "48px",
                   height: "48px",
-                  backgroundColor: selected === id ? "#eef4fb" : "#f8fafc",
+                  backgroundColor: selected === id ? primarySoftColor : "#f8fafc",
                 }}
               >
-                <Icon size={22} color="#122a4c" />
+                <Icon size={22} color={primaryColor} />
               </div>
 
               <div className="flex-1 min-w-0">
@@ -264,8 +299,8 @@ export function PaymentScreen() {
                       style={{
                         fontSize: "10px",
                         fontWeight: 600,
-                        backgroundColor: "#eef4fb",
-                        color: "#122a4c",
+                        backgroundColor: primarySoftColor,
+                        color: primaryColor,
                       }}
                     >
                       {badge}
@@ -280,8 +315,8 @@ export function PaymentScreen() {
                 style={{
                   width: "20px",
                   height: "20px",
-                  border: `2px solid ${selected === id ? "#122a4c" : "#cbd5e1"}`,
-                  backgroundColor: selected === id ? "#122a4c" : "white",
+                  border: `2px solid ${selected === id ? primaryColor : "#cbd5e1"}`,
+                  backgroundColor: selected === id ? primaryColor : "white",
                 }}
               />
             </button>
@@ -306,22 +341,69 @@ export function PaymentScreen() {
         </div>
 
         {selected !== "pix" && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm mb-4" style={{ border: "1px solid #d9e4f2" }}>
-            <h2 style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }} className="mb-3">
-              Cartão
-            </h2>
+          <div className="bg-white rounded-2xl p-4 shadow-sm mb-4" style={{ border: `1px solid ${primarySoftColor}` }}>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }}>
+                  Dados do cartão
+                </h2>
+                <p style={{ fontSize: "12px", color: "#64748b" }}>
+                  A bandeira aparece automaticamente ao digitar o numero.
+                </p>
+              </div>
+              <span
+                className="rounded-full px-3 py-1"
+                style={{ fontSize: "11px", fontWeight: 700, color: primaryColor, backgroundColor: primarySoftColor }}
+              >
+                {detectedBrand?.name || "Bandeira"}
+              </span>
+            </div>
+
+            <div
+              className="mb-4 rounded-2xl p-4 text-white shadow-sm"
+              style={{
+                minHeight: "176px",
+                background: `linear-gradient(135deg, ${secondaryColor} 0%, ${primaryColor} 100%)`,
+              }}
+            >
+              <div className="mb-8 flex items-center justify-between">
+                <span style={{ fontSize: "12px", fontWeight: 700, letterSpacing: "0.08em" }}>
+                  {selected === "cartao_debito" ? "DÉBITO" : "CRÉDITO"}
+                </span>
+                <span style={{ fontSize: "15px", fontWeight: 800 }}>
+                  {detectedBrand?.name || "Cartão"}
+                </span>
+              </div>
+              <p style={{ fontSize: "20px", fontWeight: 700, letterSpacing: "0.12em" }}>
+                {cardPreviewNumber}
+              </p>
+              <div className="mt-5 flex items-end justify-between gap-4">
+                <div className="min-w-0">
+                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.68)", fontWeight: 700 }}>
+                    TITULAR
+                  </p>
+                  <p className="truncate" style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase" }}>
+                    {cardPreviewName}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.68)", fontWeight: 700 }}>
+                    VALIDADE
+                  </p>
+                  <p style={{ fontSize: "12px", fontWeight: 700 }}>{cardPreviewExpiry}</p>
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input className="rounded-xl border px-3 py-3 text-sm md:col-span-2" placeholder="Nome impresso no cartao" value={cardholderName} onChange={(e) => setCardholderName(e.target.value)} />
-              <input className="rounded-xl border px-3 py-3 text-sm md:col-span-2" placeholder="Numero do cartao" inputMode="numeric" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} />
-              <input className="rounded-xl border px-3 py-3 text-sm" placeholder="MM/AA" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
-              <input className="rounded-xl border px-3 py-3 text-sm" placeholder="CVV" inputMode="numeric" value={securityCode} onChange={(e) => setSecurityCode(e.target.value)} />
-              <select className="rounded-xl border px-3 py-3 text-sm" value={paymentMethodId} onChange={(e) => setPaymentMethodId(e.target.value)}>
-                {cardBrands.map((brand) => (
-                  <option key={brand.value} value={brand.value}>{brand.label}</option>
-                ))}
-              </select>
-              <select className="rounded-xl border px-3 py-3 text-sm" value={installments} onChange={(e) => setInstallments(Number(e.target.value))}>
+              <input className="rounded-xl border px-3 py-3 text-sm md:col-span-2" placeholder="Nome impresso no cartão" value={cardholderName} onChange={(e) => setCardholderName(e.target.value)} />
+              <input className="rounded-xl border px-3 py-3 text-sm md:col-span-2" placeholder="Número do cartão" inputMode="numeric" autoComplete="cc-number" value={cardNumber} onChange={(e) => setCardNumber(formatCardNumber(e.target.value))} />
+              <input className="rounded-xl border px-3 py-3 text-sm" placeholder="MM/AA" inputMode="numeric" autoComplete="cc-exp" value={expiry} onChange={(e) => setExpiry(formatExpiry(e.target.value))} />
+              <input className="rounded-xl border px-3 py-3 text-sm" placeholder="CVV" inputMode="numeric" autoComplete="cc-csc" value={securityCode} onChange={(e) => setSecurityCode(onlyDigits(e.target.value).slice(0, 4))} />
+              <div className="rounded-xl border px-3 py-3 text-sm" style={{ color: detectedBrand ? "#334155" : "#94a3b8" }}>
+                {detectedBrand ? detectedBrand.name : "Bandeira identificada automaticamente"}
+              </div>
+              <select className="rounded-xl border px-3 py-3 text-sm" value={installments} disabled={selected === "cartao_debito"} onChange={(e) => setInstallments(Number(e.target.value))}>
                 {Array.from({ length: selected === "cartao_debito" ? 1 : 12 }).map((_, index) => (
                   <option key={index + 1} value={index + 1}>{index + 1}x</option>
                 ))}
@@ -330,11 +412,6 @@ export function PaymentScreen() {
           </div>
         )}
 
-        {error && (
-          <div className="rounded-xl px-4 py-3 text-sm mb-4" style={{ backgroundColor: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" }}>
-            {error}
-          </div>
-        )}
       </div>
 
       <div className="flex-shrink-0 bg-white px-4 py-4 border-t" style={{ borderColor: "#d9e4f2" }}>
@@ -342,7 +419,7 @@ export function PaymentScreen() {
           onClick={handleConfirm}
           disabled={isSubmitting}
           className="w-full rounded-2xl py-4 text-white transition-all active:scale-[0.98] disabled:opacity-60"
-          style={{ backgroundColor: "#122a4c", fontSize: "15px", fontWeight: 700 }}
+          style={{ backgroundColor: primaryColor, fontSize: "15px", fontWeight: 700 }}
         >
           {isSubmitting ? "Validando..." : "Usar esta forma de pagamento"}
         </button>

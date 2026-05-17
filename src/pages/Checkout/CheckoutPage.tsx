@@ -6,6 +6,8 @@ import {
   Truck,
   CreditCard,
   ChevronRight,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { BannerRenderer, useBanners } from '@/features/banners';
@@ -29,6 +31,7 @@ import {
   type MercadoPagoPaymentResult,
   type PayerData,
 } from '@/features/payments';
+import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
@@ -37,7 +40,6 @@ export function CheckoutPage() {
   const { banners } = useBanners(marketId, 'checkout');
   const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [paymentResult, setPaymentResult] = useState<MercadoPagoPaymentResult | null>(null);
 
   const deliveryFee = cartTotal >= 89 ? 0 : 6.99;
@@ -45,9 +47,16 @@ export function CheckoutPage() {
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
   const paymentSelection = getStoredPaymentSelection();
+  const storedPayerData = getStoredPayerData();
+  const hasPayerData = Boolean(
+    storedPayerData.payer_email &&
+    storedPayerData.payer_first_name &&
+    storedPayerData.payer_last_name &&
+    storedPayerData.doc_number
+  );
   const paymentLabel =
     paymentSelection.method === 'pix'
-      ? 'PIX Mercado Pago'
+      ? 'PIX'
       : paymentSelection.method === 'cartao_debito'
         ? 'Cartão de débito'
         : 'Cartão de crédito';
@@ -88,10 +97,8 @@ export function CheckoutPage() {
   };
 
   const handleFinalize = async () => {
-    setError(null);
-
     if (cart.length === 0) {
-      setError('Seu carrinho esta vazio.');
+      showSystemNotice('Seu carrinho está vazio.');
       return;
     }
 
@@ -105,7 +112,7 @@ export function CheckoutPage() {
     }
 
     if (!selectedAddress) {
-      setError('Selecione um endereco de entrega.');
+      showSystemNotice('Selecione um endereço de entrega.');
       return;
     }
 
@@ -139,7 +146,7 @@ export function CheckoutPage() {
         navigate(tenantPath("order-confirmed"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel finalizar o pedido.');
+      showSystemNotice(err || 'Não foi possível finalizar o pedido.');
     } finally {
       setIsSubmitting(false);
     }
@@ -181,7 +188,7 @@ export function CheckoutPage() {
         {/* Itens */}
         <div
           className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: `1px solid ${hasPayerData ? "#bbf7d0" : "#fde68a"}` }}
         >
           <h3
             style={{
@@ -399,9 +406,26 @@ export function CheckoutPage() {
             >
               <CreditCard size={14} color="#122a4c" />
             </div>
-            <p style={{ fontSize: "13px", color: "#64748b" }}>
-              {paymentLabel}
-            </p>
+            <div className="flex-1">
+              <p style={{ fontSize: "13px", color: "#64748b" }}>
+                {paymentLabel}
+              </p>
+              <p
+                className="mt-0.5"
+                style={{
+                  fontSize: "12px",
+                  color: hasPayerData ? "#15803d" : "#b45309",
+                  fontWeight: 600,
+                }}
+              >
+                {hasPayerData ? "Dados do pagador confirmados" : "Confirme os dados do pagador"}
+              </p>
+            </div>
+            {hasPayerData ? (
+              <CheckCircle2 size={18} color="#16a34a" />
+            ) : (
+              <AlertTriangle size={18} color="#d97706" />
+            )}
           </div>
         </div>
 
@@ -493,22 +517,13 @@ export function CheckoutPage() {
           </div>
         </div>
 
-        {error && (
-          <div
-            className="rounded-xl px-4 py-3 text-sm mb-4"
-            style={{ backgroundColor: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" }}
-          >
-            {error}
-          </div>
-        )}
-
         {paymentResult?.qr_code && (
           <div
             className="bg-white rounded-2xl p-4 mb-4 shadow-sm"
             style={{ border: "1px solid #d9e4f2" }}
           >
             <h3 style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }} className="mb-3">
-              PIX Mercado Pago
+              Pagamento via PIX
             </h3>
             {paymentResult.qr_code_base64 && (
               <img
@@ -529,7 +544,7 @@ export function CheckoutPage() {
               className="mt-3 w-full rounded-xl px-4 py-3 text-white"
               style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 700 }}
             >
-              Copiar codigo PIX
+              Copiar código PIX
             </button>
           </div>
         )}

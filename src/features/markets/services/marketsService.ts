@@ -40,7 +40,7 @@ function mapStoreToMarket(store: ApiStore): Market {
     name: store.nome || 'Mercado',
     description: store.descricao || 'Mercado com entrega de produtos selecionados.',
     neighborhood: store.bairro || store.cidade || 'Sua região',
-    address: address || store.bairro || store.cidade || 'Endereco da loja nao informado',
+    address: address || store.bairro || store.cidade || 'Endereço da loja não informado',
     deliveryEstimate: '35-50 min',
     minimumOrder: toNumber(store.valor_minimo_pedido),
     deliveryFee: toNumber(store.taxa_entrega_padrao),

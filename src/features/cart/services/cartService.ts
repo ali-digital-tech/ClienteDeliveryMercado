@@ -16,37 +16,12 @@ interface ApiCartItem {
   quantidade: number | string;
 }
 
-function isNotFound(error: unknown) {
-  return error instanceof Error && (error as Error & { status?: number }).status === 404;
-}
-
-async function getActiveCart(marketId: string) {
-  const response = await apiRequest<{ data: ApiCart }>(`/carrinhos/me/active/${marketId}`);
-  return response.data;
-}
-
-async function createActiveCart(marketId: string) {
-  const response = await apiRequest<{ data: ApiCart }>('/carrinhos', {
+async function getOrCreateActiveCart(marketId: string) {
+  const response = await apiRequest<{ data: ApiCart }>(`/carrinhos/me/active/${marketId}`, {
     method: 'POST',
-    body: {
-      loja_id: marketId,
-      status: 'ativo',
-    },
   });
 
   return response.data;
-}
-
-export async function getOrCreateActiveCart(marketId: string) {
-  try {
-    return await getActiveCart(marketId);
-  } catch (error) {
-    if (isNotFound(error)) {
-      return createActiveCart(marketId);
-    }
-
-    throw error;
-  }
 }
 
 export async function syncCartItemsBatch(marketId: string, items: CartItem[]) {

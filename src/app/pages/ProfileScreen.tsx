@@ -117,7 +117,6 @@ export function ProfileScreen() {
           {[
             { label: "Pedidos", value: orders.length },
             { label: "Favoritos", value: favorites.length },
-            { label: "Pontos", value: "320" },
           ].map((stat) => (
             <div
               key={stat.label}

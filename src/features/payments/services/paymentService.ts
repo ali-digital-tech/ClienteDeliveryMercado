@@ -100,7 +100,7 @@ export async function createCardPayment(
   selection: StoredPaymentSelection
 ) {
   if (!selection.card_token || !selection.payment_method_id) {
-    throw new Error('Token do cartão ausente. Confirme os dados do cartão novamente.');
+    throw new Error('Confirme os dados do cartão antes de continuar.');
   }
 
   const response = await apiRequest<{ data: MercadoPagoPaymentResult }>(

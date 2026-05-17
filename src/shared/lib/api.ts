@@ -1,3 +1,5 @@
+import { getFriendlyMessage } from './userMessages';
+
 const DEFAULT_API_BASE_URL = 'https://mercado-backend-gtke7r7veq-rj.a.run.app/api';
 
 const API_BASE_URL =
@@ -53,7 +55,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
   if (!response.ok) {
     const message = payload?.message || payload?.error?.message || payload?.error || 'Erro ao buscar dados da API.';
-    const error = new Error(message) as Error & { status?: number; payload?: unknown };
+    const error = new Error(getFriendlyMessage(message)) as Error & { status?: number; payload?: unknown };
     error.status = response.status;
     error.payload = payload;
     throw error;

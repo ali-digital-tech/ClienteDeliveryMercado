@@ -10,7 +10,7 @@ export function ProductDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
-  const { addToCart, updateQty, cart, toggleFavorite, isFavorite, cartCount, tenantPath } = useApp();
+  const { addToCart, updateQty, cart, toggleFavorite, isFavorite, cartCount, tenantPath, currentMarket } = useApp();
   const { products } = useProducts(marketId);
 
   const product = products.find(p => p.id === id);
@@ -26,6 +26,8 @@ export function ProductDetailsPage() {
   const discount = product.originalPrice
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : 0;
+  const primaryColor = currentMarket?.primaryColor || '#122a4c';
+  const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
 
   const related = products.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
 
@@ -68,7 +70,7 @@ export function ProductDetailsPage() {
               <ShoppingCart size={18} color="#374151" />
               {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 text-white rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: '#16a34a', width: '16px', height: '16px', fontSize: '9px', fontWeight: 700 }}>
+                  style={{ backgroundColor: primaryColor, width: '16px', height: '16px', fontSize: '9px', fontWeight: 700 }}>
                   {cartCount}
                 </span>
               )}
@@ -95,7 +97,7 @@ export function ProductDetailsPage() {
 
           {/* Price */}
           <div className="flex items-end gap-3 mb-4">
-            <p style={{ fontSize: '28px', fontWeight: 800, color: '#16a34a' }}>
+            <p style={{ fontSize: '28px', fontWeight: 800, color: primaryColor }}>
               R$ {product.price.toFixed(2).replace('.', ',')}
             </p>
             {product.originalPrice && (
@@ -122,7 +124,7 @@ export function ProductDetailsPage() {
               <button
                 onClick={handleAdd}
                 className="rounded-xl flex items-center justify-center transition-all active:scale-90"
-                style={{ width: '38px', height: '38px', backgroundColor: '#16a34a' }}
+                style={{ width: '38px', height: '38px', backgroundColor: primaryColor }}
               >
                 <Plus size={18} color="white" />
               </button>
@@ -130,7 +132,7 @@ export function ProductDetailsPage() {
             <button
               onClick={qty === 0 ? handleAdd : () => navigate(tenantPath('carrinho'))}
               className="flex-1 rounded-2xl py-3 text-white transition-all active:scale-[0.98]"
-              style={{ backgroundColor: '#16a34a', fontSize: '15px', fontWeight: 700 }}
+              style={{ backgroundColor: primaryColor, fontSize: '15px', fontWeight: 700 }}
             >
               {qty === 0 ? 'Adicionar ao carrinho' : `Ver carrinho (${formatCartQuantity(qty)})`}
             </button>
@@ -138,9 +140,9 @@ export function ProductDetailsPage() {
 
           {/* Badges */}
           <div className="flex gap-2 mb-4">
-            <div className="flex items-center gap-1.5 bg-green-50 rounded-xl px-3 py-2">
-              <Truck size={14} color="#16a34a" />
-              <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>Entrega hoje</span>
+            <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ backgroundColor: primarySoftColor }}>
+              <Truck size={14} color={primaryColor} />
+              <span style={{ fontSize: '11px', color: primaryColor, fontWeight: 600 }}>Entrega hoje</span>
             </div>
             <div className="flex items-center gap-1.5 bg-blue-50 rounded-xl px-3 py-2">
               <ShieldCheck size={14} color="#2563eb" />

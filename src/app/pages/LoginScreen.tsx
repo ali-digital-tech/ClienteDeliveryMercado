@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router";
 import { Eye, EyeOff, Mail, Lock, Phone } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { authService } from '@/features/auth';
+import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
 export function LoginScreen() {
   const navigate = useNavigate();
@@ -15,20 +16,17 @@ export function LoginScreen() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    setError("");
-
     if (!email.trim() || !password) {
-      setError("Preencha e-mail e senha.");
+      showSystemNotice("Preencha e-mail e senha.");
       return;
     }
 
     if (mode === "signup" && !name.trim()) {
-      setError("Informe seu nome completo.");
+      showSystemNotice("Informe seu nome completo.");
       return;
     }
 
@@ -67,7 +65,7 @@ export function LoginScreen() {
         navigate(-1);
       }
     } catch (error: any) {
-      setError(error?.message || "Não foi possível autenticar. Verifique seus dados.");
+      showSystemNotice(error || "Não foi possível autenticar. Verifique seus dados.");
     } finally {
       setLoading(false);
     }
@@ -243,21 +241,6 @@ export function LoginScreen() {
             >
               Esqueceu sua senha?
             </button>
-          )}
-
-          {error && (
-            <div
-              className="rounded-2xl px-4 py-3"
-              style={{
-                backgroundColor: "#fef2f2",
-                border: "1px solid #fecaca",
-                color: "#b91c1c",
-                fontSize: "13px",
-                fontWeight: 600,
-              }}
-            >
-              {error}
-            </div>
           )}
 
           <button

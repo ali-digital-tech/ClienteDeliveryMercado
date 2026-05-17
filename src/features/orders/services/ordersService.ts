@@ -54,7 +54,7 @@ function mapStatus(status: string | null | undefined): Order['status'] {
 }
 
 function formatAddress(address: ApiOrder['endereco_cliente']) {
-  if (!address) return 'Endereco nao informado';
+  if (!address) return 'Endereço não informado';
 
   return [address.rua, address.numero, address.bairro, address.cidade, address.estado]
     .filter(Boolean)

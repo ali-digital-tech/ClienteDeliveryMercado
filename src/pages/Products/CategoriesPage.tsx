@@ -9,10 +9,11 @@ import { BottomNav } from '@/shared/components/BottomNav';
 export function CategoriesPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
-  const { cartCount, products, tenantPath } = useApp();
+  const { cartCount, products, tenantPath, currentMarket } = useApp();
   const { categories } = useCategories(marketId);
   const { banners } = useBanners(marketId, 'categories');
   const departments = categories.filter((category) => category.level === 1);
+  const primaryColor = currentMarket?.primaryColor || '#122a4c';
   const getDescendantIds = (categoryId: string) => {
     const ids = new Set([categoryId]);
     let changed = true;
@@ -48,7 +49,7 @@ export function CategoriesPage() {
             <ShoppingCart size={20} color="#374151" />
             {cartCount > 0 && (
               <span className="absolute -top-1 -right-1 text-white rounded-full flex items-center justify-center"
-                style={{ backgroundColor: '#16a34a', width: '18px', height: '18px', fontSize: '10px', fontWeight: 700 }}>
+                style={{ backgroundColor: primaryColor, width: '18px', height: '18px', fontSize: '10px', fontWeight: 700 }}>
                 {cartCount}
               </span>
             )}

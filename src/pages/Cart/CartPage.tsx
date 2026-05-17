@@ -6,33 +6,35 @@ import { useMarketContext } from '@/contexts/MarketContext';
 import { BannerRenderer, useBanners } from '@/features/banners';
 import { formatCartQuantity } from '@/features/cart';
 import { ProductImage } from '@/features/products';
+import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
 export function CartPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
-  const { cart, updateQty, removeFromCart, cartTotal, coupon, discount, applyCoupon, tenantPath } = useApp();
+  const { cart, updateQty, removeFromCart, cartTotal, coupon, discount, applyCoupon, tenantPath, currentMarket } = useApp();
   const { banners } = useBanners(marketId, 'cart');
   const [couponInput, setCouponInput] = useState('');
-  const [couponError, setCouponError] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   const deliveryFee = cartTotal >= 89 ? 0 : 6.99;
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
+  const primaryColor = currentMarket?.primaryColor || '#122a4c';
+  const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
 
   const handleCoupon = async () => {
     setIsApplyingCoupon(true);
-    setCouponError('');
     setCouponSuccess('');
 
     try {
       const appliedCoupon = await applyCoupon(couponInput);
-      setCouponSuccess(appliedCoupon.message || `Cupom "${appliedCoupon.code}" aplicado!`);
-      setCouponError('');
+      const message = appliedCoupon.message || `Cupom "${appliedCoupon.code}" aplicado!`;
+      setCouponSuccess(message);
+      showSystemNotice(message, "Cupom aplicado");
       setCouponInput('');
     } catch (error) {
-      setCouponError(error instanceof Error ? error.message : 'Nao foi possivel aplicar o cupom.');
+      showSystemNotice(error || 'Não foi possível aplicar o cupom.');
       setCouponSuccess('');
     } finally {
       setIsApplyingCoupon(false);
@@ -68,7 +70,7 @@ export function CartPage() {
           <button
             onClick={() => navigate(tenantPath())}
             className="rounded-2xl px-6 py-3 text-white mt-2"
-            style={{ backgroundColor: '#16a34a', fontSize: '15px', fontWeight: 700 }}
+            style={{ backgroundColor: primaryColor, fontSize: '15px', fontWeight: 700 }}
           >
             Explorar produtos
           </button>
@@ -87,9 +89,9 @@ export function CartPage() {
               </div>
             )}
             {deliveryFee === 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-2xl px-4 py-3 flex items-center gap-2 mb-3">
-                <Truck size={16} color="#16a34a" />
-                <p style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>🎉 Você ganhou frete grátis!</p>
+              <div className="rounded-2xl px-4 py-3 flex items-center gap-2 mb-3" style={{ backgroundColor: primarySoftColor, border: `1px solid ${primaryColor}` }}>
+                <Truck size={16} color={primaryColor} />
+                <p style={{ fontSize: '12px', color: primaryColor, fontWeight: 600 }}>🎉 Você ganhou frete grátis!</p>
               </div>
             )}
 
@@ -107,7 +109,7 @@ export function CartPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-gray-400 truncate" style={{ fontSize: '10px' }}>{item.product.brand}</p>
                     <p className="text-gray-800 truncate" style={{ fontSize: '13px', fontWeight: 600 }}>{item.product.name}</p>
-                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#16a34a' }}>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: primaryColor }}>
                       R$ {(item.product.price * item.qty).toFixed(2).replace('.', ',')}
                     </p>
                   </div>
@@ -144,7 +146,7 @@ export function CartPage() {
                           });
                         }}
                         className="rounded-lg flex items-center justify-center"
-                        style={{ width: '26px', height: '26px', backgroundColor: '#16a34a' }}
+                        style={{ width: '26px', height: '26px', backgroundColor: primaryColor }}
                       >
                         <Plus size={12} color="white" />
                       </button>
@@ -157,13 +159,13 @@ export function CartPage() {
             {/* Coupon */}
             <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
-                <Tag size={16} color="#16a34a" />
+                <Tag size={16} color={primaryColor} />
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#1f2937' }}>Cupom de desconto</span>
               </div>
               {coupon ? (
-                <div className="bg-green-50 rounded-xl px-4 py-3 flex items-center gap-2">
-                  <Tag size={14} color="#16a34a" />
-                  <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 600 }}>{couponSuccess || `Cupom "${coupon.toUpperCase()}" aplicado — R$ ${discount.toFixed(2).replace('.', ',')} de desconto`}</span>
+                <div className="rounded-xl px-4 py-3 flex items-center gap-2" style={{ backgroundColor: primarySoftColor }}>
+                  <Tag size={14} color={primaryColor} />
+                  <span style={{ fontSize: '13px', color: primaryColor, fontWeight: 600 }}>{couponSuccess || `Cupom "${coupon.toUpperCase()}" aplicado — R$ ${discount.toFixed(2).replace('.', ',')} de desconto`}</span>
                 </div>
               ) : (
                 <>
@@ -182,7 +184,7 @@ export function CartPage() {
                       disabled={isApplyingCoupon || !couponInput.trim()}
                       className="rounded-xl px-4 py-2.5 text-white"
                       style={{
-                        backgroundColor: isApplyingCoupon || !couponInput.trim() ? '#9ca3af' : '#16a34a',
+                        backgroundColor: isApplyingCoupon || !couponInput.trim() ? '#9ca3af' : primaryColor,
                         fontSize: '13px',
                         fontWeight: 700,
                       }}
@@ -190,7 +192,6 @@ export function CartPage() {
                       {isApplyingCoupon ? 'Validando...' : 'Aplicar'}
                     </button>
                   </div>
-                  {couponError && <p className="text-red-500 mt-2" style={{ fontSize: '12px' }}>{couponError}</p>}
                 </>
               )}
             </div>
@@ -205,19 +206,19 @@ export function CartPage() {
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-green-600" style={{ fontSize: '13px' }}>Desconto cupom</span>
-                    <span className="text-green-600" style={{ fontSize: '13px', fontWeight: 600 }}>-R$ {discount.toFixed(2).replace('.', ',')}</span>
+                    <span style={{ fontSize: '13px', color: primaryColor }}>Desconto cupom</span>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: primaryColor }}>-R$ {discount.toFixed(2).replace('.', ',')}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span className="text-gray-500" style={{ fontSize: '13px' }}>Taxa de entrega</span>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: deliveryFee === 0 ? '#16a34a' : '#374151' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: deliveryFee === 0 ? primaryColor : '#374151' }}>
                     {deliveryFee === 0 ? 'Grátis' : `R$ ${deliveryFee.toFixed(2).replace('.', ',')}`}
                   </span>
                 </div>
                 <div className="border-t border-gray-100 pt-2 flex justify-between">
                   <span className="text-gray-800" style={{ fontSize: '15px', fontWeight: 700 }}>Total</span>
-                  <span style={{ fontSize: '17px', fontWeight: 800, color: '#16a34a' }}>R$ {total.toFixed(2).replace('.', ',')}</span>
+                  <span style={{ fontSize: '17px', fontWeight: 800, color: primaryColor }}>R$ {total.toFixed(2).replace('.', ',')}</span>
                 </div>
               </div>
             </div>
@@ -228,7 +229,7 @@ export function CartPage() {
             <button
               onClick={() => navigate(tenantPath('delivery'))}
               className="w-full rounded-2xl py-4 text-white flex items-center justify-between px-5 transition-all active:scale-[0.98]"
-              style={{ backgroundColor: '#16a34a' }}
+              style={{ backgroundColor: primaryColor }}
             >
               <span style={{ fontSize: '15px', fontWeight: 700 }}>Continuar para entrega</span>
               <span style={{ fontSize: '15px', fontWeight: 800 }}>R$ {total.toFixed(2).replace('.', ',')} →</span>

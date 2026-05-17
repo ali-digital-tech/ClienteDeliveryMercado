@@ -6,9 +6,10 @@ import { ProductCard } from '@/features/products';
 
 export function FavoritesPage() {
   const navigate = useNavigate();
-  const { favorites, cartCount, products, tenantPath } = useApp();
+  const { favorites, cartCount, products, tenantPath, currentMarket } = useApp();
 
   const favoriteProducts = products.filter(p => favorites.includes(p.id));
+  const primaryColor = currentMarket?.primaryColor || '#122a4c';
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -25,7 +26,7 @@ export function FavoritesPage() {
             <ShoppingCart size={20} color="#374151" />
             {cartCount > 0 && (
               <span className="absolute -top-1 -right-1 text-white rounded-full flex items-center justify-center"
-                style={{ backgroundColor: '#16a34a', width: '18px', height: '18px', fontSize: '10px', fontWeight: 700 }}>
+                style={{ backgroundColor: primaryColor, width: '18px', height: '18px', fontSize: '10px', fontWeight: 700 }}>
                 {cartCount}
               </span>
             )}
@@ -46,7 +47,7 @@ export function FavoritesPage() {
             <button
               onClick={() => navigate(tenantPath())}
               className="mt-2 rounded-2xl px-6 py-3 text-white"
-              style={{ backgroundColor: '#16a34a', fontSize: '14px', fontWeight: 700 }}
+              style={{ backgroundColor: primaryColor, fontSize: '14px', fontWeight: 700 }}
             >
               Explorar produtos
             </button>

@@ -20,6 +20,8 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
   const discount = product.originalPrice
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : 0;
+  const primaryColor = currentMarket?.primaryColor || '#122a4c';
+  const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
   const handleIncrement = () => {
     if (qty === 0) {
       void addToCart(product).catch(error => {
@@ -51,7 +53,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
             <div 
               className="absolute bottom-0 left-0 w-full text-center py-0.5 text-white" 
               style={{ 
-                backgroundColor: currentMarket?.primaryColor || '#122a4c',
+                backgroundColor: primaryColor,
                 fontSize: '11px',
                 fontWeight: 800,
               }}
@@ -77,14 +79,14 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
                   R$ {product.originalPrice.toFixed(2).replace('.', ',')}
                 </p>
               )}
-              <p style={{ fontSize: '14px', fontWeight: 700, color: '#16a34a' }}>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: primaryColor }}>
                 R$ {product.price.toFixed(2).replace('.', ',')}
               </p>
             </div>
             {qty > 0 ? (
               <div
-                className="rounded-xl flex items-center justify-between bg-green-50 transition-all"
-                style={{ width: '82px', height: '30px' }}
+                className="rounded-xl flex items-center justify-between transition-all"
+                style={{ width: '82px', height: '30px', backgroundColor: primarySoftColor }}
                 onClick={e => e.stopPropagation()}
               >
                 <button
@@ -92,9 +94,9 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
                   className="flex items-center justify-center active:scale-90"
                   style={{ width: '28px', height: '30px' }}
                 >
-                  <Minus size={13} color="#16a34a" strokeWidth={2.5} />
+                  <Minus size={13} color={primaryColor} strokeWidth={2.5} />
                 </button>
-                <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 700, minWidth: '18px', textAlign: 'center' }}>
+                <span style={{ fontSize: '12px', color: primaryColor, fontWeight: 700, minWidth: '18px', textAlign: 'center' }}>
                   {formatCartQuantity(qty)}
                 </span>
                 <button
@@ -102,7 +104,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
                   className="flex items-center justify-center active:scale-90"
                   style={{ width: '28px', height: '30px' }}
                 >
-                  <Plus size={13} color="#16a34a" strokeWidth={2.5} />
+                  <Plus size={13} color={primaryColor} strokeWidth={2.5} />
                 </button>
               </div>
             ) : (
@@ -110,7 +112,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
                 onClick={e => { e.stopPropagation(); handleIncrement(); }}
                 className="rounded-xl flex items-center justify-center transition-all active:scale-90"
                 style={{
-                  backgroundColor: '#16a34a',
+                  backgroundColor: primaryColor,
                   width: '30px',
                   height: '30px',
                 }}
@@ -135,7 +137,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
           <div 
             className="absolute bottom-0 left-0 w-full text-center py-0.5 text-white" 
             style={{ 
-              backgroundColor: currentMarket?.primaryColor || '#122a4c',
+              backgroundColor: primaryColor,
               fontSize: '10px',
               fontWeight: 800,
             }}
@@ -157,14 +159,14 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
                 R$ {product.originalPrice.toFixed(2).replace('.', ',')}
               </p>
             )}
-            <p style={{ fontSize: '15px', fontWeight: 700, color: '#16a34a' }}>
+            <p style={{ fontSize: '15px', fontWeight: 700, color: primaryColor }}>
               R$ {product.price.toFixed(2).replace('.', ',')}
             </p>
           </div>
           {qty > 0 ? (
             <div
-              className="rounded-xl flex items-center justify-between bg-green-50 transition-all"
-              style={{ width: '104px', height: '34px' }}
+              className="rounded-xl flex items-center justify-between transition-all"
+              style={{ width: '104px', height: '34px', backgroundColor: primarySoftColor }}
               onClick={e => e.stopPropagation()}
             >
               <button
@@ -172,9 +174,9 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
                 className="flex items-center justify-center active:scale-90"
                 style={{ width: '34px', height: '34px' }}
               >
-                <Minus size={14} color="#16a34a" strokeWidth={2.5} />
+                <Minus size={14} color={primaryColor} strokeWidth={2.5} />
               </button>
-              <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 700, minWidth: '24px', textAlign: 'center' }}>
+              <span style={{ fontSize: '13px', color: primaryColor, fontWeight: 700, minWidth: '24px', textAlign: 'center' }}>
                 {formatCartQuantity(qty)}
               </span>
               <button
@@ -182,14 +184,14 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
                 className="flex items-center justify-center active:scale-90"
                 style={{ width: '34px', height: '34px' }}
               >
-                <Plus size={14} color="#16a34a" strokeWidth={2.5} />
+                <Plus size={14} color={primaryColor} strokeWidth={2.5} />
               </button>
             </div>
           ) : (
             <button
               onClick={e => { e.stopPropagation(); handleIncrement(); }}
               className="rounded-xl flex items-center gap-1 px-3 py-1.5 transition-all active:scale-90"
-              style={{ backgroundColor: '#16a34a' }}
+              style={{ backgroundColor: primaryColor }}
             >
               <Plus size={13} color="white" strokeWidth={2.5} />
               <span style={{ fontSize: '11px', color: 'white', fontWeight: 600 }}>Adicionar</span>
