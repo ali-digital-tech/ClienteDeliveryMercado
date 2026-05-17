@@ -1,10 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getProductsByMarketId, PRODUCTS_PAGE_SIZE, type ProductListFilters } from '../services/productsService';
+import { getProductsByMarketId, PRODUCTS_PAGE_SIZE } from '../services/productsService';
 import type { Product } from '../types/product';
 
-interface UseProductsOptions extends ProductListFilters {
+const PRODUCTS_STALE_TIME_MS = 5 * 60 * 1000;
+const PRODUCTS_CACHE_TIME_MS = 30 * 60 * 1000;
+
+interface UseProductsOptions {
+  departmentId?: string | null;
+  categoryId?: string | null;
+  subcategoryId?: string | null;
+  search?: string;
+  perPage?: number;
   enabled?: boolean;
+  allowGlobal?: boolean;
 }
+
+interface ProductsCacheEntry {
+  products: Product[];
+  page: number;
+  total: number;
+  hasNextPage: boolean;
+  loadedPages: Set<number>;
+  updatedAt: number;
+}
+
+const productsCache = new Map<string, ProductsCacheEntry>();
 
 function dedupeProducts(items: Product[]) {
   const byId = new Map<string, Product>();
@@ -16,17 +36,50 @@ function dedupeProducts(items: Product[]) {
   return Array.from(byId.values());
 }
 
+function getFreshCacheEntry(key: string) {
+  const entry = productsCache.get(key);
+  if (!entry) return null;
+
+  const age = Date.now() - entry.updatedAt;
+  if (age > PRODUCTS_CACHE_TIME_MS) {
+    productsCache.delete(key);
+    return null;
+  }
+
+  return age <= PRODUCTS_STALE_TIME_MS ? entry : null;
+}
+
+function saveCacheEntry(key: string, entry: ProductsCacheEntry) {
+  productsCache.set(key, {
+    ...entry,
+    products: dedupeProducts(entry.products),
+    updatedAt: Date.now(),
+  });
+}
+
 export function useProducts(marketId: string, options: UseProductsOptions = {}) {
   const {
+    departmentId = null,
     categoryId = null,
+    subcategoryId = null,
     search = '',
     perPage = PRODUCTS_PAGE_SIZE,
     enabled = true,
+    allowGlobal = false,
   } = options;
   const normalizedSearch = search.trim();
+  const requestCategoryId = subcategoryId || categoryId || null;
   const requestKey = useMemo(
-    () => JSON.stringify({ marketId, categoryId, search: normalizedSearch, perPage }),
-    [categoryId, marketId, normalizedSearch, perPage],
+    () => JSON.stringify({
+      scope: 'market-products',
+      marketId,
+      departmentId,
+      categoryId,
+      subcategoryId: subcategoryId || 'all',
+      search: normalizedSearch,
+      limit: perPage,
+    }),
+    [categoryId, departmentId, marketId, normalizedSearch, perPage, subcategoryId],
   );
   const latestRequestKeyRef = useRef(requestKey);
   const loadingMoreRef = useRef(false);
@@ -47,7 +100,18 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     setTotal(0);
     setError(null);
 
-    if (!marketId || !enabled) {
+    if (!marketId || !enabled || (!requestCategoryId && !allowGlobal)) {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+      return;
+    }
+
+    const cached = getFreshCacheEntry(requestKey);
+    if (cached) {
+      setProducts(cached.products);
+      setPage(cached.page);
+      setHasNextPage(cached.hasNextPage);
+      setTotal(cached.total);
       setIsLoading(false);
       setIsLoadingMore(false);
       return;
@@ -58,7 +122,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     setIsLoadingMore(false);
 
     getProductsByMarketId(marketId, {
-      categoryId,
+      categoryId: requestCategoryId,
       search: normalizedSearch,
       page: 1,
       perPage,
@@ -69,6 +133,14 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
         setPage(result.page);
         setHasNextPage(result.hasNextPage);
         setTotal(result.total);
+        saveCacheEntry(requestKey, {
+          products: result.products,
+          page: result.page,
+          total: result.total,
+          hasNextPage: result.hasNextPage,
+          loadedPages: new Set([result.page]),
+          updatedAt: Date.now(),
+        });
       })
       .catch((error) => {
         if (ignore || latestRequestKeyRef.current !== requestKey) return;
@@ -84,19 +156,28 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     return () => {
       ignore = true;
     };
-  }, [categoryId, enabled, marketId, normalizedSearch, perPage, requestKey]);
+  }, [allowGlobal, enabled, marketId, normalizedSearch, perPage, requestCategoryId, requestKey]);
 
   const loadMore = useCallback(async () => {
-    if (!marketId || !enabled || isLoading || loadingMoreRef.current || !hasNextPage) return;
+    if (!marketId || !enabled || (!requestCategoryId && !allowGlobal) || isLoading || loadingMoreRef.current || !hasNextPage) return;
 
     const keyAtStart = latestRequestKeyRef.current;
     const nextPage = page + 1;
+    const cached = productsCache.get(keyAtStart);
+    if (cached?.loadedPages.has(nextPage)) {
+      setProducts(cached.products);
+      setPage(cached.page);
+      setHasNextPage(cached.hasNextPage);
+      setTotal(cached.total);
+      return;
+    }
+
     loadingMoreRef.current = true;
     setIsLoadingMore(true);
 
     try {
       const result = await getProductsByMarketId(marketId, {
-        categoryId,
+        categoryId: requestCategoryId,
         search: normalizedSearch,
         page: nextPage,
         perPage,
@@ -108,6 +189,15 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
       setPage(result.page);
       setHasNextPage(result.hasNextPage);
       setTotal(result.total);
+      const previousEntry = productsCache.get(keyAtStart);
+      saveCacheEntry(keyAtStart, {
+        products: [...(previousEntry?.products ?? products), ...result.products],
+        page: result.page,
+        total: result.total,
+        hasNextPage: result.hasNextPage,
+        loadedPages: new Set([...(previousEntry?.loadedPages ?? []), result.page]),
+        updatedAt: Date.now(),
+      });
     } catch (error) {
       if (latestRequestKeyRef.current === keyAtStart) {
         setError(error as Error);
@@ -118,7 +208,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
         setIsLoadingMore(false);
       }
     }
-  }, [categoryId, enabled, hasNextPage, isLoading, marketId, normalizedSearch, page, perPage]);
+  }, [allowGlobal, enabled, hasNextPage, isLoading, marketId, normalizedSearch, page, perPage, products, requestCategoryId]);
 
   return {
     products,

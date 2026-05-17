@@ -111,11 +111,7 @@ export function ProductsPage() {
   const searchChips = recentSearches.length > 0 ? recentSearches : DEFAULT_SEARCH_SUGGESTIONS;
   const primaryColor = currentMarket?.primaryColor || "#122a4c";
   const normalizedQuery = query.trim();
-  const productCategoryId = selectedSubcategoryId || selectedLevel2Id || null;
-  const canLoadProducts = !bannerId && (
-    Boolean(productCategoryId) ||
-    normalizedQuery.length >= 2
-  );
+  const canLoadProducts = !bannerId && Boolean(marketId && selectedDepartmentId && selectedLevel2Id);
   const {
     products,
     isLoading: isLoadingProducts,
@@ -125,7 +121,9 @@ export function ProductsPage() {
     loadMore,
     total,
   } = useProducts(marketId, {
-    categoryId: productCategoryId,
+    departmentId: selectedDepartmentId || null,
+    categoryId: selectedLevel2Id || null,
+    subcategoryId: selectedSubcategoryId || null,
     search: normalizedQuery.length >= 2 ? normalizedQuery : '',
     perPage: 30,
     enabled: canLoadProducts,

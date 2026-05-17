@@ -20,6 +20,10 @@ export interface CategoryListFilters {
   parentId?: string | null;
 }
 
+const CATEGORIES_STALE_TIME_MS = 5 * 60 * 1000;
+const CATEGORIES_CACHE_TIME_MS = 30 * 60 * 1000;
+const categoriesCache = new Map<string, { data: Category[]; updatedAt: number }>();
+
 const categoryColors = [
   { color: '#16a34a', bgColor: '#f0fdf4' },
   { color: '#2563eb', bgColor: '#eff6ff' },
@@ -52,11 +56,37 @@ function mapCategory(category: ApiCategory, marketId: string, index: number): Ca
   };
 }
 
+function getCacheKey(marketId: string, filters: CategoryListFilters) {
+  return JSON.stringify({
+    scope: 'department-categories',
+    marketId,
+    level: filters.level ?? null,
+    parentId: filters.parentId ?? null,
+  });
+}
+
+function getFreshCache(key: string) {
+  const entry = categoriesCache.get(key);
+  if (!entry) return null;
+
+  const age = Date.now() - entry.updatedAt;
+  if (age > CATEGORIES_CACHE_TIME_MS) {
+    categoriesCache.delete(key);
+    return null;
+  }
+
+  return age <= CATEGORIES_STALE_TIME_MS ? entry.data : null;
+}
+
 export async function getCategoriesByMarketId(
   marketId: string,
   filters: CategoryListFilters = {},
 ): Promise<Category[]> {
   if (!marketId) return [];
+
+  const cacheKey = getCacheKey(marketId, filters);
+  const cached = getFreshCache(cacheKey);
+  if (cached) return cached;
 
   const firstResponse: any = await apiRequest(`/lojas/${marketId}/categorias`, {
     params: {
@@ -78,6 +108,8 @@ export async function getCategoriesByMarketId(
         apiRequest(`/lojas/${marketId}/categorias`, {
           params: {
             ativa: true,
+            nivel: filters.level,
+            categoria_pai_id: filters.parentId,
             page: index + 2,
             per_page: 100,
           },
@@ -86,13 +118,17 @@ export async function getCategoriesByMarketId(
     )
     : [];
 
-  return [
+  const categories = [
     ...firstPage,
     ...remainingPages.flatMap((response) => unwrapList<ApiCategory>(response)),
   ]
     .filter(category => category.ativa !== false)
     .sort((a, b) => (a.nivel || 1) - (b.nivel || 1) || (a.ordem_exibicao || 0) - (b.ordem_exibicao || 0) || (a.nome || '').localeCompare(b.nome || ''))
     .map((category, index) => mapCategory(category, marketId, index));
+
+  categoriesCache.set(cacheKey, { data: categories, updatedAt: Date.now() });
+
+  return categories;
 }
 
 export async function getDepartmentCategoriesByMarketId(marketId: string, departmentId: string): Promise<Category[]> {

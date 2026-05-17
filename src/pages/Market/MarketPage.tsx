@@ -20,7 +20,10 @@ export function MarketPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
   const { cartCount, currentMarket, tenantPath } = useApp();
-  const { products, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId);
+  const { products, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId, {
+    allowGlobal: true,
+    perPage: 30,
+  });
   const { categories } = useCategories(marketId);
   const { banners } = useBanners(marketId, 'home');
   const departments = categories.filter((category) => category.level === 1);
