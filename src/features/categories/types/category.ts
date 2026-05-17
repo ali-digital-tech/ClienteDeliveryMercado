@@ -10,4 +10,5 @@ export interface Category {
   level: number;
   order: number;
   path?: string;
+  productCount?: number;
 }

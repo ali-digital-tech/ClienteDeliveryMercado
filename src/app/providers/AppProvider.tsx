@@ -9,7 +9,7 @@ import {
 import { useCategories, type Category } from '@/features/categories';
 import { useMarkets, type Market } from '@/features/markets';
 import { useOrdersStore, type Order } from '@/features/orders';
-import { useProducts, type Product } from '@/features/products';
+import type { Product } from '@/features/products';
 
 const FAVORITES_STORAGE_KEY = 'cliente_delivery_favorites_by_market';
 
@@ -70,10 +70,9 @@ function saveFavoritesToStorage(favoritesByMarket: Record<string, string[]>) {
 export function AppProvider({ children, marketId }: { children: React.ReactNode; marketId: string }) {
   const { currentMarket, isLoading } = useMarketContext();
   const { markets } = useMarkets();
-  const { products: allProducts } = useProducts(marketId);
   const { categories: allCategories } = useCategories(marketId);
 
-  const products = useMemo(() => allProducts, [allProducts]);
+  const products = useMemo<Product[]>(() => [], []);
   const categories = useMemo(() => allCategories, [allCategories]);
   const {
     cart,

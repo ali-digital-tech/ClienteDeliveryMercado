@@ -1,6 +1,8 @@
 import { apiRequest, unwrapList } from '@/shared/lib/api';
 import type { Product } from '../types/product';
 
+export const PRODUCTS_PAGE_SIZE = 30;
+
 interface ApiStoreProduct {
   id: string;
   loja_id?: string;
@@ -24,12 +26,28 @@ interface ApiStoreProduct {
   produto_ativo?: boolean | null;
 }
 
+export interface ProductListFilters {
+  categoryId?: string | null;
+  search?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export interface ProductListResult {
+  products: Product[];
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
+  hasNextPage: boolean;
+}
+
 function toNumber(value: string | number | null | undefined, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function mapStoreProduct(product: ApiStoreProduct): Product {
+export function mapStoreProduct(product: ApiStoreProduct): Product {
   const regularPrice = toNumber(product.preco);
   const promoPrice = product.preco_promocional === null ? 0 : toNumber(product.preco_promocional);
   const hasPromo = promoPrice > 0 && regularPrice > 0 && promoPrice < regularPrice;
@@ -57,44 +75,52 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
   };
 }
 
-export async function getProductsByMarketId(marketId: string): Promise<Product[]> {
-  if (!marketId) return [];
+export async function getProductsByMarketId(
+  marketId: string,
+  filters: ProductListFilters = {},
+): Promise<ProductListResult> {
+  if (!marketId) {
+    return { products: [], total: 0, page: 1, perPage: filters.perPage ?? PRODUCTS_PAGE_SIZE, totalPages: 0, hasNextPage: false };
+  }
 
-  const firstResponse: any = await apiRequest(`/lojas/${marketId}/produtos`, {
+  const page = Math.max(1, filters.page ?? 1);
+  const perPage = Math.max(1, filters.perPage ?? PRODUCTS_PAGE_SIZE);
+  const response: any = await apiRequest(`/lojas/${marketId}/produtos`, {
     params: {
       ativo: true,
-      page: 1,
-      per_page: 100,
+      categoria_id: filters.categoryId || undefined,
+      busca: filters.search?.trim() || undefined,
+      page,
+      per_page: perPage,
     },
   });
 
-  const firstData = firstResponse?.data;
-  const totalPages = Array.isArray(firstData) ? 1 : firstData?.total_pages || 1;
-  const firstPage = unwrapList<ApiStoreProduct>(firstResponse);
-
-  const remainingPages = totalPages > 1
-    ? await Promise.all(
-      Array.from({ length: totalPages - 1 }, (_, index) =>
-        apiRequest(`/lojas/${marketId}/produtos`, {
-          params: {
-            ativo: true,
-            page: index + 2,
-            per_page: 100,
-          },
-        }),
-      ),
-    )
-    : [];
-
-  return [
-    ...firstPage,
-    ...remainingPages.flatMap((response) => unwrapList<ApiStoreProduct>(response)),
-  ]
+  const data = response?.data;
+  const total = Array.isArray(data) ? data.length : Number(data?.total ?? 0);
+  const responsePage = Array.isArray(data) ? page : Number(data?.page ?? page);
+  const responsePerPage = Array.isArray(data) ? perPage : Number(data?.per_page ?? perPage);
+  const totalPages = Array.isArray(data) ? 1 : Number(data?.total_pages ?? 0);
+  const products = unwrapList<ApiStoreProduct>(response)
     .filter(product => product.ativo_na_loja !== false && product.produto_ativo !== false)
     .map(mapStoreProduct);
+
+  return {
+    products,
+    total,
+    page: responsePage,
+    perPage: responsePerPage,
+    totalPages,
+    hasNextPage: responsePage < totalPages,
+  };
 }
 
 export async function getProductById(marketId: string, productId: string): Promise<Product | null> {
-  const products = await getProductsByMarketId(marketId);
-  return products.find(product => product.id === productId) ?? null;
+  if (!marketId || !productId) return null;
+
+  const response: any = await apiRequest(`/lojas/${marketId}/produtos/${productId}`);
+  const product = response?.data;
+
+  if (!product || product.ativo_na_loja === false || product.produto_ativo === false) return null;
+
+  return mapStoreProduct(product);
 }

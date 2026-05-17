@@ -11,6 +11,13 @@ interface ApiCategory {
   nivel?: number | null;
   ordem_exibicao?: number | null;
   caminho?: string | null;
+  produtos_count?: number | string | null;
+  product_count?: number | string | null;
+}
+
+export interface CategoryListFilters {
+  level?: number;
+  parentId?: string | null;
 }
 
 const categoryColors = [
@@ -37,15 +44,25 @@ function mapCategory(category: ApiCategory, marketId: string, index: number): Ca
     level: category.nivel || 1,
     order: category.ordem_exibicao || 0,
     path: category.caminho || category.nome || 'Categoria',
+    productCount: category.produtos_count !== undefined && category.produtos_count !== null
+      ? Number(category.produtos_count)
+      : category.product_count !== undefined && category.product_count !== null
+        ? Number(category.product_count)
+        : undefined,
   };
 }
 
-export async function getCategoriesByMarketId(marketId: string): Promise<Category[]> {
+export async function getCategoriesByMarketId(
+  marketId: string,
+  filters: CategoryListFilters = {},
+): Promise<Category[]> {
   if (!marketId) return [];
 
   const firstResponse: any = await apiRequest(`/lojas/${marketId}/categorias`, {
     params: {
       ativa: true,
+      nivel: filters.level,
+      categoria_pai_id: filters.parentId,
       page: 1,
       per_page: 100,
     },
@@ -76,4 +93,15 @@ export async function getCategoriesByMarketId(marketId: string): Promise<Categor
     .filter(category => category.ativa !== false)
     .sort((a, b) => (a.nivel || 1) - (b.nivel || 1) || (a.ordem_exibicao || 0) - (b.ordem_exibicao || 0) || (a.nome || '').localeCompare(b.nome || ''))
     .map((category, index) => mapCategory(category, marketId, index));
+}
+
+export async function getDepartmentCategoriesByMarketId(marketId: string, departmentId: string): Promise<Category[]> {
+  if (!marketId || !departmentId) return [];
+
+  const level2Categories = await getCategoriesByMarketId(marketId, { parentId: departmentId });
+  const level3ByCategory = await Promise.all(
+    level2Categories.map((category) => getCategoriesByMarketId(marketId, { parentId: category.id })),
+  );
+
+  return [...level2Categories, ...level3ByCategory.flat()];
 }

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { UIEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   Search,
@@ -13,7 +14,8 @@ import { useMarketContext } from '@/contexts/MarketContext';
 import { BottomNav } from '@/shared/components/BottomNav';
 import { ProductCard, filterProducts, useProducts } from '@/features/products';
 import type { Product } from '@/features/products';
-import { useCategories } from '@/features/categories';
+import { getDepartmentCategoriesByMarketId, useCategories } from '@/features/categories';
+import type { Category } from '@/features/categories';
 import { BannerRenderer, getBannerProducts, useBanners } from '@/features/banners';
 
 const sortOptions = [
@@ -75,8 +77,6 @@ export function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { marketId } = useMarketContext();
   const { cartCount, currentMarket, tenantPath } = useApp();
-  const { products, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId);
-  const { categories } = useCategories(marketId);
   const [query, setQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentSearches(marketId));
   const [showSort, setShowSort] = useState(false);
@@ -90,33 +90,48 @@ export function ProductsPage() {
   const [bannerProducts, setBannerProducts] = useState<Product[] | null>(null);
   const [bannerTitle, setBannerTitle] = useState("");
   const [isLoadingBannerProducts, setIsLoadingBannerProducts] = useState(false);
-  const selectedDepartment = categories.find((cat) => cat.id === selectedDepartmentId);
+  const { categories: departments } = useCategories(marketId, { level: 1 });
+  const [departmentCategories, setDepartmentCategories] = useState<Category[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [categoriesError, setCategoriesError] = useState<Error | null>(null);
+  const selectedDepartment = departments.find((cat) => cat.id === selectedDepartmentId);
   const level2Categories = useMemo(
-    () => sortByOrder(categories.filter((cat) => cat.parentId === selectedDepartmentId && cat.level === 2)),
-    [categories, selectedDepartmentId],
+    () => sortByOrder(departmentCategories.filter((cat) => cat.parentId === selectedDepartmentId && cat.level === 2)),
+    [departmentCategories, selectedDepartmentId],
   );
-  const selectedLevel2 = categories.find((cat) => cat.id === selectedLevel2Id);
+  const selectedLevel2 = level2Categories.find((cat) => cat.id === selectedLevel2Id);
   const level3Categories = useMemo(
-    () => sortByOrder(categories.filter((cat) => cat.parentId === selectedLevel2Id && cat.level === 3)),
-    [categories, selectedLevel2Id],
+    () => sortByOrder(departmentCategories.filter((cat) => cat.parentId === selectedLevel2Id && cat.level === 3)),
+    [departmentCategories, selectedLevel2Id],
   );
-  const selectedFilterCategoryId = selectedSubcategoryId || selectedLevel2Id || selectedDepartmentId;
-  const selectedCategory = categories.find((cat) => cat.id === selectedFilterCategoryId);
+  const selectedCategory =
+    selectedSubcategoryId
+      ? level3Categories.find((cat) => cat.id === selectedSubcategoryId)
+      : selectedLevel2 || selectedDepartment;
   const searchChips = recentSearches.length > 0 ? recentSearches : DEFAULT_SEARCH_SUGGESTIONS;
   const primaryColor = currentMarket?.primaryColor || "#122a4c";
-  const getCategoryPathIds = (categoryId: string) => {
-    const ids = new Set<string>();
-    let current = categories.find((cat) => cat.id === categoryId);
+  const normalizedQuery = query.trim();
+  const productCategoryId = selectedSubcategoryId || selectedLevel2Id || null;
+  const canLoadProducts = !bannerId && (
+    Boolean(productCategoryId) ||
+    normalizedQuery.length >= 2
+  );
+  const {
+    products,
+    isLoading: isLoadingProducts,
+    isLoadingMore,
+    error: productsError,
+    hasNextPage,
+    loadMore,
+    total,
+  } = useProducts(marketId, {
+    categoryId: productCategoryId,
+    search: normalizedQuery.length >= 2 ? normalizedQuery : '',
+    perPage: 30,
+    enabled: canLoadProducts,
+  });
 
-    while (current) {
-      ids.add(current.id);
-      current = current.parentId ? categories.find((cat) => cat.id === current!.parentId) : undefined;
-    }
-
-    return ids;
-  };
-
-  const updateNavigation = (values: { departamento?: string; categoriaNivel2?: string; subcategoria?: string | null }) => {
+  const updateNavigation = useCallback((values: { departamento?: string; categoriaNivel2?: string; subcategoria?: string | null }) => {
     const next = new URLSearchParams(searchParams);
 
     if (values.departamento !== undefined) {
@@ -138,7 +153,7 @@ export function ProductsPage() {
     }
 
     setSearchParams(next, { replace: true });
-  };
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     setRecentSearches(readRecentSearches(marketId));
@@ -156,9 +171,50 @@ export function ProductsPage() {
   }, [marketId, query]);
 
   useEffect(() => {
-    if (!selectedDepartmentId || selectedLevel2Id || level2Categories.length === 0) return;
+    let ignore = false;
+
+    setDepartmentCategories([]);
+    setCategoriesError(null);
+
+    if (!selectedDepartmentId) {
+      setIsLoadingCategories(false);
+      return;
+    }
+
+    setIsLoadingCategories(true);
+    getDepartmentCategoriesByMarketId(marketId, selectedDepartmentId)
+      .then((data) => {
+        if (!ignore) setDepartmentCategories(data);
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setCategoriesError(error);
+          setDepartmentCategories([]);
+        }
+      })
+      .finally(() => {
+        if (!ignore) setIsLoadingCategories(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [marketId, selectedDepartmentId]);
+
+  useEffect(() => {
+    if (!selectedDepartmentId || isLoadingCategories || categoriesError) return;
+    if (level2Categories.length === 0) return;
+    if (selectedLevel2Id && level2Categories.some((category) => category.id === selectedLevel2Id)) return;
+
     updateNavigation({ categoriaNivel2: level2Categories[0].id, subcategoria: null });
-  }, [level2Categories, selectedDepartmentId, selectedLevel2Id]);
+  }, [categoriesError, isLoadingCategories, level2Categories, selectedDepartmentId, selectedLevel2Id, updateNavigation]);
+
+  useEffect(() => {
+    if (!selectedSubcategoryId) return;
+    if (level3Categories.some((category) => category.id === selectedSubcategoryId)) return;
+
+    updateNavigation({ subcategoria: null });
+  }, [level3Categories, selectedSubcategoryId, updateNavigation]);
 
   useEffect(() => {
     let ignore = false;
@@ -190,14 +246,18 @@ export function ProductsPage() {
     };
   }, [bannerId, marketId]);
 
+  const handleContentScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+
+    if (distanceToBottom < 360 && hasNextPage && !isLoadingProducts && !isLoadingMore) {
+      void loadMore();
+    }
+  }, [hasNextPage, isLoadingMore, isLoadingProducts, loadMore]);
+
   const sourceProducts = bannerProducts ?? products;
 
-  const filtered = filterProducts(sourceProducts, query)
-    .filter((p) => {
-      if (bannerId) return true;
-      if (!selectedFilterCategoryId) return true;
-      return getCategoryPathIds(p.category).has(selectedFilterCategoryId);
-    })
+  const filtered = (bannerId ? filterProducts(sourceProducts, query) : sourceProducts)
     .filter((p) => {
       if (sort === "Promoções") return p.isPromo;
       if (sort === "Mais vendidos") return p.isBestseller;
@@ -210,6 +270,7 @@ export function ProductsPage() {
       if (sort === "Maior preço") return b.price - a.price;
       return 0;
     });
+  const visibleResultCount = bannerId ? filtered.length : total;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -404,6 +465,7 @@ export function ProductsPage() {
 
       {/* Content */}
       <div
+        onScroll={handleContentScroll}
         className="flex-1 overflow-y-auto px-4 pt-4 pb-4"
         style={{ background: "#f8fafc" }}
       >
@@ -456,21 +518,21 @@ export function ProductsPage() {
                 </button>
               ))}
             </div>
-
+          </>
+        ) : (
+          <>
             <p
-              style={{
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "#64748b",
-              }}
+              style={{ fontSize: "13px", color: "#64748b" }}
               className="mb-3"
             >
-              Produtos
+              {isLoadingBannerProducts || isLoadingCategories ? "Carregando" : visibleResultCount} resultado
+              {visibleResultCount !== 1 ? "s" : ""}
+              {query ? ` para "${query}"` : bannerId && bannerTitle ? ` em ${bannerTitle}` : selectedCategory ? ` em ${selectedCategory.name}` : ""}
             </p>
 
-            {isLoadingProducts && filtered.length === 0 ? (
+            {isLoadingBannerProducts || isLoadingCategories || (isLoadingProducts && filtered.length === 0) ? (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pb-2">
-                {[0, 1, 2, 3].map(item => (
+                {[0, 1, 2, 3].map((item) => (
                   <div key={item} className="h-[210px] animate-pulse rounded-2xl bg-white" />
                 ))}
               </div>
@@ -487,38 +549,6 @@ export function ProductsPage() {
                 >
                   Recarregar
                 </button>
-              </div>
-            ) : products.length === 0 ? (
-              <div className="flex flex-col items-center gap-4 py-16">
-                <PackageSearch size={42} color="#94a3b8" />
-                <p className="text-center" style={{ fontSize: "15px", color: "#64748b", fontWeight: 600 }}>
-                  Este mercado ainda não possui produtos disponíveis
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pb-2">
-                {filtered.map((p) => (
-                  <ProductCard key={p.id} product={p} compact fluid />
-                ))}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <p
-              style={{ fontSize: "13px", color: "#64748b" }}
-              className="mb-3"
-            >
-              {isLoadingBannerProducts ? "Carregando" : filtered.length} resultado
-              {filtered.length !== 1 ? "s" : ""}
-              {query ? ` para "${query}"` : bannerId && bannerTitle ? ` em ${bannerTitle}` : selectedCategory ? ` em ${selectedCategory.name}` : ""}
-            </p>
-
-            {isLoadingBannerProducts ? (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pb-2">
-                {[0, 1, 2, 3].map((item) => (
-                  <div key={item} className="h-[210px] animate-pulse rounded-2xl bg-white" />
-                ))}
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center gap-4 py-16">
@@ -537,11 +567,20 @@ export function ProductsPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pb-2">
-                {filtered.map((p) => (
-                  <ProductCard key={p.id} product={p} compact fluid />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pb-2">
+                  {filtered.map((p) => (
+                    <ProductCard key={p.id} product={p} compact fluid />
+                  ))}
+                </div>
+                {isLoadingMore && (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pt-2 pb-2">
+                    {[0, 1].map((item) => (
+                      <div key={item} className="h-[210px] animate-pulse rounded-2xl bg-white" />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}

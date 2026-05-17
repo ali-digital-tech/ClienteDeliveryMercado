@@ -9,35 +9,10 @@ import { BottomNav } from '@/shared/components/BottomNav';
 export function CategoriesPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
-  const { cartCount, products, tenantPath, currentMarket } = useApp();
-  const { categories } = useCategories(marketId);
+  const { cartCount, tenantPath, currentMarket } = useApp();
+  const { categories: departments } = useCategories(marketId, { level: 1 });
   const { banners } = useBanners(marketId, 'categories');
-  const departments = categories.filter((category) => category.level === 1);
   const primaryColor = currentMarket?.primaryColor || '#122a4c';
-  const getDescendantIds = (categoryId: string) => {
-    const ids = new Set([categoryId]);
-    let changed = true;
-
-    while (changed) {
-      changed = false;
-      categories.forEach((category) => {
-        if (category.parentId && ids.has(category.parentId) && !ids.has(category.id)) {
-          ids.add(category.id);
-          changed = true;
-        }
-      });
-    }
-
-    return ids;
-  };
-  const productCountByCategory = products.reduce<Record<string, number>>((counts, product) => {
-    categories.forEach((category) => {
-      if (getDescendantIds(category.id).has(product.category)) {
-        counts[category.id] = (counts[category.id] || 0) + 1;
-      }
-    });
-    return counts;
-  }, {});
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -69,7 +44,7 @@ export function CategoriesPage() {
         <BannerRenderer banners={banners} placement="categories_top" page="categories" className="mb-4" />
         <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
           {departments.map(cat => {
-            const productCount = productCountByCategory[cat.id] || 0;
+            const hasProductCount = typeof cat.productCount === 'number' && Number.isFinite(cat.productCount);
 
             return (
               <button
@@ -84,7 +59,9 @@ export function CategoriesPage() {
                 <div className="text-left flex-1 min-w-0">
                   <p style={{ fontSize: '14px', fontWeight: 700, color: '#1f2937' }}>{cat.name}</p>
                   <p style={{ fontSize: '11px', color: cat.color, fontWeight: 500 }}>
-                    {productCount} {productCount === 1 ? 'produto' : 'produtos'}
+                    {hasProductCount
+                      ? `${cat.productCount} ${cat.productCount === 1 ? 'produto' : 'produtos'}`
+                      : 'Ver produtos'}
                   </p>
                 </div>
               </button>

@@ -4,12 +4,13 @@ import { useLocation, useNavigate } from "react-router";
 import { Eye, EyeOff, Mail, Lock, Phone } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { authService } from '@/features/auth';
+import { getProductById } from '@/features/products';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
 export function LoginScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { addToCart, currentMarket, login, marketId, products } = useApp();
+  const { addToCart, currentMarket, login, marketId } = useApp();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [showPass, setShowPass] = useState(false);
   const [email, setEmail] = useState("");
@@ -52,7 +53,7 @@ export function LoginScreen() {
         pendingCartProductId?: string;
       } | null;
       const pendingProduct = navigationState?.pendingCartProductId
-        ? products.find(product => product.id === navigationState.pendingCartProductId)
+        ? await getProductById(marketId, navigationState.pendingCartProductId)
         : null;
 
       if (pendingProduct) {

@@ -1,65 +1,133 @@
-import { useEffect, useState } from 'react';
-import { getProductsByMarketId } from '../services/productsService';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getProductsByMarketId, PRODUCTS_PAGE_SIZE, type ProductListFilters } from '../services/productsService';
 import type { Product } from '../types/product';
 
-const PRODUCTS_CACHE_KEY = 'cliente_delivery_products_by_market';
-
-function readProductsCache(): Record<string, Product[]> {
-  try {
-    const stored = localStorage.getItem(PRODUCTS_CACHE_KEY);
-    if (!stored) return {};
-
-    const parsed = JSON.parse(stored);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-
-    return parsed;
-  } catch {
-    return {};
-  }
+interface UseProductsOptions extends ProductListFilters {
+  enabled?: boolean;
 }
 
-function saveProductsCache(marketId: string, products: Product[]) {
-  const cache = readProductsCache();
-  localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify({
-    ...cache,
-    [marketId]: products,
-  }));
+function dedupeProducts(items: Product[]) {
+  const byId = new Map<string, Product>();
+
+  items.forEach((product) => {
+    byId.set(product.id || product.catalogProductId, product);
+  });
+
+  return Array.from(byId.values());
 }
 
-export function useProducts(marketId: string) {
-  const [products, setProducts] = useState<Product[]>(() => readProductsCache()[marketId] || []);
-  const [isLoading, setIsLoading] = useState(true);
+export function useProducts(marketId: string, options: UseProductsOptions = {}) {
+  const {
+    categoryId = null,
+    search = '',
+    perPage = PRODUCTS_PAGE_SIZE,
+    enabled = true,
+  } = options;
+  const normalizedSearch = search.trim();
+  const requestKey = useMemo(
+    () => JSON.stringify({ marketId, categoryId, search: normalizedSearch, perPage }),
+    [categoryId, marketId, normalizedSearch, perPage],
+  );
+  const latestRequestKeyRef = useRef(requestKey);
+  const loadingMoreRef = useRef(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(enabled);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    let ignore = false;
-    const cachedProducts = readProductsCache()[marketId] || [];
-
-    setIsLoading(true);
+    latestRequestKeyRef.current = requestKey;
+    loadingMoreRef.current = false;
+    setProducts([]);
+    setPage(1);
+    setHasNextPage(false);
+    setTotal(0);
     setError(null);
-    setProducts(cachedProducts);
 
-    getProductsByMarketId(marketId)
-      .then(data => {
-        if (!ignore) {
-          setProducts(data);
-          saveProductsCache(marketId, data);
-        }
+    if (!marketId || !enabled) {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+      return;
+    }
+
+    let ignore = false;
+    setIsLoading(true);
+    setIsLoadingMore(false);
+
+    getProductsByMarketId(marketId, {
+      categoryId,
+      search: normalizedSearch,
+      page: 1,
+      perPage,
+    })
+      .then((result) => {
+        if (ignore || latestRequestKeyRef.current !== requestKey) return;
+        setProducts(dedupeProducts(result.products));
+        setPage(result.page);
+        setHasNextPage(result.hasNextPage);
+        setTotal(result.total);
       })
-      .catch(error => {
-        if (!ignore) {
-          setError(error);
-          setProducts(cachedProducts);
-        }
+      .catch((error) => {
+        if (ignore || latestRequestKeyRef.current !== requestKey) return;
+        setError(error);
+        setProducts([]);
       })
       .finally(() => {
-        if (!ignore) setIsLoading(false);
+        if (!ignore && latestRequestKeyRef.current === requestKey) {
+          setIsLoading(false);
+        }
       });
 
     return () => {
       ignore = true;
     };
-  }, [marketId]);
+  }, [categoryId, enabled, marketId, normalizedSearch, perPage, requestKey]);
 
-  return { products, isLoading, error };
+  const loadMore = useCallback(async () => {
+    if (!marketId || !enabled || isLoading || loadingMoreRef.current || !hasNextPage) return;
+
+    const keyAtStart = latestRequestKeyRef.current;
+    const nextPage = page + 1;
+    loadingMoreRef.current = true;
+    setIsLoadingMore(true);
+
+    try {
+      const result = await getProductsByMarketId(marketId, {
+        categoryId,
+        search: normalizedSearch,
+        page: nextPage,
+        perPage,
+      });
+
+      if (latestRequestKeyRef.current !== keyAtStart) return;
+
+      setProducts((current) => dedupeProducts([...current, ...result.products]));
+      setPage(result.page);
+      setHasNextPage(result.hasNextPage);
+      setTotal(result.total);
+    } catch (error) {
+      if (latestRequestKeyRef.current === keyAtStart) {
+        setError(error as Error);
+      }
+    } finally {
+      if (latestRequestKeyRef.current === keyAtStart) {
+        loadingMoreRef.current = false;
+        setIsLoadingMore(false);
+      }
+    }
+  }, [categoryId, enabled, hasNextPage, isLoading, marketId, normalizedSearch, page, perPage]);
+
+  return {
+    products,
+    isLoading,
+    isLoadingMore,
+    error,
+    hasNextPage,
+    loadMore,
+    page,
+    total,
+  };
 }

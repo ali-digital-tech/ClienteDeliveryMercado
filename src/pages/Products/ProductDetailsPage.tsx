@@ -1,19 +1,53 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ChevronLeft, Heart, Share2, ShoppingCart, Plus, Minus, ShieldCheck, Truck } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { formatCartQuantity } from '@/features/cart';
-import { ProductCard, ProductImage, useProducts } from '@/features/products';
+import { getProductById, ProductCard, ProductImage, useProducts } from '@/features/products';
+import type { Product } from '@/features/products';
 
 export function ProductDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
   const { addToCart, updateQty, cart, toggleFavorite, isFavorite, cartCount, tenantPath, currentMarket } = useApp();
-  const { products } = useProducts(marketId);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoadingProduct, setIsLoadingProduct] = useState(true);
+  const { products: relatedProducts } = useProducts(marketId, {
+    categoryId: product?.category,
+    perPage: 8,
+    enabled: Boolean(product?.category),
+  });
 
-  const product = products.find(p => p.id === id);
+  useEffect(() => {
+    let ignore = false;
+
+    setIsLoadingProduct(true);
+    setProduct(null);
+
+    getProductById(marketId, id || '')
+      .then((data) => {
+        if (!ignore) setProduct(data);
+      })
+      .catch(() => {
+        if (!ignore) setProduct(null);
+      })
+      .finally(() => {
+        if (!ignore) setIsLoadingProduct(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [id, marketId]);
+
+  if (isLoadingProduct) return (
+    <div className="flex-1 flex items-center justify-center">
+      <p className="text-gray-500">Carregando produto...</p>
+    </div>
+  );
+
   if (!product) return (
     <div className="flex-1 flex items-center justify-center">
       <p className="text-gray-500">Produto não encontrado.</p>
@@ -29,7 +63,7 @@ export function ProductDetailsPage() {
   const primaryColor = currentMarket?.primaryColor || '#122a4c';
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
 
-  const related = products.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
+  const related = relatedProducts.filter(p => p.id !== product.id).slice(0, 4);
 
   const handleAdd = () => {
     if (qty === 0) {

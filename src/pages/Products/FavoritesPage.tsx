@@ -1,15 +1,34 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Heart, ShoppingCart } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
 import { BottomNav } from '@/shared/components/BottomNav';
-import { ProductCard } from '@/features/products';
+import { getProductById, ProductCard } from '@/features/products';
+import type { Product } from '@/features/products';
 
 export function FavoritesPage() {
   const navigate = useNavigate();
-  const { favorites, cartCount, products, tenantPath, currentMarket } = useApp();
-
-  const favoriteProducts = products.filter(p => favorites.includes(p.id));
+  const { favorites, cartCount, marketId, tenantPath, currentMarket } = useApp();
+  const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
   const primaryColor = currentMarket?.primaryColor || '#122a4c';
+
+  useEffect(() => {
+    let ignore = false;
+
+    if (favorites.length === 0) {
+      setFavoriteProducts([]);
+      return;
+    }
+
+    Promise.all(favorites.map((productId) => getProductById(marketId, productId).catch(() => null)))
+      .then((products) => {
+        if (!ignore) setFavoriteProducts(products.filter((product): product is Product => product !== null));
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [favorites, marketId]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
