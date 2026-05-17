@@ -43,14 +43,36 @@ function mapCategory(category: ApiCategory, marketId: string, index: number): Ca
 export async function getCategoriesByMarketId(marketId: string): Promise<Category[]> {
   if (!marketId) return [];
 
-  const response = await apiRequest(`/lojas/${marketId}/categorias`, {
+  const firstResponse: any = await apiRequest(`/lojas/${marketId}/categorias`, {
     params: {
       ativa: true,
+      page: 1,
       per_page: 100,
     },
   });
 
-  return unwrapList<ApiCategory>(response)
+  const firstData = firstResponse?.data;
+  const totalPages = Array.isArray(firstData) ? 1 : firstData?.total_pages || 1;
+  const firstPage = unwrapList<ApiCategory>(firstResponse);
+
+  const remainingPages = totalPages > 1
+    ? await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, index) =>
+        apiRequest(`/lojas/${marketId}/categorias`, {
+          params: {
+            ativa: true,
+            page: index + 2,
+            per_page: 100,
+          },
+        }),
+      ),
+    )
+    : [];
+
+  return [
+    ...firstPage,
+    ...remainingPages.flatMap((response) => unwrapList<ApiCategory>(response)),
+  ]
     .filter(category => category.ativa !== false)
     .sort((a, b) => (a.nivel || 1) - (b.nivel || 1) || (a.ordem_exibicao || 0) - (b.ordem_exibicao || 0) || (a.nome || '').localeCompare(b.nome || ''))
     .map((category, index) => mapCategory(category, marketId, index));

@@ -60,14 +60,36 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
 export async function getProductsByMarketId(marketId: string): Promise<Product[]> {
   if (!marketId) return [];
 
-  const response = await apiRequest(`/lojas/${marketId}/produtos`, {
+  const firstResponse: any = await apiRequest(`/lojas/${marketId}/produtos`, {
     params: {
       ativo: true,
+      page: 1,
       per_page: 100,
     },
   });
 
-  return unwrapList<ApiStoreProduct>(response)
+  const firstData = firstResponse?.data;
+  const totalPages = Array.isArray(firstData) ? 1 : firstData?.total_pages || 1;
+  const firstPage = unwrapList<ApiStoreProduct>(firstResponse);
+
+  const remainingPages = totalPages > 1
+    ? await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, index) =>
+        apiRequest(`/lojas/${marketId}/produtos`, {
+          params: {
+            ativo: true,
+            page: index + 2,
+            per_page: 100,
+          },
+        }),
+      ),
+    )
+    : [];
+
+  return [
+    ...firstPage,
+    ...remainingPages.flatMap((response) => unwrapList<ApiStoreProduct>(response)),
+  ]
     .filter(product => product.ativo_na_loja !== false && product.produto_ativo !== false)
     .map(mapStoreProduct);
 }
