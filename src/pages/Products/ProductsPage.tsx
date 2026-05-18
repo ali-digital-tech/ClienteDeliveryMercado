@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { UIEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { MouseEvent, UIEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   Search,
@@ -14,7 +14,7 @@ import { useMarketContext } from '@/contexts/MarketContext';
 import { BottomNav } from '@/shared/components/BottomNav';
 import { ProductCard, filterProducts, useProducts } from '@/features/products';
 import type { Product } from '@/features/products';
-import { getDepartmentCategoriesByMarketId, useCategories } from '@/features/categories';
+import { getCategoriesByMarketId, useCategories } from '@/features/categories';
 import type { Category } from '@/features/categories';
 import { BannerRenderer, getBannerProducts, useBanners } from '@/features/banners';
 
@@ -72,6 +72,83 @@ function sortByOrder<T extends { order?: number; name: string }>(items: T[]) {
   return [...items].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name));
 }
 
+function colorWithAlpha(color: string, alpha: number) {
+  const normalized = color.trim();
+
+  if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+    const [, r, g, b] = normalized;
+    return `rgba(${parseInt(r + r, 16)}, ${parseInt(g + g, 16)}, ${parseInt(b + b, 16)}, ${alpha})`;
+  }
+
+  if (/^#[0-9a-f]{6}$/i.test(normalized)) {
+    const hex = normalized.slice(1);
+    return `rgba(${parseInt(hex.slice(0, 2), 16)}, ${parseInt(hex.slice(2, 4), 16)}, ${parseInt(hex.slice(4, 6), 16)}, ${alpha})`;
+  }
+
+  return normalized;
+}
+
+function useHorizontalDragScroll<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const dragState = useRef({
+    isMouseDown: false,
+    hasDragged: false,
+    startX: 0,
+    scrollLeft: 0,
+  });
+  const shouldSuppressClick = useRef(false);
+
+  const stopDragging = useCallback((event: MouseEvent<T>) => {
+    const target = event.currentTarget;
+    dragState.current.isMouseDown = false;
+    target.style.cursor = "";
+    target.style.userSelect = "";
+  }, []);
+
+  const onMouseDown = useCallback((event: MouseEvent<T>) => {
+    if (event.button !== 0) return;
+
+    dragState.current = {
+      isMouseDown: true,
+      hasDragged: false,
+      startX: event.clientX,
+      scrollLeft: event.currentTarget.scrollLeft,
+    };
+    shouldSuppressClick.current = false;
+    event.currentTarget.style.cursor = "grabbing";
+  }, []);
+
+  const onMouseMove = useCallback((event: MouseEvent<T>) => {
+    if (!dragState.current.isMouseDown) return;
+
+    const distance = event.clientX - dragState.current.startX;
+    if (Math.abs(distance) <= 6) return;
+
+    dragState.current.hasDragged = true;
+    shouldSuppressClick.current = true;
+    event.preventDefault();
+    event.currentTarget.style.userSelect = "none";
+    event.currentTarget.scrollLeft = dragState.current.scrollLeft - distance;
+  }, []);
+
+  const onClickCapture = useCallback((event: MouseEvent<T>) => {
+    if (!shouldSuppressClick.current) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    shouldSuppressClick.current = false;
+  }, []);
+
+  return {
+    ref,
+    onMouseDown,
+    onMouseMove,
+    onMouseUp: stopDragging,
+    onMouseLeave: stopDragging,
+    onClickCapture,
+  };
+}
+
 export function ProductsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -81,6 +158,8 @@ export function ProductsPage() {
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentSearches(marketId));
   const [showSort, setShowSort] = useState(false);
   const [sort, setSort] = useState("Relevância");
+  const categoryDrag = useHorizontalDragScroll<HTMLDivElement>();
+  const subcategoryDrag = useHorizontalDragScroll<HTMLDivElement>();
 
   const selectedDepartmentId = searchParams.get("categoria") || "";
   const selectedLevel2Id = searchParams.get("categoriaNivel2") || "";
@@ -91,27 +170,35 @@ export function ProductsPage() {
   const [bannerTitle, setBannerTitle] = useState("");
   const [isLoadingBannerProducts, setIsLoadingBannerProducts] = useState(false);
   const { categories: departments } = useCategories(marketId, { level: 1 });
-  const [departmentCategories, setDepartmentCategories] = useState<Category[]>([]);
-  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-  const [categoriesError, setCategoriesError] = useState<Error | null>(null);
+  const [level2Categories, setLevel2Categories] = useState<Category[]>([]);
+  const [level3Categories, setLevel3Categories] = useState<Category[]>([]);
+  const [isLoadingLevel2Categories, setIsLoadingLevel2Categories] = useState(false);
+  const [isLoadingLevel3Categories, setIsLoadingLevel3Categories] = useState(false);
+  const [level2CategoriesError, setLevel2CategoriesError] = useState<Error | null>(null);
+  const [level3CategoriesError, setLevel3CategoriesError] = useState<Error | null>(null);
   const selectedDepartment = departments.find((cat) => cat.id === selectedDepartmentId);
-  const level2Categories = useMemo(
-    () => sortByOrder(departmentCategories.filter((cat) => cat.parentId === selectedDepartmentId && cat.level === 2)),
-    [departmentCategories, selectedDepartmentId],
-  );
   const selectedLevel2 = level2Categories.find((cat) => cat.id === selectedLevel2Id);
-  const level3Categories = useMemo(
-    () => sortByOrder(departmentCategories.filter((cat) => cat.parentId === selectedLevel2Id && cat.level === 3)),
-    [departmentCategories, selectedLevel2Id],
-  );
+  const selectedSubcategory = selectedSubcategoryId
+    ? level3Categories.find((cat) => cat.id === selectedSubcategoryId)
+    : null;
   const selectedCategory =
     selectedSubcategoryId
-      ? level3Categories.find((cat) => cat.id === selectedSubcategoryId)
+      ? selectedSubcategory
       : selectedLevel2 || selectedDepartment;
   const searchChips = recentSearches.length > 0 ? recentSearches : DEFAULT_SEARCH_SUGGESTIONS;
   const primaryColor = currentMarket?.primaryColor || "#122a4c";
+  const categorySurface = colorWithAlpha(primaryColor, 0.08);
+  const categorySurfaceStrong = colorWithAlpha(primaryColor, 0.14);
+  const categoryBorder = colorWithAlpha(primaryColor, 0.2);
+  const categoryShadow = colorWithAlpha(primaryColor, 0.18);
   const normalizedQuery = query.trim();
-  const canLoadProducts = !bannerId && Boolean(marketId && selectedDepartmentId && selectedLevel2Id);
+  const isLoadingCategories = isLoadingLevel2Categories || isLoadingLevel3Categories;
+  const canLoadProducts = !bannerId && Boolean(
+    marketId
+    && selectedDepartmentId
+    && selectedLevel2
+    && (!selectedSubcategoryId || selectedSubcategory),
+  );
   const {
     products,
     isLoading: isLoadingProducts,
@@ -171,27 +258,32 @@ export function ProductsPage() {
   useEffect(() => {
     let ignore = false;
 
-    setDepartmentCategories([]);
-    setCategoriesError(null);
+    setLevel2Categories([]);
+    setLevel3Categories([]);
+    setLevel2CategoriesError(null);
+    setLevel3CategoriesError(null);
 
     if (!selectedDepartmentId) {
-      setIsLoadingCategories(false);
+      setIsLoadingLevel2Categories(false);
+      setIsLoadingLevel3Categories(false);
       return;
     }
 
-    setIsLoadingCategories(true);
-    getDepartmentCategoriesByMarketId(marketId, selectedDepartmentId)
+    setIsLoadingLevel2Categories(true);
+    getCategoriesByMarketId(marketId, { parentId: selectedDepartmentId })
       .then((data) => {
-        if (!ignore) setDepartmentCategories(data);
+        if (!ignore) {
+          setLevel2Categories(sortByOrder(data.filter((category) => category.parentId === selectedDepartmentId)));
+        }
       })
       .catch((error) => {
         if (!ignore) {
-          setCategoriesError(error);
-          setDepartmentCategories([]);
+          setLevel2CategoriesError(error);
+          setLevel2Categories([]);
         }
       })
       .finally(() => {
-        if (!ignore) setIsLoadingCategories(false);
+        if (!ignore) setIsLoadingLevel2Categories(false);
       });
 
     return () => {
@@ -200,19 +292,65 @@ export function ProductsPage() {
   }, [marketId, selectedDepartmentId]);
 
   useEffect(() => {
-    if (!selectedDepartmentId || isLoadingCategories || categoriesError) return;
-    if (level2Categories.length === 0) return;
+    if (!selectedDepartmentId || isLoadingLevel2Categories || level2CategoriesError) return;
+    if (level2Categories.length === 0) {
+      if (selectedLevel2Id || selectedSubcategoryId) {
+        updateNavigation({ categoriaNivel2: "", subcategoria: null });
+      }
+      return;
+    }
     if (selectedLevel2Id && level2Categories.some((category) => category.id === selectedLevel2Id)) return;
 
     updateNavigation({ categoriaNivel2: level2Categories[0].id, subcategoria: null });
-  }, [categoriesError, isLoadingCategories, level2Categories, selectedDepartmentId, selectedLevel2Id, updateNavigation]);
+  }, [
+    isLoadingLevel2Categories,
+    level2Categories,
+    level2CategoriesError,
+    selectedDepartmentId,
+    selectedLevel2Id,
+    selectedSubcategoryId,
+    updateNavigation,
+  ]);
 
   useEffect(() => {
-    if (!selectedSubcategoryId) return;
+    let ignore = false;
+
+    setLevel3Categories([]);
+    setLevel3CategoriesError(null);
+
+    if (!selectedDepartmentId || !selectedLevel2Id || isLoadingLevel2Categories || !selectedLevel2) {
+      setIsLoadingLevel3Categories(false);
+      return;
+    }
+
+    setIsLoadingLevel3Categories(true);
+    getCategoriesByMarketId(marketId, { parentId: selectedLevel2Id })
+      .then((data) => {
+        if (!ignore) {
+          setLevel3Categories(sortByOrder(data.filter((category) => category.parentId === selectedLevel2Id)));
+        }
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setLevel3CategoriesError(error);
+          setLevel3Categories([]);
+        }
+      })
+      .finally(() => {
+        if (!ignore) setIsLoadingLevel3Categories(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [isLoadingLevel2Categories, marketId, selectedDepartmentId, selectedLevel2, selectedLevel2Id]);
+
+  useEffect(() => {
+    if (!selectedSubcategoryId || isLoadingLevel3Categories || level3CategoriesError) return;
     if (level3Categories.some((category) => category.id === selectedSubcategoryId)) return;
 
     updateNavigation({ subcategoria: null });
-  }, [level3Categories, selectedSubcategoryId, updateNavigation]);
+  }, [isLoadingLevel3Categories, level3Categories, level3CategoriesError, selectedSubcategoryId, updateNavigation]);
 
   useEffect(() => {
     let ignore = false;
@@ -403,60 +541,84 @@ export function ProductsPage() {
         )}
 
         {selectedDepartment && level2Categories.length > 0 && (
-          <div className="mb-1 flex gap-4 overflow-x-auto px-1 pb-1 scrollbar-hide">
-            {level2Categories.map((category) => {
-              const isActive = selectedLevel2Id === category.id;
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => updateNavigation({ categoriaNivel2: category.id, subcategoria: null })}
-                  className="flex-shrink-0 py-1 transition-colors"
-                  style={{
-                    color: isActive ? primaryColor : "#64748b",
-                    borderBottom: `2px solid ${isActive ? primaryColor : "transparent"}`,
-                    fontSize: "12px",
-                    fontWeight: isActive ? 700 : 600,
-                  }}
-                >
-                  {category.name}
-                </button>
-              );
-            })}
+          <div className={selectedLevel2 ? "pt-1" : "pb-1 pt-1"}>
+            <div
+              {...categoryDrag}
+              className="flex cursor-grab gap-2 overflow-x-auto px-1 pb-2 pt-2 scrollbar-hide"
+            >
+              {level2Categories.map((category) => {
+                const isActive = selectedLevel2Id === category.id;
+                return (
+                  <button
+                    key={category.id}
+                    onClick={() => updateNavigation({ categoriaNivel2: category.id, subcategoria: null })}
+                    className="flex-shrink-0 rounded-full px-3.5 py-2 transition-all duration-200"
+                    style={{
+                      backgroundColor: isActive ? primaryColor : "#f8fafc",
+                      border: `1px solid ${isActive ? primaryColor : "#d9e4f2"}`,
+                      boxShadow: isActive ? `0 10px 22px ${categoryShadow}` : "none",
+                      color: isActive ? "#ffffff" : "#64748b",
+                      fontSize: "12px",
+                      fontWeight: isActive ? 800 : 650,
+                      transform: isActive ? "translateY(-5px)" : "translateY(0)",
+                    }}
+                  >
+                    {category.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
         {selectedLevel2 && (
-          <div className="flex gap-4 overflow-x-auto px-1 pb-1 scrollbar-hide">
-            <button
-              onClick={() => updateNavigation({ subcategoria: null })}
-              className="flex-shrink-0 py-1 transition-colors"
-              style={{
-                color: !selectedSubcategoryId ? primaryColor : "#64748b",
-                borderBottom: `2px solid ${!selectedSubcategoryId ? primaryColor : "transparent"}`,
-                fontSize: "12px",
-                fontWeight: !selectedSubcategoryId ? 700 : 600,
-              }}
+          <div
+            className="relative -mt-1 rounded-[22px] px-3 pb-3 pt-3"
+            style={{
+              background: `linear-gradient(180deg, ${categorySurfaceStrong} 0%, ${categorySurface} 100%)`,
+              border: `1px solid ${categoryBorder}`,
+              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.85), 0 10px 24px rgba(15, 23, 42, 0.06)`,
+            }}
+          >
+            <div
+              {...subcategoryDrag}
+              className="flex cursor-grab gap-2 overflow-x-auto pb-0.5 scrollbar-hide"
             >
-              Todos
-            </button>
-            {level3Categories.map((subcategory) => {
-              const isActive = selectedSubcategoryId === subcategory.id;
-              return (
-                <button
-                  key={subcategory.id}
-                  onClick={() => updateNavigation({ subcategoria: subcategory.id })}
-                  className="flex-shrink-0 py-1 transition-colors"
-                  style={{
-                    color: isActive ? primaryColor : "#64748b",
-                    borderBottom: `2px solid ${isActive ? primaryColor : "transparent"}`,
-                    fontSize: "12px",
-                    fontWeight: isActive ? 700 : 600,
-                  }}
-                >
-                  {subcategory.name}
-                </button>
-              );
-            })}
+              <button
+                onClick={() => updateNavigation({ subcategoria: null })}
+                className="flex-shrink-0 rounded-full px-3.5 py-2 transition-all duration-200"
+                style={{
+                  backgroundColor: !selectedSubcategoryId ? primaryColor : "#ffffff",
+                  border: `1px solid ${!selectedSubcategoryId ? primaryColor : categoryBorder}`,
+                  boxShadow: !selectedSubcategoryId ? `0 8px 18px ${categoryShadow}` : "0 1px 2px rgba(15, 23, 42, 0.04)",
+                  color: !selectedSubcategoryId ? "#ffffff" : primaryColor,
+                  fontSize: "12px",
+                  fontWeight: !selectedSubcategoryId ? 800 : 700,
+                }}
+              >
+                Todos
+              </button>
+              {level3Categories.map((subcategory) => {
+                const isActive = selectedSubcategoryId === subcategory.id;
+                return (
+                  <button
+                    key={subcategory.id}
+                    onClick={() => updateNavigation({ subcategoria: subcategory.id })}
+                    className="flex-shrink-0 rounded-full px-3.5 py-2 transition-all duration-200"
+                    style={{
+                      backgroundColor: isActive ? primaryColor : "#ffffff",
+                      border: `1px solid ${isActive ? primaryColor : categoryBorder}`,
+                      boxShadow: isActive ? `0 8px 18px ${categoryShadow}` : "0 1px 2px rgba(15, 23, 42, 0.04)",
+                      color: isActive ? "#ffffff" : "#334155",
+                      fontSize: "12px",
+                      fontWeight: isActive ? 800 : 700,
+                    }}
+                  >
+                    {subcategory.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
