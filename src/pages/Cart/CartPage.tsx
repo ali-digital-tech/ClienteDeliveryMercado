@@ -17,7 +17,7 @@ export function CartPage() {
   const [couponSuccess, setCouponSuccess] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
-  const deliveryFee = cartTotal >= 89 ? 0 : 6.99;
+  const deliveryFee = Math.max(0, currentMarket?.deliveryFee || 0);
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const primaryColor = currentMarket?.primaryColor || '#122a4c';
@@ -84,14 +84,14 @@ export function CartPage() {
               <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 flex items-center gap-2 mb-3">
                 <Truck size={16} color="#f97316" />
                 <p style={{ fontSize: '12px', color: '#ea580c', lineHeight: 1.4 }}>
-                  Adicione mais <b>R$ {(89 - cartTotal).toFixed(2).replace('.', ',')}</b> para ganhar frete grátis!
+                  Taxa de entrega deste mercado: <b>R$ {deliveryFee.toFixed(2).replace('.', ',')}</b>
                 </p>
               </div>
             )}
             {deliveryFee === 0 && (
               <div className="rounded-2xl px-4 py-3 flex items-center gap-2 mb-3" style={{ backgroundColor: primarySoftColor, border: `1px solid ${primaryColor}` }}>
                 <Truck size={16} color={primaryColor} />
-                <p style={{ fontSize: '12px', color: primaryColor, fontWeight: 600 }}>🎉 Você ganhou frete grátis!</p>
+                <p style={{ fontSize: '12px', color: primaryColor, fontWeight: 600 }}>Entrega grátis neste mercado.</p>
               </div>
             )}
 

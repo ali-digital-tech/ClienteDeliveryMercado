@@ -36,13 +36,13 @@ import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 export function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { cart, cartTotal, currentUser, discount, marketId, tenantPath, clearCart } = useApp();
+  const { cart, cartTotal, currentMarket, currentUser, discount, marketId, tenantPath, clearCart } = useApp();
   const { banners } = useBanners(marketId, 'checkout');
   const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentResult, setPaymentResult] = useState<MercadoPagoPaymentResult | null>(null);
 
-  const deliveryFee = cartTotal >= 89 ? 0 : 6.99;
+  const deliveryFee = Math.max(0, currentMarket.deliveryFee || 0);
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;

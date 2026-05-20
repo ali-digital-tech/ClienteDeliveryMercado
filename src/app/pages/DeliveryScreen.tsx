@@ -26,7 +26,7 @@ export function DeliveryScreen() {
   const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
 
   const discountedSubtotal = Math.max(cartTotal - discount, 0);
-  const deliveryFee = cartTotal >= 89 ? 0 : 6.99;
+  const deliveryFee = Math.max(0, currentMarket.deliveryFee || 0);
 
 
   const total = discountedSubtotal + (mode === "delivery" ? deliveryFee : 0);
