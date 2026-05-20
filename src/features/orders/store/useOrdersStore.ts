@@ -6,6 +6,18 @@ import type { Order } from '../types/order';
 export function useOrdersStore(marketId: string) {
   const [ordersByMarket, setOrdersByMarket] = useState<Record<string, Order[]>>({});
 
+  const refreshOrders = useCallback(async () => {
+    try {
+      const marketOrders = await getOrdersByMarketId(marketId);
+      setOrdersByMarket(prev => ({ ...prev, [marketId]: marketOrders }));
+      return marketOrders;
+    } catch (error) {
+      console.error('Erro ao carregar pedidos', error);
+      setOrdersByMarket(prev => ({ ...prev, [marketId]: [] }));
+      return [];
+    }
+  }, [marketId]);
+
   useEffect(() => {
     let ignore = false;
 
@@ -51,5 +63,5 @@ export function useOrdersStore(marketId: string) {
     return orderId;
   }, [marketId]);
 
-  return { orders, placeOrder };
+  return { orders, placeOrder, refreshOrders };
 }

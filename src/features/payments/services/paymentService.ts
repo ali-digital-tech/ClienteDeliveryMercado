@@ -46,6 +46,19 @@ export interface MercadoPagoPaymentResult {
   date_of_expiration?: string | null;
 }
 
+export interface LocalPayment {
+  id: string;
+  pedido_id: string;
+  status: string;
+  forma_pagamento: string;
+  valor: string | number;
+  gateway?: string | null;
+  gateway_pagamento_id?: string | null;
+  pago_em?: string | null;
+  status_detalhado?: string | null;
+  status_gateway_raw?: string | null;
+}
+
 function readJson<T>(key: string, fallback: T): T {
   try {
     const value = localStorage.getItem(key);
@@ -90,6 +103,12 @@ export async function createPixPayment(pedidoId: string, payer: PayerData) {
       },
     }
   );
+
+  return response.data;
+}
+
+export async function getPaymentById(paymentId: string) {
+  const response = await apiRequest<{ data: LocalPayment }>(`/pagamentos/${paymentId}`);
 
   return response.data;
 }

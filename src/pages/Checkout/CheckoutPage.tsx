@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   ChevronLeft,
@@ -26,6 +26,7 @@ import { getAuthToken } from '@/shared/lib/api';
 import {
   createCardPayment,
   createPixPayment,
+  getPaymentById,
   getStoredPayerData,
   getStoredPaymentSelection,
   type MercadoPagoPaymentResult,
@@ -33,14 +34,48 @@ import {
 } from '@/features/payments';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
+const PIX_PAYMENT_WINDOW_SECONDS = 5 * 60;
+const PIX_POLL_INTERVAL_MS = 5000;
+const PIX_TERMINAL_STATUSES = new Set(['rejeitado', 'cancelado', 'expirado', 'estornado']);
+
+interface PendingCheckoutOrder {
+  id: string;
+  numero_pedido?: string | null;
+  total?: string | number | null;
+}
+
+function formatPixCountdown(seconds: number) {
+  const safeSeconds = Math.max(0, seconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainder = safeSeconds % 60;
+
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
 export function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { cart, cartTotal, currentMarket, currentUser, discount, marketId, tenantPath, clearCart } = useApp();
+  const {
+    cart,
+    cartTotal,
+    currentMarket,
+    currentUser,
+    discount,
+    marketId,
+    tenantPath,
+    clearCart,
+    refreshOrders,
+  } = useApp();
   const { banners } = useBanners(marketId, 'checkout');
   const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentResult, setPaymentResult] = useState<MercadoPagoPaymentResult | null>(null);
+  const [pendingOrder, setPendingOrder] = useState<PendingCheckoutOrder | null>(null);
+  const [pixExpiresAt, setPixExpiresAt] = useState<number | null>(null);
+  const [pixSecondsRemaining, setPixSecondsRemaining] = useState(PIX_PAYMENT_WINDOW_SECONDS);
+  const [pixStatus, setPixStatus] = useState<'idle' | 'waiting' | 'expired' | 'failed'>('idle');
+  const [isPollingPayment, setIsPollingPayment] = useState(false);
+  const [pixFailureMessage, setPixFailureMessage] = useState('');
 
   const deliveryFee = Math.max(0, currentMarket.deliveryFee || 0);
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
@@ -60,6 +95,11 @@ export function CheckoutPage() {
       : paymentSelection.method === 'cartao_debito'
         ? 'Cartão de débito'
         : 'Cartão de crédito';
+  const isPixWaiting = Boolean(paymentResult?.qr_code && pixStatus === 'waiting');
+  const canChooseAnotherPayment = Boolean(paymentResult?.qr_code && ['expired', 'failed'].includes(pixStatus));
+  const pixProgress = paymentResult?.qr_code
+    ? Math.max(0, Math.min(100, (pixSecondsRemaining / PIX_PAYMENT_WINDOW_SECONDS) * 100))
+    : 0;
 
   useEffect(() => {
     if (!currentUser) return;
@@ -96,6 +136,98 @@ export function CheckoutPage() {
     };
   };
 
+  const saveConfirmedOrder = useCallback((order: PendingCheckoutOrder, result: MercadoPagoPaymentResult) => {
+    sessionStorage.setItem('cliente_delivery_last_order', JSON.stringify({
+      id: order.numero_pedido ? `#${order.numero_pedido}` : order.id,
+      total: order.total,
+      payment_id: result.payment.id,
+      mp_payment_id: result.mp_payment_id,
+    }));
+  }, []);
+
+  const completeApprovedPayment = useCallback(async (
+    result: MercadoPagoPaymentResult,
+    order: PendingCheckoutOrder
+  ) => {
+    saveConfirmedOrder(order, result);
+    clearCart();
+    await refreshOrders();
+    navigate(tenantPath("order-confirmed"));
+  }, [clearCart, navigate, refreshOrders, saveConfirmedOrder, tenantPath]);
+
+  const resetPixPayment = () => {
+    setPaymentResult(null);
+    setPendingOrder(null);
+    setPixExpiresAt(null);
+    setPixSecondsRemaining(PIX_PAYMENT_WINDOW_SECONDS);
+    setPixStatus('idle');
+    setPixFailureMessage('');
+    navigate(tenantPath("payment"));
+  };
+
+  useEffect(() => {
+    if (!paymentResult?.qr_code || !pixExpiresAt || pixStatus !== 'waiting') return;
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((pixExpiresAt - Date.now()) / 1000));
+      setPixSecondsRemaining(remaining);
+
+      if (remaining <= 0) {
+        setPixStatus('expired');
+        setPixFailureMessage('O tempo para pagamento deste PIX expirou. Escolha uma forma de pagamento e tente novamente.');
+        showSystemNotice('O tempo para pagamento deste PIX expirou. Escolha uma forma de pagamento e tente novamente.');
+      }
+    };
+
+    tick();
+    const intervalId = window.setInterval(tick, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [paymentResult?.qr_code, pixExpiresAt, pixStatus]);
+
+  useEffect(() => {
+    if (!paymentResult?.payment.id || !pendingOrder || pixStatus !== 'waiting') return;
+
+    let cancelled = false;
+    const intervalId = window.setInterval(async () => {
+      try {
+        setIsPollingPayment(true);
+        const payment = await getPaymentById(paymentResult.payment.id);
+        if (cancelled) return;
+
+        if (payment.status === 'aprovado') {
+          await completeApprovedPayment(
+            {
+              ...paymentResult,
+              payment: {
+                ...paymentResult.payment,
+                status: payment.status,
+                gateway_pagamento_id: payment.gateway_pagamento_id,
+              },
+            },
+            pendingOrder
+          );
+          return;
+        }
+
+        if (PIX_TERMINAL_STATUSES.has(payment.status)) {
+          setPixStatus('failed');
+          setPixFailureMessage('O pagamento PIX não foi aprovado. Escolha uma forma de pagamento e tente novamente.');
+          showSystemNotice('O pagamento PIX não foi aprovado. Escolha uma forma de pagamento e tente novamente.');
+        }
+      } catch (error) {
+        console.error('Erro ao consultar status do PIX:', error);
+      } finally {
+        if (!cancelled) setIsPollingPayment(false);
+      }
+    }, PIX_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [completeApprovedPayment, paymentResult, pendingOrder, pixStatus]);
+
   const handleFinalize = async () => {
     if (cart.length === 0) {
       showSystemNotice('Seu carrinho está vazio.');
@@ -117,6 +249,8 @@ export function CheckoutPage() {
     }
 
     setIsSubmitting(true);
+    setPixStatus('idle');
+    setPixFailureMessage('');
 
     try {
       const payer = resolvePayerData();
@@ -135,16 +269,22 @@ export function CheckoutPage() {
           ? await createPixPayment(order.id, payer)
           : await createCardPayment(order.id, payer, selection);
 
-      sessionStorage.setItem('cliente_delivery_last_order', JSON.stringify({
-        id: order.numero_pedido ? `#${order.numero_pedido}` : order.id,
-        total: order.total,
-      }));
-      clearCart();
       setPaymentResult(result);
 
       if (result.payment.status === 'aprovado') {
-        navigate(tenantPath("order-confirmed"));
+        await completeApprovedPayment(result, order);
+        return;
       }
+
+      if (selection.method === 'pix') {
+        setPendingOrder(order);
+        setPixExpiresAt(Date.now() + PIX_PAYMENT_WINDOW_SECONDS * 1000);
+        setPixSecondsRemaining(PIX_PAYMENT_WINDOW_SECONDS);
+        setPixStatus('waiting');
+        return;
+      }
+
+      showSystemNotice('Pagamento ainda não aprovado. Confira a forma de pagamento e tente novamente.');
     } catch (err) {
       showSystemNotice(err || 'Não foi possível finalizar o pedido.');
     } finally {
@@ -520,11 +660,46 @@ export function CheckoutPage() {
         {paymentResult?.qr_code && (
           <div
             className="bg-white rounded-2xl p-4 mb-4 shadow-sm"
-            style={{ border: "1px solid #d9e4f2" }}
+            style={{
+              border: `1px solid ${pixStatus === 'waiting' ? '#bbf7d0' : '#fde68a'}`,
+            }}
           >
             <h3 style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }} className="mb-3">
               Pagamento via PIX
             </h3>
+            <div className="mb-4 rounded-xl p-3" style={{ backgroundColor: pixStatus === 'waiting' ? "#f0fdf4" : "#fffbeb" }}>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span style={{ fontSize: "12px", fontWeight: 800, color: pixStatus === 'waiting' ? "#15803d" : "#b45309" }}>
+                  {pixStatus === 'waiting'
+                    ? "Aguardando confirmação do PIX"
+                    : pixStatus === 'expired'
+                      ? "Tempo do PIX expirado"
+                      : "Pagamento não aprovado"}
+                </span>
+                <span style={{ fontSize: "13px", fontWeight: 900, color: pixStatus === 'waiting' ? "#15803d" : "#b45309" }}>
+                  {formatPixCountdown(pixSecondsRemaining)}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full" style={{ backgroundColor: "#e2e8f0" }}>
+                <div
+                  className="h-full rounded-full transition-all duration-1000"
+                  style={{
+                    width: `${pixProgress}%`,
+                    backgroundColor: pixStatus === 'waiting' ? "#16a34a" : "#f59e0b",
+                  }}
+                />
+              </div>
+              <p className="mt-2" style={{ fontSize: "11px", lineHeight: 1.5, color: pixStatus === 'waiting' ? "#166534" : "#92400e" }}>
+                {pixStatus === 'waiting'
+                  ? `Você tem ${formatPixCountdown(pixSecondsRemaining)} para realizar o pagamento. Verificamos automaticamente a cada 5 segundos.`
+                  : pixFailureMessage}
+              </p>
+              {isPollingPayment && pixStatus === 'waiting' && (
+                <p className="mt-1" style={{ fontSize: "11px", color: "#15803d", fontWeight: 700 }}>
+                  Verificando confirmação do pagamento...
+                </p>
+              )}
+            </div>
             {paymentResult.qr_code_base64 && (
               <img
                 src={`data:image/png;base64,${paymentResult.qr_code_base64}`}
@@ -546,6 +721,20 @@ export function CheckoutPage() {
             >
               Copiar código PIX
             </button>
+            {canChooseAnotherPayment && (
+              <button
+                onClick={resetPixPayment}
+                className="mt-2 w-full rounded-xl px-4 py-3"
+                style={{
+                  backgroundColor: "#eef4fb",
+                  color: "#122a4c",
+                  fontSize: "13px",
+                  fontWeight: 800,
+                }}
+              >
+                Escolher outra forma de pagamento
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -556,13 +745,19 @@ export function CheckoutPage() {
         style={{ borderTop: "1px solid #d9e4f2" }}
       >
         <button
-          onClick={handleFinalize}
-          disabled={isSubmitting || Boolean(paymentResult?.qr_code)}
+          onClick={canChooseAnotherPayment ? resetPixPayment : handleFinalize}
+          disabled={isSubmitting || isPixWaiting}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
           style={{ backgroundColor: "#122a4c" }}
         >
           <span style={{ fontSize: "16px", fontWeight: 800 }}>
-            {isSubmitting ? "Processando..." : paymentResult?.qr_code ? "Aguardando pagamento PIX" : `Finalizar pedido · R$ ${total.toFixed(2).replace('.', ',')}`}
+            {isSubmitting
+              ? "Processando..."
+              : isPixWaiting
+                ? "Aguardando pagamento PIX"
+                : canChooseAnotherPayment
+                  ? "Escolher outra forma de pagamento"
+                  : `Finalizar pedido · R$ ${total.toFixed(2).replace('.', ',')}`}
           </span>
         </button>
 

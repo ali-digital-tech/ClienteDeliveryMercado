@@ -39,6 +39,7 @@ interface AppState {
   cartTotal: number;
   login: (credentials: LoginCredentials) => Promise<AuthUser>;
   logout: () => void;
+  refreshOrders: () => Promise<Order[]>;
   tenantPath: (path?: string) => string;
 }
 
@@ -86,7 +87,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     clearCart,
     applyCoupon,
   } = useCartStore(marketId, products);
-  const { orders, placeOrder: createOrder } = useOrdersStore(marketId);
+  const { orders, placeOrder: createOrder, refreshOrders } = useOrdersStore(marketId);
   const [favoritesByMarket, setFavoritesByMarket] = useState<Record<string, string[]>>(() => readFavoritesFromStorage());
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getStoredUser());
 
@@ -164,7 +165,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
       currentScreen: '',
       addToCart, removeFromCart, updateQty, clearCart,
       toggleFavorite, isFavorite, applyCoupon, placeOrder,
-      cartCount, cartTotal, login, logout, tenantPath,
+      cartCount, cartTotal, login, logout, refreshOrders, tenantPath,
     }}>
       {children}
     </AppContext.Provider>
