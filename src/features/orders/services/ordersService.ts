@@ -27,6 +27,9 @@ export interface CreateCheckoutOrderInput {
   deliveryFee: number;
   discount?: number;
   notes?: string;
+  cpfNaNota?: boolean;
+  cpf?: string | null;
+  saveCpfAsDefault?: boolean;
 }
 
 function toNumber(value: string | number | null | undefined, fallback = 0) {
@@ -96,6 +99,9 @@ export async function createCheckoutOrder(input: CreateCheckoutOrderInput) {
       desconto: input.discount || 0,
       origem_checkout: 'app',
       observacoes: input.notes || null,
+      cpfNaNota: input.cpfNaNota || false,
+      cpf: input.cpf || null,
+      saveCpfAsDefault: input.saveCpfAsDefault || false,
     },
   });
 

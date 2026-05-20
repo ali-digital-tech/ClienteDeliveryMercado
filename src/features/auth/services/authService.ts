@@ -46,6 +46,20 @@ export const authService = {
     });
   },
 
+  async getCurrentCustomer() {
+    const response = await apiRequest<{ data: AuthUser }>('/clientes/me');
+    return response.data;
+  },
+
+  async updateCurrentCustomer(payload: Partial<Pick<AuthUser, 'cpf' | 'cpf_na_nota_padrao'>>) {
+    const response = await apiRequest<{ data: AuthUser }>('/clientes/me', {
+      method: 'PUT',
+      body: payload,
+    });
+
+    return response.data;
+  },
+
   persistSession(session: LoginResponse) {
     localStorage.setItem(AUTH_TOKEN_KEY, session.access_token);
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(session.user));

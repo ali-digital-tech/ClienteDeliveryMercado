@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   ChevronRight,
@@ -14,7 +15,10 @@ import {
   Shield,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
+import { Checkbox } from '@/app/components/ui/checkbox';
+import { authService, type AuthUser } from '@/features/auth';
 import { BottomNav } from '@/shared/components/BottomNav';
+import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
 const menuItems = [
   { icon: MapPin, label: "Meus endereços", path: "addresses" },
@@ -34,9 +38,67 @@ const menuItems = [
   { icon: HelpCircle, label: "Suporte", path: "support" },
 ];
 
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function formatCpf(value: string) {
+  return onlyDigits(value)
+    .slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+function isValidCpf(value: string) {
+  const digits = onlyDigits(value);
+
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) {
+    return false;
+  }
+
+  const calculateDigit = (baseLength: number) => {
+    let sum = 0;
+
+    for (let index = 0; index < baseLength; index += 1) {
+      sum += Number(digits[index]) * (baseLength + 1 - index);
+    }
+
+    const remainder = (sum * 10) % 11;
+    return remainder === 10 ? 0 : remainder;
+  };
+
+  return calculateDigit(9) === Number(digits[9]) && calculateDigit(10) === Number(digits[10]);
+}
+
 export function ProfileScreen() {
   const navigate = useNavigate();
   const { logout, orders, favorites, tenantPath, currentUser, isLoggedIn } = useApp();
+  const [profile, setProfile] = useState<AuthUser | null>(currentUser);
+  const [cpf, setCpf] = useState(formatCpf(currentUser?.cpf || ""));
+  const [cpfAsDefault, setCpfAsDefault] = useState(Boolean(currentUser?.cpf_na_nota_padrao));
+  const [isSavingCpf, setIsSavingCpf] = useState(false);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    let isActive = true;
+
+    authService.getCurrentCustomer()
+      .then((customer) => {
+        if (!isActive) return;
+        setProfile(customer);
+        setCpf(formatCpf(customer.cpf || ""));
+        setCpfAsDefault(Boolean(customer.cpf_na_nota_padrao));
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar perfil do cliente:', error);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isLoggedIn]);
 
   const handleLogout = () => {
     logout();
@@ -45,6 +107,30 @@ export function ProfileScreen() {
 
   const handleLogin = () => {
     navigate(tenantPath("login"));
+  };
+
+  const handleSaveCpfPreference = async () => {
+    if (cpfAsDefault && !isValidCpf(cpf)) {
+      showSystemNotice('Informe um CPF válido para usar como padrão.');
+      return;
+    }
+
+    setIsSavingCpf(true);
+
+    try {
+      const updatedProfile = await authService.updateCurrentCustomer({
+        cpf: cpf ? onlyDigits(cpf) : null,
+        cpf_na_nota_padrao: cpfAsDefault,
+      });
+      setProfile(updatedProfile);
+      setCpf(formatCpf(updatedProfile.cpf || ""));
+      setCpfAsDefault(Boolean(updatedProfile.cpf_na_nota_padrao));
+      showSystemNotice('Preferência de CPF na nota atualizada.');
+    } catch (error) {
+      showSystemNotice(error || 'Não foi possível atualizar sua preferência.');
+    } finally {
+      setIsSavingCpf(false);
+    }
   };
 
   return (
@@ -190,6 +276,60 @@ export function ProfileScreen() {
             );
           })}
         </div>
+
+        {isLoggedIn && (
+          <div
+            className="rounded-2xl bg-white p-4 shadow-sm mb-4"
+            style={{ border: "1px solid #d9e4f2" }}
+          >
+            <div className="mb-3 flex items-center gap-2">
+              <Shield size={16} color="#122a4c" />
+              <h2 style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }}>
+                CPF na nota
+              </h2>
+            </div>
+
+            <input
+              className="w-full rounded-xl border px-3 py-3 text-sm outline-none"
+              style={{ borderColor: "#d9e4f2", color: "#334155" }}
+              placeholder="000.000.000-00"
+              inputMode="numeric"
+              value={cpf}
+              onChange={(event) => setCpf(formatCpf(event.target.value))}
+              aria-label="CPF padrão para nota fiscal"
+            />
+
+            <div className="mt-3 flex items-center gap-2">
+              <Checkbox
+                id="profile-cpf-default"
+                checked={cpfAsDefault}
+                onCheckedChange={(checked) => setCpfAsDefault(checked === true)}
+              />
+              <label
+                htmlFor="profile-cpf-default"
+                className="flex-1"
+                style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}
+              >
+                Usar CPF na nota como padrão
+              </label>
+            </div>
+
+            {profile?.cpf_na_nota_padrao && (
+              <p className="mt-2" style={{ fontSize: "11px", color: "#15803d", fontWeight: 700 }}>
+                Ativo para próximas compras.
+              </p>
+            )}
+
+            <button
+              onClick={handleSaveCpfPreference}
+              disabled={isSavingCpf}
+              className="mt-3 w-full rounded-xl px-4 py-3 text-white disabled:opacity-60"
+              style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}
+            >
+              {isSavingCpf ? "Salvando..." : "Salvar preferência"}
+            </button>
+          </div>
+        )}
 
         {/* Logout */}
         <button

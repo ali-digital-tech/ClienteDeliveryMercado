@@ -8,9 +8,13 @@ import {
   ChevronRight,
   AlertTriangle,
   CheckCircle2,
+  Info,
+  ReceiptText,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
+import { Checkbox } from '@/app/components/ui/checkbox';
 import { BannerRenderer, useBanners } from '@/features/banners';
+import { authService, type AuthUser } from '@/features/auth';
 import {
   formatAddressLine,
   formatAddressLocation,
@@ -52,6 +56,39 @@ function formatPixCountdown(seconds: number) {
   return `${minutes}:${String(remainder).padStart(2, '0')}`;
 }
 
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function formatCpf(value: string) {
+  return onlyDigits(value)
+    .slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+function isValidCpf(value: string) {
+  const digits = onlyDigits(value);
+
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) {
+    return false;
+  }
+
+  const calculateDigit = (baseLength: number) => {
+    let sum = 0;
+
+    for (let index = 0; index < baseLength; index += 1) {
+      sum += Number(digits[index]) * (baseLength + 1 - index);
+    }
+
+    const remainder = (sum * 10) % 11;
+    return remainder === 10 ? 0 : remainder;
+  };
+
+  return calculateDigit(9) === Number(digits[9]) && calculateDigit(10) === Number(digits[10]);
+}
+
 export function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -76,6 +113,10 @@ export function CheckoutPage() {
   const [pixStatus, setPixStatus] = useState<'idle' | 'waiting' | 'expired' | 'failed'>('idle');
   const [isPollingPayment, setIsPollingPayment] = useState(false);
   const [pixFailureMessage, setPixFailureMessage] = useState('');
+  const [customerProfile, setCustomerProfile] = useState<AuthUser | null>(currentUser);
+  const [wantsCpfInvoice, setWantsCpfInvoice] = useState(false);
+  const [cpfInvoice, setCpfInvoice] = useState('');
+  const [saveCpfAsDefault, setSaveCpfAsDefault] = useState(false);
 
   const deliveryFee = Math.max(0, currentMarket.deliveryFee || 0);
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
@@ -100,6 +141,12 @@ export function CheckoutPage() {
   const pixProgress = paymentResult?.qr_code
     ? Math.max(0, Math.min(100, (pixSecondsRemaining / PIX_PAYMENT_WINDOW_SECONDS) * 100))
     : 0;
+  const effectiveCustomerProfile = customerProfile || currentUser;
+  const savedCpfInvoiceDefault = Boolean(
+    effectiveCustomerProfile?.cpf &&
+    effectiveCustomerProfile?.cpf_na_nota_padrao
+  );
+  const savedCpfInvoice = effectiveCustomerProfile?.cpf || '';
 
   useEffect(() => {
     if (!currentUser) return;
@@ -119,6 +166,36 @@ export function CheckoutPage() {
       isActive = false;
     };
   }, [currentUser, marketId]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let isActive = true;
+
+    authService.getCurrentCustomer()
+      .then((profile) => {
+        if (!isActive) return;
+        setCustomerProfile(profile);
+
+        if (profile.cpf_na_nota_padrao && profile.cpf) {
+          setCpfInvoice(formatCpf(profile.cpf));
+          setWantsCpfInvoice(true);
+          setSaveCpfAsDefault(false);
+          return;
+        }
+
+        if (profile.cpf) {
+          setCpfInvoice(formatCpf(profile.cpf));
+        }
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar perfil do cliente:', error);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentUser]);
 
   const resolvePayerData = (): PayerData => {
     const payer = getStoredPayerData();
@@ -163,6 +240,34 @@ export function CheckoutPage() {
     setPixStatus('idle');
     setPixFailureMessage('');
     navigate(tenantPath("payment"));
+  };
+
+  const resolveCpfInvoicePayload = () => {
+    if (savedCpfInvoiceDefault) {
+      return {
+        cpfNaNota: true,
+        cpf: onlyDigits(savedCpfInvoice),
+        saveCpfAsDefault: false,
+      };
+    }
+
+    if (!wantsCpfInvoice) {
+      return {
+        cpfNaNota: false,
+        cpf: null,
+        saveCpfAsDefault: false,
+      };
+    }
+
+    if (!isValidCpf(cpfInvoice)) {
+      throw new Error('Informe um CPF válido para CPF na nota.');
+    }
+
+    return {
+      cpfNaNota: true,
+      cpf: onlyDigits(cpfInvoice),
+      saveCpfAsDefault,
+    };
   };
 
   useEffect(() => {
@@ -254,6 +359,7 @@ export function CheckoutPage() {
 
     try {
       const payer = resolvePayerData();
+      const cpfInvoicePayload = resolveCpfInvoicePayload();
       const selection = getStoredPaymentSelection();
       const syncedCart = await syncCartItemsBatch(marketId, cart);
       const order = await createCheckoutOrder({
@@ -263,6 +369,7 @@ export function CheckoutPage() {
         type: 'delivery',
         deliveryFee,
         discount,
+        ...cpfInvoicePayload,
       });
       const result =
         selection.method === 'pix'
@@ -567,6 +674,113 @@ export function CheckoutPage() {
               <AlertTriangle size={18} color="#d97706" />
             )}
           </div>
+        </div>
+
+        {/* CPF na nota */}
+        <div
+          className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
+          style={{ border: "1px solid #d9e4f2" }}
+        >
+          <div className="mb-3 flex items-center gap-2">
+            <ReceiptText size={15} color="#122a4c" />
+            <span
+              style={{
+                fontSize: "14px",
+                fontWeight: 700,
+                color: "#334155",
+              }}
+            >
+              CPF na nota
+            </span>
+          </div>
+
+          {savedCpfInvoiceDefault ? (
+            <div className="rounded-xl p-3" style={{ backgroundColor: "#f0fdf4" }}>
+              <p style={{ fontSize: "13px", lineHeight: 1.5, color: "#15803d", fontWeight: 700 }}>
+                CPF na nota será usado conforme sua preferência de perfil.
+              </p>
+              <p className="mt-1" style={{ fontSize: "12px", color: "#166534" }}>
+                CPF final {onlyDigits(savedCpfInvoice).slice(-2).padStart(2, '*')}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: false, label: "Não quero" },
+                  { value: true, label: "Informar CPF" },
+                ].map((option) => {
+                  const selected = wantsCpfInvoice === option.value;
+
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => {
+                        setWantsCpfInvoice(option.value);
+                        if (!option.value) {
+                          setSaveCpfAsDefault(false);
+                        }
+                      }}
+                      className="rounded-xl px-3 py-3 text-center transition-all"
+                      style={{
+                        border: `2px solid ${selected ? "#122a4c" : "#d9e4f2"}`,
+                        backgroundColor: selected ? "#eef4fb" : "#ffffff",
+                        color: selected ? "#122a4c" : "#64748b",
+                        fontSize: "13px",
+                        fontWeight: 800,
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {wantsCpfInvoice && (
+                <div className="mt-3">
+                  <input
+                    className="w-full rounded-xl border px-3 py-3 text-sm outline-none"
+                    style={{ borderColor: "#d9e4f2", color: "#334155" }}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                    value={cpfInvoice}
+                    onChange={(event) => setCpfInvoice(formatCpf(event.target.value))}
+                    aria-label="CPF para nota fiscal"
+                  />
+                  {cpfInvoice && !isValidCpf(cpfInvoice) && onlyDigits(cpfInvoice).length === 11 && (
+                    <p className="mt-1.5" style={{ fontSize: "11px", color: "#dc2626", fontWeight: 700 }}>
+                      CPF inválido.
+                    </p>
+                  )}
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <Checkbox
+                      id="save-cpf-as-default"
+                      checked={saveCpfAsDefault}
+                      onCheckedChange={(checked) => setSaveCpfAsDefault(checked === true)}
+                    />
+                    <label
+                      htmlFor="save-cpf-as-default"
+                      className="flex-1"
+                      style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}
+                    >
+                      Usar este CPF como padrão para próximas compras
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => showSystemNotice('Você pode desativar essa opção depois nas permissões do seu perfil.')}
+                      className="rounded-full p-1.5"
+                      style={{ backgroundColor: "#eef4fb" }}
+                      aria-label="Informação sobre CPF padrão"
+                    >
+                      <Info size={15} color="#122a4c" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Totals */}

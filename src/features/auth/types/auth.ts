@@ -3,6 +3,8 @@ export interface AuthUser {
   nome?: string;
   email: string;
   telefone?: string | null;
+  cpf?: string | null;
+  cpf_na_nota_padrao?: boolean;
   perfil?: string;
   status?: string;
   loja_id?: string | null;
