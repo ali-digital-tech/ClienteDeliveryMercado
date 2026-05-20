@@ -30,6 +30,7 @@ const sortOptions = [
 const RECENT_SEARCHES_CACHE_KEY = 'cliente_delivery_recent_searches_by_market';
 const DEFAULT_SEARCH_SUGGESTIONS = ["Leite", "Pão", "Frango", "Café", "Ovos"];
 const MAX_RECENT_SEARCHES = 8;
+const MIN_SEARCH_LENGTH = 3;
 
 function readRecentSearches(marketId: string): string[] {
   try {
@@ -46,7 +47,7 @@ function readRecentSearches(marketId: string): string[] {
 
 function saveRecentSearch(marketId: string, term: string) {
   const normalized = term.trim();
-  if (normalized.length < 2) return readRecentSearches(marketId);
+  if (normalized.length < MIN_SEARCH_LENGTH) return readRecentSearches(marketId);
 
   const current = readRecentSearches(marketId);
   const next = [
@@ -155,6 +156,7 @@ export function ProductsPage() {
   const { marketId } = useMarketContext();
   const { cartCount, currentMarket, tenantPath } = useApp();
   const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentSearches(marketId));
   const [showSort, setShowSort] = useState(false);
   const [sort, setSort] = useState("Relevância");
@@ -192,12 +194,21 @@ export function ProductsPage() {
   const categoryBorder = colorWithAlpha(primaryColor, 0.2);
   const categoryShadow = colorWithAlpha(primaryColor, 0.18);
   const normalizedQuery = query.trim();
+  const normalizedSubmittedQuery = submittedQuery.trim();
+  const hasSearchQuery = normalizedSubmittedQuery.length >= MIN_SEARCH_LENGTH;
+  const canSubmitSearch = normalizedQuery.length >= MIN_SEARCH_LENGTH;
+  const isAwaitingSearchSubmit = normalizedQuery.length > 0 && normalizedQuery !== normalizedSubmittedQuery;
   const isLoadingCategories = isLoadingLevel2Categories || isLoadingLevel3Categories;
   const canLoadProducts = !bannerId && Boolean(
     marketId
-    && selectedDepartmentId
-    && selectedLevel2
-    && (!selectedSubcategoryId || selectedSubcategory),
+    && (
+      hasSearchQuery
+      || (
+        selectedDepartmentId
+        && selectedLevel2
+        && (!selectedSubcategoryId || selectedSubcategory)
+      )
+    ),
   );
   const {
     products,
@@ -211,10 +222,19 @@ export function ProductsPage() {
     departmentId: selectedDepartmentId || null,
     categoryId: selectedLevel2Id || null,
     subcategoryId: selectedSubcategoryId || null,
-    search: normalizedQuery.length >= 2 ? normalizedQuery : '',
+    search: hasSearchQuery ? normalizedSubmittedQuery : '',
     perPage: 30,
     enabled: canLoadProducts,
+    allowGlobal: hasSearchQuery,
   });
+
+  const submitSearch = useCallback(() => {
+    const nextQuery = query.trim();
+    if (nextQuery.length < MIN_SEARCH_LENGTH) return;
+
+    setSubmittedQuery(nextQuery);
+    setRecentSearches(saveRecentSearch(marketId, nextQuery));
+  }, [marketId, query]);
 
   const updateNavigation = useCallback((values: { departamento?: string; categoriaNivel2?: string; subcategoria?: string | null }) => {
     const next = new URLSearchParams(searchParams);
@@ -243,17 +263,6 @@ export function ProductsPage() {
   useEffect(() => {
     setRecentSearches(readRecentSearches(marketId));
   }, [marketId]);
-
-  useEffect(() => {
-    const normalizedQuery = query.trim();
-    if (normalizedQuery.length < 2) return;
-
-    const timer = window.setTimeout(() => {
-      setRecentSearches(saveRecentSearch(marketId, normalizedQuery));
-    }, 800);
-
-    return () => window.clearTimeout(timer);
-  }, [marketId, query]);
 
   useEffect(() => {
     let ignore = false;
@@ -393,7 +402,7 @@ export function ProductsPage() {
 
   const sourceProducts = bannerProducts ?? products;
 
-  const filtered = (bannerId ? filterProducts(sourceProducts, query) : sourceProducts)
+  const filtered = (bannerId ? filterProducts(sourceProducts, normalizedSubmittedQuery) : sourceProducts)
     .filter((p) => {
       if (sort === "Promoções") return p.isPromo;
       if (sort === "Mais vendidos") return p.isBestseller;
@@ -435,22 +444,42 @@ export function ProductsPage() {
             <input
               autoFocus
               type="text"
-              placeholder="Buscar produtos..."
+              placeholder={`Buscar produtos (${MIN_SEARCH_LENGTH}+ letras)...`}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  setRecentSearches(saveRecentSearch(marketId, query));
+                  submitSearch();
                 }
               }}
               className="flex-1 bg-transparent outline-none placeholder:text-gray-400"
               style={{ fontSize: "13px", color: "#334155" }}
             />
             {query && (
-              <button onClick={() => setQuery("")}>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setSubmittedQuery("");
+                }}
+              >
                 <X size={16} color="#94a3b8" />
               </button>
             )}
+            <button
+              type="button"
+              onClick={submitSearch}
+              disabled={!canSubmitSearch}
+              className="rounded-lg px-3 py-1.5 transition-all"
+              style={{
+                backgroundColor: canSubmitSearch ? primaryColor : "#d9e4f2",
+                color: canSubmitSearch ? "#ffffff" : "#94a3b8",
+                fontSize: "12px",
+                fontWeight: 800,
+              }}
+            >
+              Buscar
+            </button>
           </div>
 
           <div className="relative flex-shrink-0">
@@ -679,6 +708,15 @@ export function ProductsPage() {
               ))}
             </div>
           </>
+        ) : isAwaitingSearchSubmit && !selectedDepartmentId && !bannerId ? (
+          <div className="flex flex-col items-center gap-4 py-16">
+            <PackageSearch size={42} color="#94a3b8" />
+            <p className="max-w-xs text-center" style={{ fontSize: "15px", color: "#64748b", lineHeight: 1.5 }}>
+              {normalizedQuery.length < MIN_SEARCH_LENGTH
+                ? `Digite pelo menos ${MIN_SEARCH_LENGTH} letras para buscar.`
+                : `Toque em Buscar para pesquisar por "${normalizedQuery}".`}
+            </p>
+          </div>
         ) : (
           <>
             <p
@@ -687,7 +725,7 @@ export function ProductsPage() {
             >
               {isLoadingBannerProducts || isLoadingCategories ? "Carregando" : visibleResultCount} resultado
               {visibleResultCount !== 1 ? "s" : ""}
-              {query ? ` para "${query}"` : bannerId && bannerTitle ? ` em ${bannerTitle}` : selectedCategory ? ` em ${selectedCategory.name}` : ""}
+              {normalizedSubmittedQuery ? ` para "${normalizedSubmittedQuery}"` : bannerId && bannerTitle ? ` em ${bannerTitle}` : selectedCategory ? ` em ${selectedCategory.name}` : ""}
             </p>
 
             {isLoadingBannerProducts || isLoadingCategories || (isLoadingProducts && filtered.length === 0) ? (
@@ -718,10 +756,10 @@ export function ProductsPage() {
                   style={{ fontSize: "15px", color: "#64748b" }}
                 >
                   Nenhum produto encontrado
-                  {query && (
+                  {normalizedSubmittedQuery && (
                     <>
                       <br />
-                      para "{query}"
+                      para "{normalizedSubmittedQuery}"
                     </>
                   )}
                 </p>
