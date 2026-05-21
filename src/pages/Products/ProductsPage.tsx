@@ -424,7 +424,7 @@ export function ProductsPage() {
         className="flex-shrink-0 bg-white px-4 pt-10 md:pt-4 pb-2 border-b"
         style={{ borderColor: "#d9e4f2" }}
       >
-        <div className="mb-2 flex items-center gap-2">
+        <div className="mb-2 flex items-center gap-1.5">
           <button
             onClick={() => navigate(-1)}
             className="rounded-full p-2 flex-shrink-0"
@@ -444,7 +444,7 @@ export function ProductsPage() {
             <input
               autoFocus
               type="text"
-              placeholder={`Buscar produtos (${MIN_SEARCH_LENGTH}+ letras)...`}
+              placeholder="Buscar produtos..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -452,7 +452,7 @@ export function ProductsPage() {
                   submitSearch();
                 }
               }}
-              className="flex-1 bg-transparent outline-none placeholder:text-gray-400"
+              className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-gray-400"
               style={{ fontSize: "13px", color: "#334155" }}
             />
             {query && (
@@ -470,15 +470,15 @@ export function ProductsPage() {
               type="button"
               onClick={submitSearch}
               disabled={!canSubmitSearch}
-              className="rounded-lg px-3 py-1.5 transition-all"
+              aria-label="Buscar produtos"
+              title={`Buscar com pelo menos ${MIN_SEARCH_LENGTH} letras`}
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full transition-all"
               style={{
                 backgroundColor: canSubmitSearch ? primaryColor : "#d9e4f2",
                 color: canSubmitSearch ? "#ffffff" : "#94a3b8",
-                fontSize: "12px",
-                fontWeight: 800,
               }}
             >
-              Buscar
+              <Search size={15} />
             </button>
           </div>
 
@@ -555,8 +555,8 @@ export function ProductsPage() {
 
         {/* Filter chips */}
         {selectedDepartment && (
-          <div className="mb-1 flex items-center justify-between gap-3 px-1">
-            <span className="min-w-0 truncate" style={{ fontSize: "12px", color: primaryColor, fontWeight: 700 }}>
+          <div className="flex items-center justify-between gap-3 px-1">
+            <span className="min-w-0 truncate" style={{ fontSize: "11px", color: primaryColor, fontWeight: 700 }}>
               {selectedDepartment.emoji} {selectedDepartment.name}
             </span>
             <button
@@ -570,10 +570,10 @@ export function ProductsPage() {
         )}
 
         {selectedDepartment && level2Categories.length > 0 && (
-          <div className={selectedLevel2 ? "pt-1" : "pb-1 pt-1"}>
+          <div className={selectedLevel2 ? "pt-0.5" : "pb-0.5 pt-0.5"}>
             <div
               {...categoryDrag}
-              className="flex cursor-grab gap-2 overflow-x-auto px-1 pb-2 pt-2 scrollbar-hide"
+              className="flex cursor-grab gap-1.5 overflow-x-auto px-1 pb-1.5 pt-1.5 scrollbar-hide"
             >
               {level2Categories.map((category) => {
                 const isActive = selectedLevel2Id === category.id;
@@ -581,15 +581,15 @@ export function ProductsPage() {
                   <button
                     key={category.id}
                     onClick={() => updateNavigation({ categoriaNivel2: category.id, subcategoria: null })}
-                    className="flex-shrink-0 rounded-full px-3.5 py-2 transition-all duration-200"
+                    className="flex-shrink-0 rounded-full px-3 py-1.5 transition-all duration-200"
                     style={{
                       backgroundColor: isActive ? primaryColor : "#f8fafc",
                       border: `1px solid ${isActive ? primaryColor : "#d9e4f2"}`,
-                      boxShadow: isActive ? `0 10px 22px ${categoryShadow}` : "none",
+                      boxShadow: isActive ? `0 5px 12px ${categoryShadow}` : "none",
                       color: isActive ? "#ffffff" : "#64748b",
-                      fontSize: "12px",
+                      fontSize: "11px",
                       fontWeight: isActive ? 800 : 650,
-                      transform: isActive ? "translateY(-5px)" : "translateY(0)",
+                      transform: isActive ? "translateY(-2px)" : "translateY(0)",
                     }}
                   >
                     {category.name}
@@ -602,26 +602,26 @@ export function ProductsPage() {
 
         {selectedLevel2 && (
           <div
-            className="relative -mt-1 rounded-[22px] px-3 pb-3 pt-3"
+            className="relative -mt-0.5 rounded-2xl px-2 py-2"
             style={{
               background: `linear-gradient(180deg, ${categorySurfaceStrong} 0%, ${categorySurface} 100%)`,
               border: `1px solid ${categoryBorder}`,
-              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.85), 0 10px 24px rgba(15, 23, 42, 0.06)`,
+              boxShadow: `inset 0 1px 0 rgba(255,255,255,0.85), 0 5px 14px rgba(15, 23, 42, 0.05)`,
             }}
           >
             <div
               {...subcategoryDrag}
-              className="flex cursor-grab gap-2 overflow-x-auto pb-0.5 scrollbar-hide"
+              className="flex cursor-grab gap-1.5 overflow-x-auto scrollbar-hide"
             >
               <button
                 onClick={() => updateNavigation({ subcategoria: null })}
-                className="flex-shrink-0 rounded-full px-3.5 py-2 transition-all duration-200"
+                className="flex-shrink-0 rounded-full px-3 py-1.5 transition-all duration-200"
                 style={{
                   backgroundColor: !selectedSubcategoryId ? primaryColor : "#ffffff",
                   border: `1px solid ${!selectedSubcategoryId ? primaryColor : categoryBorder}`,
-                  boxShadow: !selectedSubcategoryId ? `0 8px 18px ${categoryShadow}` : "0 1px 2px rgba(15, 23, 42, 0.04)",
+                  boxShadow: !selectedSubcategoryId ? `0 4px 10px ${categoryShadow}` : "0 1px 2px rgba(15, 23, 42, 0.04)",
                   color: !selectedSubcategoryId ? "#ffffff" : primaryColor,
-                  fontSize: "12px",
+                  fontSize: "11px",
                   fontWeight: !selectedSubcategoryId ? 800 : 700,
                 }}
               >
@@ -633,13 +633,13 @@ export function ProductsPage() {
                   <button
                     key={subcategory.id}
                     onClick={() => updateNavigation({ subcategoria: subcategory.id })}
-                    className="flex-shrink-0 rounded-full px-3.5 py-2 transition-all duration-200"
+                    className="flex-shrink-0 rounded-full px-3 py-1.5 transition-all duration-200"
                     style={{
                       backgroundColor: isActive ? primaryColor : "#ffffff",
                       border: `1px solid ${isActive ? primaryColor : categoryBorder}`,
-                      boxShadow: isActive ? `0 8px 18px ${categoryShadow}` : "0 1px 2px rgba(15, 23, 42, 0.04)",
+                      boxShadow: isActive ? `0 4px 10px ${categoryShadow}` : "0 1px 2px rgba(15, 23, 42, 0.04)",
                       color: isActive ? "#ffffff" : "#334155",
-                      fontSize: "12px",
+                      fontSize: "11px",
                       fontWeight: isActive ? 800 : 700,
                     }}
                   >

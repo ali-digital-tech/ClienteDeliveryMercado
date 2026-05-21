@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { authService, type AuthUser, type LoginCredentials } from '@/features/auth';
 import {
@@ -10,6 +11,8 @@ import { useCategories, type Category } from '@/features/categories';
 import { useMarkets, type Market } from '@/features/markets';
 import { useOrdersStore, type Order } from '@/features/orders';
 import type { Product } from '@/features/products';
+import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
+import { getAuthToken, onSessionExpired } from '@/shared/lib/api';
 
 const FAVORITES_STORAGE_KEY = 'cliente_delivery_favorites_by_market';
 
@@ -69,6 +72,8 @@ function saveFavoritesToStorage(favoritesByMarket: Record<string, string[]>) {
 }
 
 export function AppProvider({ children, marketId }: { children: React.ReactNode; marketId: string }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { currentMarket, isLoading } = useMarketContext();
   const { markets } = useMarkets();
   const { categories: allCategories } = useCategories(marketId);
@@ -88,11 +93,24 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     applyCoupon,
   } = useCartStore(marketId, products);
   const { orders, placeOrder: createOrder, refreshOrders } = useOrdersStore(marketId);
+  const sessionExpiredHandledRef = useRef(false);
+  const sessionValidatedRef = useRef(false);
   const [favoritesByMarket, setFavoritesByMarket] = useState<Record<string, string[]>>(() => readFavoritesFromStorage());
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getStoredUser());
 
   const favorites = favoritesByMarket[marketId] || [];
   const storeId = currentMarket?.id || marketId;
+
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--market-primary-color',
+      currentMarket?.primaryColor || '#122a4c'
+    );
+
+    return () => {
+      document.documentElement.style.removeProperty('--market-primary-color');
+    };
+  }, [currentMarket?.primaryColor]);
 
   const toggleFavorite = useCallback((productId: string) => {
     setFavoritesByMarket(prevByMarket => {
@@ -122,6 +140,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   const login = useCallback(async (credentials: LoginCredentials) => {
     const session = await authService.login({ ...credentials, loja_id: credentials.loja_id || storeId });
     const user = authService.persistSession(session);
+    sessionExpiredHandledRef.current = false;
     setCurrentUser(user);
     return user;
   }, [storeId]);
@@ -136,6 +155,48 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     const normalizedPath = path.replace(/^\/+/, '');
     return normalizedPath ? `/mercado/${marketId}/${normalizedPath}` : `/mercado/${marketId}`;
   }, [marketId]);
+
+  useEffect(() => {
+    return onSessionExpired((message) => {
+      if (sessionExpiredHandledRef.current) return;
+
+      sessionExpiredHandledRef.current = true;
+      authService.clearSession();
+      setCurrentUser(null);
+      showSystemNotice(message, 'Sessão expirada');
+
+      const loginPath = tenantPath('login');
+      if (location.pathname === loginPath) return;
+
+      navigate(loginPath, {
+        replace: true,
+        state: {
+          redirectTo: `${location.pathname}${location.search}${location.hash}`,
+        },
+      });
+    });
+  }, [location.hash, location.pathname, location.search, navigate, tenantPath]);
+
+  useEffect(() => {
+    if (sessionValidatedRef.current || !getAuthToken()) return;
+
+    sessionValidatedRef.current = true;
+    let isActive = true;
+
+    authService.getCurrentCustomer()
+      .then((profile) => {
+        if (!isActive) return;
+        sessionExpiredHandledRef.current = false;
+        setCurrentUser(profile);
+      })
+      .catch((error) => {
+        console.error('Erro ao validar sessão do cliente:', error);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const addToCart = useCallback(async (product: Product) => {
     if (product.marketId !== marketId) return;

@@ -1,6 +1,8 @@
 import { getFriendlyMessage } from './userMessages';
 
 const DEFAULT_API_BASE_URL = 'https://mercado-backend-gtke7r7veq-rj.a.run.app/api';
+const SESSION_EXPIRED_EVENT = 'auth-session-expired';
+const SESSION_EXPIRED_MESSAGE = 'Sua sessão expirou. Entre novamente para continuar.';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? DEFAULT_API_BASE_URL;
@@ -32,6 +34,33 @@ export function getAuthToken() {
   return localStorage.getItem('token') ?? localStorage.getItem('authToken');
 }
 
+export function clearAuthTokens() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('authToken');
+}
+
+export function isSessionExpiredError(status: number, message: string) {
+  return status === 401 || /invalid or expired token|jwt expired|token expired|invalid token/i.test(message);
+}
+
+export function dispatchSessionExpired() {
+  window.dispatchEvent(
+    new CustomEvent(SESSION_EXPIRED_EVENT, {
+      detail: { message: SESSION_EXPIRED_MESSAGE },
+    }),
+  );
+}
+
+export function onSessionExpired(handler: (message: string) => void) {
+  const listener = (event: Event) => {
+    const detail = (event as CustomEvent<{ message?: string }>).detail;
+    handler(detail?.message || SESSION_EXPIRED_MESSAGE);
+  };
+
+  window.addEventListener(SESSION_EXPIRED_EVENT, listener);
+  return () => window.removeEventListener(SESSION_EXPIRED_EVENT, listener);
+}
+
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { params, headers, body, ...requestOptions } = options;
   const token = getAuthToken();
@@ -58,6 +87,11 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     const error = new Error(getFriendlyMessage(message)) as Error & { status?: number; payload?: unknown };
     error.status = response.status;
     error.payload = payload;
+
+    if (token && !path.includes('/auth/login') && isSessionExpiredError(response.status, String(message))) {
+      dispatchSessionExpired();
+    }
+
     throw error;
   }
 

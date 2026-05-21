@@ -1,11 +1,74 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MouseEvent } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ChevronLeft, Heart, Share2, ShoppingCart, Plus, Minus, ShieldCheck, Truck } from 'lucide-react';
+import { ChevronLeft, Heart, Share2, ShoppingCart, Plus, Minus, ShieldCheck } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { formatCartQuantity } from '@/features/cart';
 import { getProductById, ProductCard, ProductImage, useProducts } from '@/features/products';
 import type { Product } from '@/features/products';
+import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
+
+function useHorizontalDragScroll<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const dragState = useRef({
+    isMouseDown: false,
+    hasDragged: false,
+    startX: 0,
+    scrollLeft: 0,
+  });
+  const shouldSuppressClick = useRef(false);
+
+  const stopDragging = useCallback((event: MouseEvent<T>) => {
+    const target = event.currentTarget;
+    dragState.current.isMouseDown = false;
+    target.style.cursor = "";
+    target.style.userSelect = "";
+  }, []);
+
+  const onMouseDown = useCallback((event: MouseEvent<T>) => {
+    if (event.button !== 0) return;
+
+    dragState.current = {
+      isMouseDown: true,
+      hasDragged: false,
+      startX: event.clientX,
+      scrollLeft: event.currentTarget.scrollLeft,
+    };
+    shouldSuppressClick.current = false;
+    event.currentTarget.style.cursor = "grabbing";
+  }, []);
+
+  const onMouseMove = useCallback((event: MouseEvent<T>) => {
+    if (!dragState.current.isMouseDown) return;
+
+    const distance = event.clientX - dragState.current.startX;
+    if (Math.abs(distance) <= 6) return;
+
+    dragState.current.hasDragged = true;
+    shouldSuppressClick.current = true;
+    event.preventDefault();
+    event.currentTarget.style.userSelect = "none";
+    event.currentTarget.scrollLeft = dragState.current.scrollLeft - distance;
+  }, []);
+
+  const onClickCapture = useCallback((event: MouseEvent<T>) => {
+    if (!shouldSuppressClick.current) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    shouldSuppressClick.current = false;
+  }, []);
+
+  return {
+    ref,
+    onMouseDown,
+    onMouseMove,
+    onMouseUp: stopDragging,
+    onMouseLeave: stopDragging,
+    onClickCapture,
+  };
+}
 
 export function ProductDetailsPage() {
   const { id } = useParams();
@@ -14,6 +77,7 @@ export function ProductDetailsPage() {
   const { addToCart, updateQty, cart, toggleFavorite, isFavorite, cartCount, tenantPath, currentMarket } = useApp();
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
+  const relatedDrag = useHorizontalDragScroll<HTMLDivElement>();
   const { products: relatedProducts } = useProducts(marketId, {
     categoryId: product?.category,
     perPage: 8,
@@ -61,8 +125,6 @@ export function ProductDetailsPage() {
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : 0;
   const primaryColor = currentMarket?.primaryColor || '#122a4c';
-  const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
-
   const related = relatedProducts.filter(p => p.id !== product.id).slice(0, 4);
 
   const handleAdd = () => {
@@ -82,6 +144,30 @@ export function ProductDetailsPage() {
     });
   };
 
+  const handleShare = async () => {
+    const productUrl = window.location.href;
+    const shareData = {
+      title: product.name,
+      text: `${product.name} por R$ ${product.price.toFixed(2).replace('.', ',')} no ${currentMarket.name}`,
+      url: productUrl,
+    };
+
+    try {
+      if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
+        await navigator.share(shareData);
+        return;
+      }
+
+      await navigator.clipboard?.writeText(productUrl);
+      showSystemNotice('Link do produto copiado para compartilhar.', 'Produto compartilhado');
+    } catch (error) {
+      if ((error as Error)?.name === 'AbortError') return;
+
+      console.error('Erro ao compartilhar produto:', error);
+      showSystemNotice('Não foi possível compartilhar este produto agora.');
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Image area */}
@@ -94,7 +180,7 @@ export function ProductDetailsPage() {
             <ChevronLeft size={20} color="#374151" />
           </button>
           <div className="flex gap-2">
-            <button className="bg-white rounded-full p-2.5 shadow-lg">
+            <button onClick={handleShare} className="bg-white rounded-full p-2.5 shadow-lg" aria-label="Compartilhar produto">
               <Share2 size={18} color="#374151" />
             </button>
             <button onClick={() => toggleFavorite(product.id)} className="bg-white rounded-full p-2.5 shadow-lg">
@@ -174,10 +260,6 @@ export function ProductDetailsPage() {
 
           {/* Badges */}
           <div className="flex gap-2 mb-4">
-            <div className="flex items-center gap-1.5 rounded-xl px-3 py-2" style={{ backgroundColor: primarySoftColor }}>
-              <Truck size={14} color={primaryColor} />
-              <span style={{ fontSize: '11px', color: primaryColor, fontWeight: 600 }}>Entrega hoje</span>
-            </div>
             <div className="flex items-center gap-1.5 bg-blue-50 rounded-xl px-3 py-2">
               <ShieldCheck size={14} color="#2563eb" />
               <span style={{ fontSize: '11px', color: '#2563eb', fontWeight: 600 }}>Qualidade garantida</span>
@@ -195,7 +277,10 @@ export function ProductDetailsPage() {
         {related.length > 0 && (
           <div className="px-4 pt-4 pb-6" style={{ background: '#f3f4f6' }}>
             <h3 className="text-gray-800 mb-3" style={{ fontSize: '15px', fontWeight: 700 }}>Produtos relacionados</h3>
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
+            <div
+              {...relatedDrag}
+              className="flex cursor-grab gap-3 overflow-x-auto scrollbar-hide pb-1"
+            >
               {related.map(p => (
                 <ProductCard key={p.id} product={p} compact />
               ))}

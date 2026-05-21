@@ -1,9 +1,9 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
+import type { MouseEvent } from "react";
 import { useNavigate } from "react-router";
 import {
   Search,
   ShoppingCart,
-  MapPin,
   Bell,
   ChevronRight,
   Zap,
@@ -16,10 +16,77 @@ import { ProductCard, useProducts } from '@/features/products';
 import { BannerRenderer, useBanners } from '@/features/banners';
 import { BottomNav } from '@/shared/components/BottomNav';
 
+function useHorizontalDragScroll<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const dragState = useRef({
+    isMouseDown: false,
+    hasDragged: false,
+    startX: 0,
+    scrollLeft: 0,
+  });
+  const shouldSuppressClick = useRef(false);
+
+  const stopDragging = useCallback((event: MouseEvent<T>) => {
+    const target = event.currentTarget;
+    dragState.current.isMouseDown = false;
+    target.style.cursor = "";
+    target.style.userSelect = "";
+  }, []);
+
+  const onMouseDown = useCallback((event: MouseEvent<T>) => {
+    if (event.button !== 0) return;
+
+    dragState.current = {
+      isMouseDown: true,
+      hasDragged: false,
+      startX: event.clientX,
+      scrollLeft: event.currentTarget.scrollLeft,
+    };
+    shouldSuppressClick.current = false;
+    event.currentTarget.style.cursor = "grabbing";
+  }, []);
+
+  const onMouseMove = useCallback((event: MouseEvent<T>) => {
+    if (!dragState.current.isMouseDown) return;
+
+    const distance = event.clientX - dragState.current.startX;
+    if (Math.abs(distance) <= 6) return;
+
+    dragState.current.hasDragged = true;
+    shouldSuppressClick.current = true;
+    event.preventDefault();
+    event.currentTarget.style.userSelect = "none";
+    event.currentTarget.scrollLeft = dragState.current.scrollLeft - distance;
+  }, []);
+
+  const onClickCapture = useCallback((event: MouseEvent<T>) => {
+    if (!shouldSuppressClick.current) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    shouldSuppressClick.current = false;
+  }, []);
+
+  return {
+    ref,
+    onMouseDown,
+    onMouseMove,
+    onMouseUp: stopDragging,
+    onMouseLeave: stopDragging,
+    onClickCapture,
+  };
+}
+
 export function MarketPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
   const { cartCount, currentMarket, tenantPath } = useApp();
+  const categoryDrag = useHorizontalDragScroll<HTMLDivElement>();
+  const promoDrag = useHorizontalDragScroll<HTMLDivElement>();
+  const immediateConsumptionDrag = useHorizontalDragScroll<HTMLDivElement>();
+  const bestsellersDrag = useHorizontalDragScroll<HTMLDivElement>();
+  const buyAgainDrag = useHorizontalDragScroll<HTMLDivElement>();
+  const featuredDrag = useHorizontalDragScroll<HTMLDivElement>();
   const { products, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId, {
     allowGlobal: true,
     perPage: 30,
@@ -53,19 +120,7 @@ export function MarketPage() {
       >
         <div className="flex items-center justify-between mb-3">
           <div>
-            <div className="flex items-center gap-1">
-              <MapPin size={13} color="#c7d7ee" />
-              <p style={{ fontSize: "11px", color: "#c7d7ee" }}>
-                Entregando em
-              </p>
-            </div>
-            <p
-              className="text-white"
-              style={{ fontSize: "13px", fontWeight: 700 }}
-            >
-              R. das Flores, 123 ▾
-            </p>
-            <p style={{ fontSize: "11px", color: "#c7d7ee" }}>
+            <p className="text-white" style={{ fontSize: "16px", fontWeight: 800 }}>
               {currentMarket.name}
             </p>
           </div>
@@ -164,7 +219,10 @@ export function MarketPage() {
             </button>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+          <div
+            {...categoryDrag}
+            className="flex cursor-grab gap-3 overflow-x-auto pb-1 scrollbar-hide"
+          >
             {departments.slice(0, 7).map((cat) => (
               <button
                 key={cat.id}
@@ -217,7 +275,10 @@ export function MarketPage() {
               </h2>
             </div>
 
-            <button className="flex items-center gap-0.5">
+            <button
+              onClick={() => navigate(tenantPath("colecoes/promos"))}
+              className="flex items-center gap-0.5"
+            >
               <span
                 style={{
                   fontSize: "12px",
@@ -231,7 +292,10 @@ export function MarketPage() {
             </button>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
+          <div
+            {...promoDrag}
+            className="flex cursor-grab gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide"
+          >
             {promoProducts.map((p) => (
               <ProductCard key={p.id} product={p} compact />
             ))}
@@ -253,7 +317,10 @@ export function MarketPage() {
             >
               ⚡ Consumo imediato
             </h2>
-            <button className="flex items-center gap-0.5">
+            <button
+              onClick={() => navigate(tenantPath("colecoes/immediate"))}
+              className="flex items-center gap-0.5"
+            >
               <span
                 style={{
                   fontSize: "12px",
@@ -267,7 +334,10 @@ export function MarketPage() {
             </button>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
+          <div
+            {...immediateConsumptionDrag}
+            className="flex cursor-grab gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide"
+          >
             {immediateConsumptionProducts.map((p) => (
               <ProductCard key={p.id} product={p} compact />
             ))}
@@ -288,7 +358,10 @@ export function MarketPage() {
             >
               🔥 Mais vendidos
             </h2>
-            <button className="flex items-center gap-0.5">
+            <button
+              onClick={() => navigate(tenantPath("colecoes/bestsellers"))}
+              className="flex items-center gap-0.5"
+            >
               <span
                 style={{
                   fontSize: "12px",
@@ -302,7 +375,10 @@ export function MarketPage() {
             </button>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
+          <div
+            {...bestsellersDrag}
+            className="flex cursor-grab gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide"
+          >
             {bestsellers.map((p) => (
               <ProductCard key={p.id} product={p} compact />
             ))}
@@ -325,9 +401,27 @@ export function MarketPage() {
             >
               🔄 Compre novamente
             </h2>
+            <button
+              onClick={() => navigate(tenantPath("colecoes/buy-again"))}
+              className="flex items-center gap-0.5"
+            >
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#122a4c",
+                  fontWeight: 600,
+                }}
+              >
+                Ver todos
+              </span>
+              <ChevronRight size={14} color="#122a4c" />
+            </button>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          <div
+            {...buyAgainDrag}
+            className="flex cursor-grab gap-3 overflow-x-auto pb-2 scrollbar-hide"
+          >
             {bestsellers.map((p) => (
               <ProductCard key={p.id} product={p} compact />
             ))}
@@ -347,10 +441,28 @@ export function MarketPage() {
             >
               ⭐ Destaques
             </h2>
+            <button
+              onClick={() => navigate(tenantPath("colecoes/featured"))}
+              className="flex items-center gap-0.5"
+            >
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#122a4c",
+                  fontWeight: 600,
+                }}
+              >
+                Ver todos
+              </span>
+              <ChevronRight size={14} color="#122a4c" />
+            </button>
           </div>
 
           {isLoadingProducts && products.length === 0 ? (
-            <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
+            <div
+              {...featuredDrag}
+              className="flex cursor-grab gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide"
+            >
               {[0, 1, 2].map(item => (
                 <div key={item} className="h-[180px] w-[150px] shrink-0 animate-pulse rounded-2xl bg-white" />
               ))}
@@ -377,7 +489,10 @@ export function MarketPage() {
               </p>
             </div>
           ) : (
-          <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
+          <div
+            {...featuredDrag}
+            className="flex cursor-grab gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide"
+          >
             {visibleFeatured.map((p) => (
               <ProductCard key={p.id} product={p} compact />
             ))}

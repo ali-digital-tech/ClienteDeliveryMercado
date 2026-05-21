@@ -1,4 +1,4 @@
-import { MapPin, Clock, Star, Truck, Shield, Leaf } from 'lucide-react';
+import { Clock, Star, Truck, Shield, Leaf } from 'lucide-react';
 
 export function DeliveryInfoPanel() {
   return (
@@ -14,13 +14,6 @@ export function DeliveryInfoPanel() {
             style={{ width: '8px', height: '8px', backgroundColor: '#4ade80' }}
           />
           <p style={{ fontSize: '11px', color: '#c7d7ee', fontWeight: 600 }}>ENTREGA ATIVA</p>
-        </div>
-        <div className="flex items-start gap-2 mb-3">
-          <MapPin size={14} color="#c7d7ee" className="flex-shrink-0 mt-0.5" />
-          <div>
-            <p style={{ fontSize: '12px', color: '#c7d7ee' }}>Entregando em</p>
-            <p className="text-white" style={{ fontSize: '13px', fontWeight: 700 }}>R. das Flores, 123</p>
-          </div>
         </div>
         <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
           <Clock size={13} color="#4ade80" />

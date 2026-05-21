@@ -11,6 +11,7 @@ export function LoginScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToCart, currentMarket, login, marketId } = useApp();
+  const [logoFailed, setLogoFailed] = useState(false);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [showPass, setShowPass] = useState(false);
   const [email, setEmail] = useState("");
@@ -18,6 +19,7 @@ export function LoginScreen() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const showMarketLogo = Boolean(currentMarket.logo && !logoFailed);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -87,20 +89,35 @@ export function LoginScreen() {
       >
         <div className="flex items-center gap-3">
           <div
-            className="flex items-center justify-center"
+            className="flex items-center justify-center overflow-hidden rounded-2xl"
             style={{
-              width: "180px",
+              width: "96px",
               height: "76px",
+              backgroundColor: "rgba(255,255,255,0.14)",
             }}
           >
-            <img
-              src="https://wfmxfnwbmzetzygoanjh.supabase.co/storage/v1/object/public/ALI%20Digital/ALI%20Agenda/ChatGPT%20Image%2015%20abr%202026,%2008_39_58.png"
-              alt="Logo FrescaMart"
-              className="h-full w-full object-contain"
-            />
+            {showMarketLogo ? (
+              <img
+                src={currentMarket.logo}
+                alt={currentMarket.name}
+                className="h-full w-full object-cover"
+                onError={() => setLogoFailed(true)}
+              />
+            ) : (
+              <span style={{ fontSize: "34px" }}>🛒</span>
+            )}
           </div>
 
-          <div>
+          <div className="min-w-0">
+            <p
+              className="truncate text-white"
+              style={{
+                fontSize: "18px",
+                fontWeight: 800,
+              }}
+            >
+              {currentMarket.name}
+            </p>
             <p
               style={{
                 fontSize: "12px",

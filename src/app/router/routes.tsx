@@ -7,6 +7,7 @@ import { CheckoutPage } from '@/pages/Checkout/CheckoutPage';
 import { CategoriesPage } from '@/pages/Products/CategoriesPage';
 import { FavoritesPage } from '@/pages/Products/FavoritesPage';
 import { ProductDetailsPage } from '@/pages/Products/ProductDetailsPage';
+import { ProductCollectionPage } from '@/pages/Products/ProductCollectionPage';
 import { ProductsPage } from '@/pages/Products/ProductsPage';
 import { AddCardScreen } from '../pages/AddCardScreen';
 import { AddressesScreen } from '../pages/AddressesScreen';
@@ -14,7 +15,6 @@ import { DeliveryScreen } from '../pages/DeliveryScreen';
 import { LoginScreen } from '../pages/LoginScreen';
 import { MyOrdersScreen } from '../pages/MyOrdersScreen';
 import { NotificationsFeedScreen } from '../pages/NotificationsFeedScreen';
-import { NotificationsScreen } from '../pages/NotificationsScreen';
 import { OrderConfirmedScreen } from '../pages/OrderConfirmedScreen';
 import { OrderTrackingScreen } from '../pages/OrderTrackingScreen';
 import { PaymentScreen } from '../pages/PaymentScreen';
@@ -37,6 +37,7 @@ export const router = createBrowserRouter([
       { path: 'categories', Component: CategoriesPage },
       { path: 'produtos', Component: ProductsPage },
       { path: 'search', Component: ProductsPage },
+      { path: 'colecoes/:collection', Component: ProductCollectionPage },
       { path: 'product/:id', Component: ProductDetailsPage },
       { path: 'favorites', Component: FavoritesPage },
       { path: 'cart', Component: CartPage },
@@ -51,7 +52,7 @@ export const router = createBrowserRouter([
       { path: 'orders', Component: MyOrdersScreen },
       { path: 'profile', Component: ProfileScreen },
       { path: 'privacy', Component: PrivacyScreen },
-      { path: 'notifications', Component: NotificationsScreen },
+      { path: 'notifications', Component: NotificationsFeedScreen },
       { path: 'notifications-feed', Component: NotificationsFeedScreen },
       { path: 'support', Component: SupportScreen },
       { path: 'add-card', Component: AddCardScreen },

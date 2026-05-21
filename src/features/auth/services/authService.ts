@@ -1,4 +1,4 @@
-import { apiRequest } from '@/shared/lib/api';
+import { apiRequest, clearAuthTokens } from '@/shared/lib/api';
 import type { AuthUser, LoginCredentials, LoginResponse, RegisterCustomerPayload } from '../types/auth';
 
 const AUTH_TOKEN_KEY = 'token';
@@ -76,7 +76,7 @@ export const authService = {
   },
 
   clearSession() {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
+    clearAuthTokens();
     localStorage.removeItem(AUTH_USER_KEY);
   },
 };

@@ -13,6 +13,7 @@ interface UseProductsOptions {
   perPage?: number;
   enabled?: boolean;
   allowGlobal?: boolean;
+  useOffsetPagination?: boolean;
 }
 
 interface ProductsCacheEntry {
@@ -66,6 +67,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     perPage = PRODUCTS_PAGE_SIZE,
     enabled = true,
     allowGlobal = false,
+    useOffsetPagination = false,
   } = options;
   const normalizedSearch = search.trim();
   const requestCategoryId = subcategoryId || categoryId || null;
@@ -78,8 +80,9 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
       subcategoryId: subcategoryId || 'all',
       search: normalizedSearch,
       limit: perPage,
+      mode: useOffsetPagination ? 'offset-lookahead' : 'page',
     }),
-    [categoryId, departmentId, marketId, normalizedSearch, perPage, subcategoryId],
+    [categoryId, departmentId, marketId, normalizedSearch, perPage, subcategoryId, useOffsetPagination],
   );
   const latestRequestKeyRef = useRef(requestKey);
   const loadingMoreRef = useRef(false);
@@ -126,6 +129,8 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
       search: normalizedSearch,
       page: 1,
       perPage,
+      offset: 0,
+      useOffsetPagination,
     })
       .then((result) => {
         if (ignore || latestRequestKeyRef.current !== requestKey) return;
@@ -156,13 +161,14 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     return () => {
       ignore = true;
     };
-  }, [allowGlobal, enabled, marketId, normalizedSearch, perPage, requestCategoryId, requestKey]);
+  }, [allowGlobal, enabled, marketId, normalizedSearch, perPage, requestCategoryId, requestKey, useOffsetPagination]);
 
   const loadMore = useCallback(async () => {
     if (!marketId || !enabled || (!requestCategoryId && !allowGlobal) || isLoading || loadingMoreRef.current || !hasNextPage) return;
 
     const keyAtStart = latestRequestKeyRef.current;
     const nextPage = page + 1;
+    const nextOffset = page * perPage;
     const cached = productsCache.get(keyAtStart);
     if (cached?.loadedPages.has(nextPage)) {
       setProducts(cached.products);
@@ -181,6 +187,8 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
         search: normalizedSearch,
         page: nextPage,
         perPage,
+        offset: nextOffset,
+        useOffsetPagination,
       });
 
       if (latestRequestKeyRef.current !== keyAtStart) return;
@@ -208,7 +216,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
         setIsLoadingMore(false);
       }
     }
-  }, [allowGlobal, enabled, hasNextPage, isLoading, marketId, normalizedSearch, page, perPage, products, requestCategoryId]);
+  }, [allowGlobal, enabled, hasNextPage, isLoading, marketId, normalizedSearch, page, perPage, products, requestCategoryId, useOffsetPagination]);
 
   return {
     products,

@@ -1,27 +1,100 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import type { MouseEvent } from 'react';
 import { useNavigate } from 'react-router';
-import { ChevronLeft, Plus, Minus, Trash2, Tag, Truck, ShoppingBag } from 'lucide-react';
+import { ChevronLeft, Plus, Minus, Trash2, Tag, Truck, ShoppingCart } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { BannerRenderer, useBanners } from '@/features/banners';
 import { formatCartQuantity } from '@/features/cart';
-import { ProductImage } from '@/features/products';
+import { ProductCard, ProductImage, useProducts } from '@/features/products';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
+
+function useHorizontalDragScroll<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const dragState = useRef({
+    isMouseDown: false,
+    hasDragged: false,
+    startX: 0,
+    scrollLeft: 0,
+  });
+  const shouldSuppressClick = useRef(false);
+
+  const stopDragging = useCallback((event: MouseEvent<T>) => {
+    const target = event.currentTarget;
+    dragState.current.isMouseDown = false;
+    target.style.cursor = "";
+    target.style.userSelect = "";
+  }, []);
+
+  const onMouseDown = useCallback((event: MouseEvent<T>) => {
+    if (event.button !== 0) return;
+
+    dragState.current = {
+      isMouseDown: true,
+      hasDragged: false,
+      startX: event.clientX,
+      scrollLeft: event.currentTarget.scrollLeft,
+    };
+    shouldSuppressClick.current = false;
+    event.currentTarget.style.cursor = "grabbing";
+  }, []);
+
+  const onMouseMove = useCallback((event: MouseEvent<T>) => {
+    if (!dragState.current.isMouseDown) return;
+
+    const distance = event.clientX - dragState.current.startX;
+    if (Math.abs(distance) <= 6) return;
+
+    dragState.current.hasDragged = true;
+    shouldSuppressClick.current = true;
+    event.preventDefault();
+    event.currentTarget.style.userSelect = "none";
+    event.currentTarget.scrollLeft = dragState.current.scrollLeft - distance;
+  }, []);
+
+  const onClickCapture = useCallback((event: MouseEvent<T>) => {
+    if (!shouldSuppressClick.current) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    shouldSuppressClick.current = false;
+  }, []);
+
+  return {
+    ref,
+    onMouseDown,
+    onMouseMove,
+    onMouseUp: stopDragging,
+    onMouseLeave: stopDragging,
+    onClickCapture,
+  };
+}
 
 export function CartPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
   const { cart, updateQty, removeFromCart, cartTotal, coupon, discount, applyCoupon, tenantPath, currentMarket } = useApp();
   const { banners } = useBanners(marketId, 'cart');
+  const { products: suggestedProducts } = useProducts(marketId, {
+    allowGlobal: true,
+    perPage: 20,
+  });
   const [couponInput, setCouponInput] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const suggestedProductsDrag = useHorizontalDragScroll<HTMLDivElement>();
 
   const deliveryFee = Math.max(0, currentMarket?.deliveryFee || 0);
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const primaryColor = currentMarket?.primaryColor || '#122a4c';
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
+  const selectedSuggestions = suggestedProducts
+    .filter(product => product.isFeatured)
+    .slice(0, 10);
+  const visibleSuggestions = selectedSuggestions.length > 0
+    ? selectedSuggestions
+    : suggestedProducts.slice(0, 10);
 
   const handleCoupon = async () => {
     setIsApplyingCoupon(true);
@@ -59,21 +132,50 @@ export function CartPage() {
       </div>
 
       {cart.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">
-          <div className="rounded-full p-6 bg-gray-100">
-            <ShoppingBag size={52} color="#d1d5db" />
+        <div className="flex-1 overflow-y-auto px-4 py-6" style={{ background: '#f8fafc' }}>
+          <div className="flex flex-col items-center gap-4 px-4 py-8 text-center">
+            <div className="rounded-full p-6" style={{ backgroundColor: primarySoftColor }}>
+              <ShoppingCart size={52} color={primaryColor} />
+            </div>
+            <p className="text-gray-700" style={{ fontSize: '18px', fontWeight: 800 }}>
+              Seu carrinho está vazio
+            </p>
+            <p className="text-gray-400 text-center" style={{ fontSize: '14px', lineHeight: 1.5 }}>
+              Adicione produtos para continuar com a compra
+            </p>
+            <button
+              onClick={() => navigate(tenantPath('produtos'))}
+              className="rounded-2xl px-6 py-3 text-white mt-1"
+              style={{ backgroundColor: primaryColor, fontSize: '15px', fontWeight: 700 }}
+            >
+              Explorar produtos
+            </button>
           </div>
-          <p className="text-gray-700" style={{ fontSize: '18px', fontWeight: 700 }}>Carrinho vazio</p>
-          <p className="text-gray-400 text-center" style={{ fontSize: '14px', lineHeight: 1.5 }}>
-            Adicione produtos para continuar com a compra
-          </p>
-          <button
-            onClick={() => navigate(tenantPath())}
-            className="rounded-2xl px-6 py-3 text-white mt-2"
-            style={{ backgroundColor: primaryColor, fontSize: '15px', fontWeight: 700 }}
-          >
-            Explorar produtos
-          </button>
+
+          {visibleSuggestions.length > 0 && (
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#122a4c' }}>
+                  Produtos selecionados para você
+                </h2>
+                <button
+                  onClick={() => navigate(tenantPath('colecoes/featured'))}
+                  style={{ fontSize: '12px', color: primaryColor, fontWeight: 700 }}
+                >
+                  Ver todos
+                </button>
+              </div>
+
+              <div
+                {...suggestedProductsDrag}
+                className="flex cursor-grab gap-3 overflow-x-auto pb-2 scrollbar-hide"
+              >
+                {visibleSuggestions.map(product => (
+                  <ProductCard key={product.id} product={product} compact />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <>

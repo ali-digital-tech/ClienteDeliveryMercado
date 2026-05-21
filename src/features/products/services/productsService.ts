@@ -31,6 +31,8 @@ export interface ProductListFilters {
   search?: string;
   page?: number;
   perPage?: number;
+  offset?: number;
+  useOffsetPagination?: boolean;
 }
 
 export interface ProductListResult {
@@ -85,32 +87,39 @@ export async function getProductsByMarketId(
 
   const page = Math.max(1, filters.page ?? 1);
   const perPage = Math.max(1, filters.perPage ?? PRODUCTS_PAGE_SIZE);
+  const offset = Math.max(0, filters.offset ?? (page - 1) * perPage);
+  const requestedLimit = filters.useOffsetPagination ? perPage + 1 : perPage;
   const response: any = await apiRequest(`/lojas/${marketId}/produtos`, {
     params: {
       ativo: true,
       categoria_id: filters.categoryId || undefined,
       busca: filters.search?.trim() || undefined,
-      page,
-      per_page: perPage,
+      page: filters.useOffsetPagination ? undefined : page,
+      per_page: requestedLimit,
+      limit: filters.useOffsetPagination ? requestedLimit : undefined,
+      offset: filters.useOffsetPagination ? offset : undefined,
     },
   });
 
   const data = response?.data;
   const total = Array.isArray(data) ? data.length : Number(data?.total ?? 0);
   const responsePage = Array.isArray(data) ? page : Number(data?.page ?? page);
-  const responsePerPage = Array.isArray(data) ? perPage : Number(data?.per_page ?? perPage);
+  const responsePerPage = Array.isArray(data) ? requestedLimit : Number(data?.per_page ?? requestedLimit);
   const totalPages = Array.isArray(data) ? 1 : Number(data?.total_pages ?? 0);
-  const products = unwrapList<ApiStoreProduct>(response)
+  const rawProducts = unwrapList<ApiStoreProduct>(response)
     .filter(product => product.ativo_na_loja !== false && product.produto_ativo !== false)
     .map(mapStoreProduct);
+  const products = filters.useOffsetPagination ? rawProducts.slice(0, perPage) : rawProducts;
+  const hasLookaheadProduct = filters.useOffsetPagination && rawProducts.length > perPage;
+  const hasNextByTotal = filters.useOffsetPagination && total > 0 && offset + perPage < total;
 
   return {
     products,
     total,
     page: responsePage,
-    perPage: responsePerPage,
+    perPage: filters.useOffsetPagination ? perPage : responsePerPage,
     totalPages,
-    hasNextPage: responsePage < totalPages,
+    hasNextPage: hasLookaheadProduct || hasNextByTotal || responsePage < totalPages,
   };
 }
 

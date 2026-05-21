@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { Home, Grid3X3, Search, Heart, ShoppingCart, ShoppingBag, User, Settings, Bell, HelpCircle } from 'lucide-react';
+import { Home, Grid3X3, Search, Heart, ShoppingCart, ShoppingBag, User, Bell, HelpCircle } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
 
 const mainNavItems = [
@@ -15,7 +15,6 @@ const mainNavItems = [
 const bottomNavItems = [
   { label: 'Notificações', icon: Bell, path: 'notifications-feed' },
   { label: 'Perfil', icon: User, path: 'profile' },
-  { label: 'Configurações', icon: Settings, path: 'notifications' },
   { label: 'Suporte', icon: HelpCircle, path: 'support' },
 ];
 
