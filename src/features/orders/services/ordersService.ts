@@ -17,6 +17,7 @@ interface ApiOrder {
   desconto?: string | number | null;
   taxa_entrega?: string | number | null;
   total?: string | number | null;
+  carrinho_quantidade_produtos?: string | number | null;
   cpf_na_nota?: boolean | null;
   cpf_na_nota_cpf?: string | null;
   origem_checkout?: string | null;
@@ -213,26 +214,18 @@ async function getOrderItemsFromCart(order: Order): Promise<Order['items']> {
   return mappedItems.filter((item): item is Order['items'][number] => Boolean(item));
 }
 
-async function hydrateOrderItems(orders: Order[]) {
+export async function loadOrderItems(order: Order): Promise<Order['items']> {
+  if (order.items.length > 0) return order.items;
+
   const cache = getOrderItemsCache();
+  const cachedItems = getCachedOrderItems(order, cache);
 
-  return Promise.all(
-    orders.map(async (order) => {
-      if (!order.cartId) return order;
+  if (cachedItems) return cachedItems;
 
-      const cachedItems = getCachedOrderItems(order, cache);
-      if (cachedItems) return { ...order, items: cachedItems };
+  const items = await getOrderItemsFromCart(order);
+  saveCachedOrderItems(order, items, cache);
 
-      try {
-        const items = await getOrderItemsFromCart(order);
-        saveCachedOrderItems(order, items, cache);
-        return { ...order, items };
-      } catch (error) {
-        console.error('Erro ao carregar itens do carrinho do pedido', error);
-        return order;
-      }
-    }),
-  );
+  return items;
 }
 
 function mapOrder(order: ApiOrder): Order {
@@ -252,6 +245,7 @@ function mapOrder(order: ApiOrder): Order {
     canceledAt: order.cancelado_em || null,
     deliveredAt: order.entregue_em || null,
     items: [],
+    itemCount: toNumber(order.carrinho_quantidade_produtos),
     subtotal,
     discount,
     deliveryFee,
@@ -272,11 +266,9 @@ export async function getOrdersByMarketId(marketId: string): Promise<Order[]> {
 
   const response = await apiRequest('/pedidos/me');
 
-  const orders = unwrapList<ApiOrder>(response)
+  return unwrapList<ApiOrder>(response)
     .filter(order => !marketId || order.loja_id === marketId)
     .map(mapOrder);
-
-  return hydrateOrderItems(orders);
 }
 
 export async function createCheckoutOrder(input: CreateCheckoutOrderInput) {

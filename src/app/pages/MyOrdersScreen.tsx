@@ -9,8 +9,9 @@ import {
 } from "lucide-react";
 import { useApp } from "@/app/providers/AppProvider";
 import { BottomNav } from "@/shared/components/BottomNav";
+import { formatCartQuantity } from "@/features/cart";
 import { ProductImage } from "@/features/products";
-import type { Order } from "@/features/orders";
+import { loadOrderItems, type Order } from "@/features/orders";
 
 const statusConfig: Record<Order["status"], { label: string; color: string; bg: string }> = {
   pendente: {
@@ -68,6 +69,7 @@ export function MyOrdersScreen() {
   const navigate = useNavigate();
   const { orders, addToCart, cartCount, isLoggedIn, refreshOrders, tenantPath } = useApp();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [repeatingOrderId, setRepeatingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -85,15 +87,23 @@ export function MyOrdersScreen() {
   }, [isLoggedIn, refreshOrders]);
 
   const handleRepeat = async (order: Order) => {
-    if (order.items.length === 0) return;
+    const orderId = order.rawId || order.id;
+    setRepeatingOrderId(orderId);
 
-    for (const { product, qty } of order.items) {
-      for (let i = 0; i < qty; i++) {
-        await addToCart(product);
+    try {
+      const items = order.items.length > 0 ? order.items : await loadOrderItems(order);
+      if (items.length === 0) return;
+
+      for (const { product, qty } of items) {
+        await addToCart(product, qty);
       }
-    }
 
-    navigate(tenantPath("carrinho"));
+      navigate(tenantPath("carrinho"));
+    } catch (error) {
+      console.error("Erro ao repetir pedido", error);
+    } finally {
+      setRepeatingOrderId(null);
+    }
   };
 
   return (
@@ -182,8 +192,10 @@ export function MyOrdersScreen() {
             {orders.map((order) => {
               const status = statusConfig[order.status] ?? statusConfig.recebido;
               const isActive = !["entregue", "cancelado"].includes(order.status);
-              const itemCount = order.items.reduce((sum, item) => sum + item.qty, 0);
+              const itemCount = order.itemCount ?? order.items.reduce((sum, item) => sum + item.qty, 0);
               const hasItems = order.items.length > 0;
+              const canRepeat = itemCount > 0 || hasItems;
+              const isRepeating = repeatingOrderId === (order.rawId || order.id);
               const hasDiscount = Boolean(order.discount && order.discount > 0);
               const hasDeliveryFee = Boolean(order.deliveryFee && order.deliveryFee > 0);
 
@@ -281,8 +293,8 @@ export function MyOrdersScreen() {
                     )}
 
                     <p style={{ fontSize: "12px", color: "#64748b" }}>
-                      {hasItems
-                        ? `${itemCount} ite${itemCount !== 1 ? "ns" : "m"}`
+                      {itemCount > 0
+                        ? `${formatCartQuantity(itemCount)} ite${itemCount !== 1 ? "ns" : "m"}`
                         : "Itens não detalhados"}{" "}
                       - {formatOrderType(order)}
                     </p>
@@ -355,15 +367,19 @@ export function MyOrdersScreen() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleRepeat(order)}
-                        disabled={!hasItems}
-                        title={hasItems ? "Repetir pedido" : "Itens do pedido não vieram na listagem"}
+                        disabled={!canRepeat || isRepeating}
+                        title={canRepeat ? "Repetir pedido" : "Itens do pedido não vieram na listagem"}
                         className="flex items-center gap-1.5 rounded-xl px-3 py-2 disabled:cursor-not-allowed"
                         style={{
                           backgroundColor: "#eef4fb",
-                          opacity: hasItems ? 1 : 0.55,
+                          opacity: canRepeat && !isRepeating ? 1 : 0.55,
                         }}
                       >
-                        <RefreshCw size={13} color="#122a4c" />
+                        {isRepeating ? (
+                          <Loader2 className="animate-spin" size={13} color="#122a4c" />
+                        ) : (
+                          <RefreshCw size={13} color="#122a4c" />
+                        )}
                         <span
                           style={{
                             fontSize: "12px",
@@ -371,7 +387,7 @@ export function MyOrdersScreen() {
                             fontWeight: 600,
                           }}
                         >
-                          Repetir
+                          {isRepeating ? "Carregando" : "Repetir"}
                         </span>
                       </button>
 

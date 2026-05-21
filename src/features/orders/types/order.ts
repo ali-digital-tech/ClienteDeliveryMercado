@@ -12,6 +12,7 @@ export interface Order {
   canceledAt?: string | null;
   deliveredAt?: string | null;
   items: { product: Product; qty: number }[];
+  itemCount?: number;
   subtotal?: number;
   discount?: number;
   deliveryFee?: number;

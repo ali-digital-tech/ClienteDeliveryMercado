@@ -30,7 +30,7 @@ interface AppState {
   coupon: string;
   discount: number;
   currentScreen: string;
-  addToCart: (product: Product) => Promise<void>;
+  addToCart: (product: Product, quantity?: number) => Promise<void>;
   removeFromCart: (productId: string) => Promise<void>;
   updateQty: (productId: string, qty: number) => Promise<void>;
   clearCart: () => void;
@@ -199,9 +199,9 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     };
   }, []);
 
-  const addToCart = useCallback(async (product: Product) => {
+  const addToCart = useCallback(async (product: Product, quantity?: number) => {
     if (product.marketId !== marketId) return;
-    addToLocalCart(product);
+    addToLocalCart(product, quantity);
   }, [addToLocalCart, marketId]);
 
   const removeFromCart = useCallback(async (productId: string) => {

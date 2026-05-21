@@ -203,20 +203,20 @@ export function useCartStore(marketId: string, products: Product[] = []) {
     updateCartsByMarket(prevByMarket => {
       const currentCart = prevByMarket[marketId] || [];
       const existing = currentCart.find(item => item.product.id === product.id);
-      const nextQuantity = toPositiveQuantity(quantity);
+      const quantityToAdd = toPositiveQuantity(quantity) || 1;
 
       if (existing) {
         return {
           ...prevByMarket,
           [marketId]: currentCart.map(item =>
             item.product.id === product.id
-              ? { ...item, product, qty: nextQuantity || item.qty + 1 }
+              ? { ...item, product, qty: item.qty + quantityToAdd }
               : item
           ),
         };
       }
 
-      return { ...prevByMarket, [marketId]: [...currentCart, { product, qty: nextQuantity || 1 }] };
+      return { ...prevByMarket, [marketId]: [...currentCart, { product, qty: quantityToAdd }] };
     });
     clearCouponState(marketId, setCouponByMarket, setDiscountByMarket);
   }, [marketId, updateCartsByMarket]);
