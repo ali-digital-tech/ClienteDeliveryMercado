@@ -193,11 +193,20 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
 
       if (latestRequestKeyRef.current !== keyAtStart) return;
 
+      const previousEntry = productsCache.get(keyAtStart);
+      if (previousEntry?.loadedPages.has(result.page)) {
+        setHasNextPage(false);
+        saveCacheEntry(keyAtStart, {
+          ...previousEntry,
+          hasNextPage: false,
+        });
+        return;
+      }
+
       setProducts((current) => dedupeProducts([...current, ...result.products]));
       setPage(result.page);
       setHasNextPage(result.hasNextPage);
       setTotal(result.total);
-      const previousEntry = productsCache.get(keyAtStart);
       saveCacheEntry(keyAtStart, {
         products: [...(previousEntry?.products ?? products), ...result.products],
         page: result.page,

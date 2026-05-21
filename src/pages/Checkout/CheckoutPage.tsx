@@ -216,6 +216,8 @@ export function CheckoutPage() {
   const saveConfirmedOrder = useCallback((order: PendingCheckoutOrder, result: MercadoPagoPaymentResult) => {
     sessionStorage.setItem('cliente_delivery_last_order', JSON.stringify({
       id: order.numero_pedido ? `#${order.numero_pedido}` : order.id,
+      rawId: order.id,
+      number: order.numero_pedido,
       total: order.total,
       payment_id: result.payment.id,
       mp_payment_id: result.mp_payment_id,

@@ -1,17 +1,23 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  ShoppingCart,
   ChevronRight,
+  Loader2,
+  PackageSearch,
   RefreshCw,
+  ShoppingCart,
 } from "lucide-react";
-import { useApp } from '@/app/providers/AppProvider';
-import { BottomNav } from '@/shared/components/BottomNav';
-import { ProductImage } from '@/features/products';
+import { useApp } from "@/app/providers/AppProvider";
+import { BottomNav } from "@/shared/components/BottomNav";
+import { ProductImage } from "@/features/products";
+import type { Order } from "@/features/orders";
 
-const statusConfig: Record<
-  string,
-  { label: string; color: string; bg: string }
-> = {
+const statusConfig: Record<Order["status"], { label: string; color: string; bg: string }> = {
+  pendente: {
+    label: "Pendente",
+    color: "#92400e",
+    bg: "#fffbeb",
+  },
   recebido: {
     label: "Recebido",
     color: "#1b3d6d",
@@ -37,13 +43,50 @@ const statusConfig: Record<
     color: "#122a4c",
     bg: "#eef4fb",
   },
+  cancelado: {
+    label: "Cancelado",
+    color: "#b91c1c",
+    bg: "#fef2f2",
+  },
 };
+
+function formatCurrency(value: number | undefined) {
+  return `R$ ${(value || 0).toFixed(2).replace(".", ",")}`;
+}
+
+function formatOrderCode(order: Order) {
+  if (order.number) return `#${order.number}`;
+  if (order.id.startsWith("#")) return order.id;
+  return `#${order.id.slice(0, 8)}`;
+}
+
+function formatOrderType(order: Order) {
+  return order.type === "delivery" ? "Entrega" : "Retirada";
+}
 
 export function MyOrdersScreen() {
   const navigate = useNavigate();
-  const { orders, addToCart, cartCount, tenantPath } = useApp();
+  const { orders, addToCart, cartCount, isLoggedIn, refreshOrders, tenantPath } = useApp();
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
-  const handleRepeat = async (order: (typeof orders)[0]) => {
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    let isActive = true;
+    setIsLoadingOrders(true);
+
+    refreshOrders().finally(() => {
+      if (isActive) setIsLoadingOrders(false);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isLoggedIn, refreshOrders]);
+
+  const handleRepeat = async (order: Order) => {
+    if (order.items.length === 0) return;
+
     for (const { product, qty } of order.items) {
       for (let i = 0; i < qty; i++) {
         await addToCart(product);
@@ -55,7 +98,6 @@ export function MyOrdersScreen() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
       <div
         className="flex-shrink-0 bg-white px-4 pt-8 md:pt-4 pb-3 border-b"
         style={{ borderColor: "#d9e4f2" }}
@@ -104,9 +146,16 @@ export function MyOrdersScreen() {
         className="flex-1 overflow-y-auto px-4 pt-4 pb-4"
         style={{ background: "#f8fafc" }}
       >
-        {orders.length === 0 ? (
+        {isLoadingOrders && orders.length === 0 ? (
+          <div className="flex flex-col items-center py-20 gap-3">
+            <Loader2 className="animate-spin" size={28} color="#122a4c" />
+            <p style={{ fontSize: "14px", color: "#64748b", fontWeight: 600 }}>
+              Carregando pedidos...
+            </p>
+          </div>
+        ) : orders.length === 0 ? (
           <div className="flex flex-col items-center py-20 gap-4">
-            <span style={{ fontSize: "52px" }}>📦</span>
+            <PackageSearch size={52} color="#94a3b8" />
             <p
               style={{
                 fontSize: "17px",
@@ -131,36 +180,38 @@ export function MyOrdersScreen() {
         ) : (
           <div className="flex flex-col gap-3">
             {orders.map((order) => {
-              const status = statusConfig[order.status];
-              const isActive = order.status !== "entregue";
+              const status = statusConfig[order.status] ?? statusConfig.recebido;
+              const isActive = !["entregue", "cancelado"].includes(order.status);
+              const itemCount = order.items.reduce((sum, item) => sum + item.qty, 0);
+              const hasItems = order.items.length > 0;
+              const hasDiscount = Boolean(order.discount && order.discount > 0);
+              const hasDeliveryFee = Boolean(order.deliveryFee && order.deliveryFee > 0);
 
               return (
                 <div
-                  key={order.id}
+                  key={order.rawId || order.id}
                   className="bg-white rounded-2xl shadow-sm overflow-hidden"
                   style={{ border: "1px solid #d9e4f2" }}
                 >
-                  {/* Header */}
                   <div
                     className="px-4 pt-4 pb-3"
-                    style={{
-                      borderBottom: "1px solid #eef2f7",
-                    }}
+                    style={{ borderBottom: "1px solid #eef2f7" }}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
                         <span
+                          className="block truncate"
                           style={{
                             fontSize: "15px",
                             fontWeight: 800,
                             color: "#334155",
                           }}
                         >
-                          {order.id}
+                          {formatOrderCode(order)}
                         </span>
                         {isActive && (
                           <div
-                            className="rounded-full animate-pulse"
+                            className="rounded-full animate-pulse flex-shrink-0"
                             style={{
                               width: "8px",
                               height: "8px",
@@ -171,7 +222,7 @@ export function MyOrdersScreen() {
                       </div>
 
                       <span
-                        className="rounded-full px-3 py-1"
+                        className="flex-shrink-0 rounded-full px-3 py-1"
                         style={{
                           fontSize: "11px",
                           fontWeight: 700,
@@ -183,22 +234,15 @@ export function MyOrdersScreen() {
                       </span>
                     </div>
 
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: "#94a3b8",
-                      }}
-                    >
+                    <p style={{ fontSize: "12px", color: "#94a3b8" }}>
                       {order.date}
                     </p>
                   </div>
 
-                  {/* Items preview */}
                   <div className="px-4 py-3">
-                    <div className="flex gap-2 mb-2">
-                      {order.items
-                        .slice(0, 3)
-                        .map(({ product }) => (
+                    {hasItems && (
+                      <div className="flex gap-2 mb-2">
+                        {order.items.slice(0, 3).map(({ product }) => (
                           <ProductImage
                             key={product.id}
                             src={product.image}
@@ -213,54 +257,91 @@ export function MyOrdersScreen() {
                           />
                         ))}
 
-                      {order.items.length > 3 && (
-                        <div
-                          className="rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{
-                            width: "44px",
-                            height: "44px",
-                            backgroundColor: "#eef4fb",
-                          }}
-                        >
-                          <span
+                        {order.items.length > 3 && (
+                          <div
+                            className="rounded-xl flex items-center justify-center flex-shrink-0"
                             style={{
-                              fontSize: "12px",
-                              color: "#64748b",
-                              fontWeight: 600,
+                              width: "44px",
+                              height: "44px",
+                              backgroundColor: "#eef4fb",
                             }}
                           >
-                            +{order.items.length - 3}
-                          </span>
-                        </div>
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                color: "#64748b",
+                                fontWeight: 600,
+                              }}
+                            >
+                              +{order.items.length - 3}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <p style={{ fontSize: "12px", color: "#64748b" }}>
+                      {hasItems
+                        ? `${itemCount} ite${itemCount !== 1 ? "ns" : "m"}`
+                        : "Itens não detalhados"}{" "}
+                      - {formatOrderType(order)}
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {order.subtotal !== undefined && (
+                        <span
+                          className="rounded-full px-2.5 py-1"
+                          style={{
+                            backgroundColor: "#f1f5f9",
+                            color: "#64748b",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Subtotal {formatCurrency(order.subtotal)}
+                        </span>
+                      )}
+                      <span
+                        className="rounded-full px-2.5 py-1"
+                        style={{
+                          backgroundColor: "#f1f5f9",
+                          color: "#64748b",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {hasDeliveryFee ? `Entrega ${formatCurrency(order.deliveryFee)}` : "Entrega grátis"}
+                      </span>
+                      {hasDiscount && (
+                        <span
+                          className="rounded-full px-2.5 py-1"
+                          style={{
+                            backgroundColor: "#f0fdf4",
+                            color: "#15803d",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Desconto {formatCurrency(order.discount)}
+                        </span>
+                      )}
+                      {order.cpfNaNota && (
+                        <span
+                          className="rounded-full px-2.5 py-1"
+                          style={{
+                            backgroundColor: "#eef4fb",
+                            color: "#122a4c",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          CPF na nota
+                        </span>
                       )}
                     </div>
-
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: "#64748b",
-                      }}
-                    >
-                      {order.items.reduce(
-                        (s, i) => s + i.qty,
-                        0,
-                      )}{" "}
-                      ite
-                      {order.items.reduce(
-                        (s, i) => s + i.qty,
-                        0,
-                      ) !== 1
-                        ? "ns"
-                        : "m"}{" "}
-                      ·{" "}
-                      {order.type === "delivery"
-                        ? "🚚 Entrega"
-                        : "🏪 Retirada"}
-                    </p>
                   </div>
 
-                  {/* Footer */}
-                  <div className="px-4 pb-4 flex items-center justify-between">
+                  <div className="px-4 pb-4 flex items-center justify-between gap-3">
                     <span
                       style={{
                         fontSize: "16px",
@@ -268,14 +349,19 @@ export function MyOrdersScreen() {
                         color: "#122a4c",
                       }}
                     >
-                      R$ {order.total.toFixed(2).replace('.', ',')}
+                      {formatCurrency(order.total)}
                     </span>
 
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleRepeat(order)}
-                        className="flex items-center gap-1.5 rounded-xl px-3 py-2"
-                        style={{ backgroundColor: "#eef4fb" }}
+                        disabled={!hasItems}
+                        title={hasItems ? "Repetir pedido" : "Itens do pedido não vieram na listagem"}
+                        className="flex items-center gap-1.5 rounded-xl px-3 py-2 disabled:cursor-not-allowed"
+                        style={{
+                          backgroundColor: "#eef4fb",
+                          opacity: hasItems ? 1 : 0.55,
+                        }}
                       >
                         <RefreshCw size={13} color="#122a4c" />
                         <span
@@ -292,7 +378,9 @@ export function MyOrdersScreen() {
                       <button
                         onClick={() =>
                           isActive
-                            ? navigate(tenantPath("order-tracking"))
+                            ? navigate(tenantPath("order-tracking"), {
+                                state: { orderId: order.rawId || order.id },
+                              })
                             : undefined
                         }
                         className="flex items-center gap-1 rounded-xl px-3 py-2"
@@ -305,14 +393,9 @@ export function MyOrdersScreen() {
                             fontWeight: 600,
                           }}
                         >
-                          {isActive
-                            ? "Acompanhar"
-                            : "Ver detalhes"}
+                          {isActive ? "Acompanhar" : "Ver detalhes"}
                         </span>
-                        <ChevronRight
-                          size={13}
-                          color="#334155"
-                        />
+                        <ChevronRight size={13} color="#334155" />
                       </button>
                     </div>
                   </div>

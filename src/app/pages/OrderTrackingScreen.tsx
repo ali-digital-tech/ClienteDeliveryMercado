@@ -1,77 +1,234 @@
-import { useNavigate } from "react-router";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import {
-  ChevronLeft,
-  Phone,
-  MessageCircle,
-  MapPin,
-  Package,
+  CalendarClock,
   CheckCircle2,
-  Truck,
-  ShoppingBag,
+  ChevronLeft,
+  CircleX,
+  CreditCard,
   Home,
+  Loader2,
+  Package,
+  ReceiptText,
+  ShoppingBag,
+  Truck,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
+import type { Order } from "@/features/orders";
 
-const steps = [
-  {
-    id: "recebido",
-    label: "Pedido recebido",
-    desc: "Seu pedido foi recebido com sucesso",
-    time: "14:03",
-    icon: Package,
-    done: true,
-    active: false,
-  },
-  {
-    id: "confirmado",
-    label: "Pedido confirmado",
-    desc: "O supermercado confirmou seu pedido",
-    time: "14:05",
-    icon: CheckCircle2,
-    done: true,
-    active: false,
-  },
-  {
-    id: "separacao",
-    label: "Em separação",
-    desc: "Estamos separando seus produtos",
-    time: "14:12",
-    icon: ShoppingBag,
-    done: false,
-    active: true,
-  },
-  {
-    id: "saiu",
-    label: "Saiu para entrega",
-    desc: "O entregador está a caminho",
-    time: "--",
-    icon: Truck,
-    done: false,
-    active: false,
-  },
-  {
-    id: "entregue",
-    label: "Entregue",
-    desc: "Pedido entregue com sucesso",
-    time: "--",
-    icon: Home,
-    done: false,
-    active: false,
-  },
-];
+const statusConfig: Record<Order["status"], { label: string; color: string; bg: string }> = {
+  pendente: { label: "Pendente", color: "#92400e", bg: "#fffbeb" },
+  recebido: { label: "Recebido", color: "#1b3d6d", bg: "#eef4fb" },
+  confirmado: { label: "Confirmado", color: "#122a4c", bg: "#e8f0fb" },
+  separacao: { label: "Em separação", color: "#2f5b93", bg: "#edf3fb" },
+  saiu: { label: "Saiu para entrega", color: "#3f5f8a", bg: "#eff4fb" },
+  entregue: { label: "Entregue", color: "#122a4c", bg: "#eef4fb" },
+  cancelado: { label: "Cancelado", color: "#b91c1c", bg: "#fef2f2" },
+};
+
+const statusIndex: Record<Order["status"], number> = {
+  pendente: 0,
+  recebido: 0,
+  confirmado: 1,
+  separacao: 2,
+  saiu: 3,
+  entregue: 4,
+  cancelado: 1,
+};
+
+function formatCurrency(value: number | undefined) {
+  return `R$ ${(value || 0).toFixed(2).replace(".", ",")}`;
+}
+
+function formatOrderCode(order: Order) {
+  if (order.number) return `#${order.number}`;
+  if (order.id.startsWith("#")) return order.id;
+  return `#${order.id.slice(0, 8)}`;
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "--";
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function getStoredOrderId() {
+  try {
+    const stored = sessionStorage.getItem("cliente_delivery_last_order");
+    const order = stored ? JSON.parse(stored) : null;
+    return order?.rawId || order?.id || "";
+  } catch {
+    return "";
+  }
+}
+
+function matchesOrder(order: Order, orderId: string) {
+  const normalized = orderId.replace(/^#/, "");
+  return [
+    order.rawId,
+    order.id,
+    order.id.replace(/^#/, ""),
+    order.number,
+  ].some((value) => value && value.replace(/^#/, "") === normalized);
+}
+
+function buildSteps(order: Order) {
+  if (order.status === "cancelado") {
+    return [
+      {
+        id: "recebido",
+        label: "Pedido recebido",
+        desc: "Pedido registrado no sistema",
+        time: formatDateTime(order.createdAt),
+        icon: Package,
+        done: true,
+        active: false,
+      },
+      {
+        id: "cancelado",
+        label: "Pedido cancelado",
+        desc: "Pedido cancelado",
+        time: formatDateTime(order.canceledAt),
+        icon: CircleX,
+        done: false,
+        active: true,
+      },
+    ];
+  }
+
+  const currentIndex = statusIndex[order.status] ?? 0;
+  const definitions = [
+    {
+      id: "recebido",
+      label: "Pedido recebido",
+      desc: "Pedido registrado no sistema",
+      time: formatDateTime(order.createdAt),
+      icon: Package,
+    },
+    {
+      id: "confirmado",
+      label: "Pedido confirmado",
+      desc: "Confirmação do mercado",
+      time: formatDateTime(order.confirmedAt),
+      icon: CheckCircle2,
+    },
+    {
+      id: "separacao",
+      label: "Em separação",
+      desc: "Produtos em preparação",
+      time: "--",
+      icon: ShoppingBag,
+    },
+    {
+      id: "saiu",
+      label: "Saiu para entrega",
+      desc: "Pedido em rota de entrega",
+      time: "--",
+      icon: Truck,
+    },
+    {
+      id: "entregue",
+      label: "Entregue",
+      desc: "Pedido entregue ao cliente",
+      time: formatDateTime(order.deliveredAt),
+      icon: Home,
+    },
+  ];
+
+  return definitions.map((step, index) => ({
+    ...step,
+    done: index < currentIndex || order.status === "entregue",
+    active: index === currentIndex && order.status !== "entregue",
+  }));
+}
 
 export function OrderTrackingScreen() {
   const navigate = useNavigate();
-  const { tenantPath } = useApp();
+  const location = useLocation();
+  const { orders, isLoggedIn, refreshOrders, tenantPath } = useApp();
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  const selectedOrderId = useMemo(() => {
+    const state = location.state as { orderId?: string } | null;
+    return state?.orderId || getStoredOrderId();
+  }, [location.state]);
+
+  const selectedOrder = useMemo(() => {
+    if (selectedOrderId) {
+      const order = orders.find((item) => matchesOrder(item, selectedOrderId));
+      if (order) return order;
+    }
+
+    return orders.find((order) => !["entregue", "cancelado"].includes(order.status)) || orders[0] || null;
+  }, [orders, selectedOrderId]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    let isActive = true;
+    setIsLoadingOrders(true);
+
+    refreshOrders().finally(() => {
+      if (isActive) setIsLoadingOrders(false);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isLoggedIn, refreshOrders]);
+
+  if (isLoadingOrders && orders.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ background: "#f8fafc" }}>
+        <Loader2 className="animate-spin" size={28} color="#122a4c" />
+        <p style={{ fontSize: "14px", color: "#64748b", fontWeight: 600 }}>
+          Carregando pedido...
+        </p>
+      </div>
+    );
+  }
+
+  if (!selectedOrder) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#f8fafc" }}>
+        <div className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 border-b bg-white" style={{ borderColor: "#d9e4f2" }}>
+          <button onClick={() => navigate(-1)} className="rounded-full p-2" style={{ backgroundColor: "#eef4fb" }}>
+            <ChevronLeft size={20} color="#122a4c" />
+          </button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-3">
+          <ReceiptText size={44} color="#94a3b8" />
+          <p style={{ fontSize: "16px", fontWeight: 800, color: "#334155" }}>
+            Pedido não encontrado
+          </p>
+          <button
+            onClick={() => navigate(tenantPath("orders"))}
+            className="rounded-2xl px-5 py-3 text-white"
+            style={{ backgroundColor: "#122a4c", fontSize: "14px", fontWeight: 700 }}
+          >
+            Ver meus pedidos
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const status = statusConfig[selectedOrder.status] ?? statusConfig.recebido;
+  const steps = buildSteps(selectedOrder);
+  const hasDiscount = Boolean(selectedOrder.discount && selectedOrder.discount > 0);
+  const hasDeliveryFee = Boolean(selectedOrder.deliveryFee && selectedOrder.deliveryFee > 0);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Header */}
       <div
         className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 border-b"
         style={{
-          background:
-            "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
+          background: "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
           borderColor: "rgba(255,255,255,0.08)",
         }}
       >
@@ -79,223 +236,98 @@ export function OrderTrackingScreen() {
           <button
             onClick={() => navigate(-1)}
             className="rounded-full p-2"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.14)",
-            }}
+            style={{ backgroundColor: "rgba(255,255,255,0.14)" }}
           >
             <ChevronLeft size={20} color="white" />
           </button>
 
-          <div className="text-center">
-            <h1
-              className="text-white"
-              style={{ fontSize: "16px", fontWeight: 800 }}
-            >
+          <div className="text-center min-w-0 px-3">
+            <h1 className="text-white" style={{ fontSize: "16px", fontWeight: 800 }}>
               Acompanhando pedido
             </h1>
-            <p style={{ fontSize: "12px", color: "#c7d7ee" }}>
-              #12999
+            <p className="truncate" style={{ fontSize: "12px", color: "#c7d7ee" }}>
+              {formatOrderCode(selectedOrder)}
             </p>
           </div>
 
-          <button
-            className="rounded-full p-2"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.14)",
-            }}
-          >
-            <Phone size={20} color="white" />
-          </button>
+          <div className="rounded-full p-2" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
+            <ReceiptText size={20} color="white" />
+          </div>
         </div>
 
-        {/* ETA card */}
         <div
           className="rounded-2xl p-3 flex items-center gap-3 backdrop-blur-sm"
           style={{ backgroundColor: "rgba(255,255,255,0.12)" }}
         >
-          <div
-            className="rounded-xl p-2"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.95)",
-            }}
-          >
-            <Truck size={20} color="#122a4c" />
+          <div className="rounded-xl p-2" style={{ backgroundColor: "rgba(255,255,255,0.95)" }}>
+            <Package size={20} color="#122a4c" />
           </div>
 
-          <div className="flex-1">
-            <p
-              className="text-white"
-              style={{ fontSize: "13px", fontWeight: 700 }}
-            >
-              Entrega por ordem de pedido
+          <div className="flex-1 min-w-0">
+            <p className="text-white" style={{ fontSize: "13px", fontWeight: 700 }}>
+              {selectedOrder.type === "delivery" ? "Entrega por ordem de pedido" : "Retirada no mercado"}
             </p>
-            <p style={{ fontSize: "12px", color: "#c7d7ee" }}>
-              Avisaremos quando o entregador sair
+            <p className="truncate" style={{ fontSize: "12px", color: "#c7d7ee" }}>
+              Realizado em {formatDateTime(selectedOrder.createdAt)}
             </p>
           </div>
 
-          <div
-            className="rounded-xl px-2 py-1"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.18)",
-            }}
-          >
-            <p
-              className="text-white"
-              style={{ fontSize: "12px", fontWeight: 700 }}
-            >
-              Em separação
+          <div className="rounded-xl px-2 py-1" style={{ backgroundColor: status.bg }}>
+            <p style={{ fontSize: "12px", fontWeight: 700, color: status.color }}>
+              {status.label}
             </p>
           </div>
         </div>
       </div>
 
-      <div
-        className="flex-1 overflow-y-auto px-4 pt-4 pb-4"
-        style={{ background: "#f8fafc" }}
-      >
-        {/* Map placeholder */}
-        <div
-          className="rounded-2xl overflow-hidden mb-4 relative"
-          style={{
-            height: "150px",
-            border: "1px solid #d9e4f2",
-            background:
-              "linear-gradient(135deg, #eef4fb, #dbe8f7)",
-          }}
-        >
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="flex flex-col items-center gap-2">
-              <div className="rounded-full p-3 bg-white shadow-lg">
-                <MapPin size={24} color="#122a4c" />
-              </div>
-              <p
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  color: "#1b3d6d",
-                }}
-              >
-                Rua das Flores, 123
-              </p>
-            </div>
-          </div>
-
-          {/* Delivery marker */}
-          <div className="absolute top-4 right-6">
-            <div className="bg-white rounded-full p-2 shadow-lg">
-              <Truck size={16} color="#122a4c" />
-            </div>
-          </div>
-
-          <div
-            className="absolute bottom-3 right-3 rounded-xl px-3 py-1.5 backdrop-blur-sm"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.88)",
-            }}
-          >
-            <p
-              style={{
-                fontSize: "11px",
-                color: "#334155",
-                fontWeight: 600,
-              }}
-            >
-              📍 Localização em tempo real
-            </p>
-          </div>
-        </div>
-
-        {/* Timeline */}
-        <div
-          className="bg-white rounded-2xl p-4 mb-4 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
-        >
-          <h3
-            style={{
-              fontSize: "14px",
-              fontWeight: 700,
-              color: "#122a4c",
-            }}
-            className="mb-4"
-          >
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-4" style={{ background: "#f8fafc" }}>
+        <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+          <h3 className="mb-4" style={{ fontSize: "14px", fontWeight: 700, color: "#122a4c" }}>
             Progresso do pedido
           </h3>
 
           <div className="flex flex-col">
-            {steps.map((step, i) => {
+            {steps.map((step, index) => {
               const Icon = step.icon;
 
               return (
                 <div key={step.id} className="flex gap-4">
-                  {/* Left - icon & line */}
                   <div className="flex flex-col items-center">
                     <div
                       className="rounded-full flex items-center justify-center flex-shrink-0 transition-all"
                       style={{
                         width: "36px",
                         height: "36px",
-                        backgroundColor: step.done
-                          ? "#122a4c"
-                          : step.active
-                            ? "#eef4fb"
-                            : "#f1f5f9",
-                        border: step.active
-                          ? "2px solid #122a4c"
-                          : "none",
+                        backgroundColor: step.done ? "#122a4c" : step.active ? "#eef4fb" : "#f1f5f9",
+                        border: step.active ? "2px solid #122a4c" : "none",
                       }}
                     >
-                      <Icon
-                        size={16}
-                        color={
-                          step.done
-                            ? "white"
-                            : step.active
-                              ? "#122a4c"
-                              : "#94a3b8"
-                        }
-                      />
+                      <Icon size={16} color={step.done ? "white" : step.active ? "#122a4c" : "#94a3b8"} />
                     </div>
 
-                    {i < steps.length - 1 && (
+                    {index < steps.length - 1 && (
                       <div
                         className="w-0.5 flex-1 my-1"
                         style={{
-                          backgroundColor: step.done
-                            ? "#122a4c"
-                            : "#e2e8f0",
+                          backgroundColor: step.done ? "#122a4c" : "#e2e8f0",
                           minHeight: "24px",
                         }}
                       />
                     )}
                   </div>
 
-                  {/* Right - content */}
                   <div className="pb-4 flex-1">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <p
                         style={{
                           fontSize: "13px",
-                          fontWeight:
-                            step.active || step.done
-                              ? 700
-                              : 500,
-                          color:
-                            step.active || step.done
-                              ? "#334155"
-                              : "#94a3b8",
+                          fontWeight: step.active || step.done ? 700 : 500,
+                          color: step.active || step.done ? "#334155" : "#94a3b8",
                         }}
                       >
                         {step.label}
                       </p>
-                      <p
-                        style={{
-                          fontSize: "11px",
-                          color: step.done
-                            ? "#64748b"
-                            : "#94a3b8",
-                        }}
-                      >
+                      <p style={{ fontSize: "11px", color: step.done || step.active ? "#64748b" : "#94a3b8" }}>
                         {step.time}
                       </p>
                     </div>
@@ -303,11 +335,7 @@ export function OrderTrackingScreen() {
                     <p
                       style={{
                         fontSize: "11px",
-                        color: step.active
-                          ? "#1b3d6d"
-                          : step.done
-                            ? "#64748b"
-                            : "#cbd5e1",
+                        color: step.active ? "#1b3d6d" : step.done ? "#64748b" : "#cbd5e1",
                         lineHeight: 1.4,
                       }}
                     >
@@ -315,26 +343,10 @@ export function OrderTrackingScreen() {
                     </p>
 
                     {step.active && (
-                      <div
-                        className="mt-1.5 flex items-center gap-1.5 rounded-lg px-2 py-1"
-                        style={{ backgroundColor: "#eef4fb" }}
-                      >
-                        <div
-                          className="rounded-full animate-pulse"
-                          style={{
-                            width: "6px",
-                            height: "6px",
-                            backgroundColor: "#122a4c",
-                          }}
-                        />
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            color: "#122a4c",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Em andamento...
+                      <div className="mt-1.5 flex items-center gap-1.5 rounded-lg px-2 py-1" style={{ backgroundColor: "#eef4fb" }}>
+                        <div className="rounded-full animate-pulse" style={{ width: "6px", height: "6px", backgroundColor: "#122a4c" }} />
+                        <span style={{ fontSize: "10px", color: "#122a4c", fontWeight: 600 }}>
+                          Status atual
                         </span>
                       </div>
                     )}
@@ -345,108 +357,109 @@ export function OrderTrackingScreen() {
           </div>
         </div>
 
-        {/* Entregador */}
-        <div
-          className="bg-white rounded-2xl p-4 mb-4 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
-        >
-          <p
-            style={{
-              fontSize: "14px",
-              fontWeight: 700,
-              color: "#334155",
-            }}
-            className="mb-3"
-          >
-            Entregador
+        <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+          <p className="mb-3" style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
+            Dados do pedido
           </p>
 
-          <div className="flex items-center gap-3">
-            <div
-              className="rounded-full flex items-center justify-center flex-shrink-0 text-xl"
-              style={{
-                width: "48px",
-                height: "48px",
-                backgroundColor: "#eef4fb",
-              }}
-            >
-              👨‍💼
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <CalendarClock size={18} color="#122a4c" />
+              <div>
+                <p style={{ fontSize: "12px", color: "#64748b" }}>Criado em</p>
+                <p style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
+                  {formatDateTime(selectedOrder.createdAt)}
+                </p>
+              </div>
             </div>
 
-            <div className="flex-1">
-              <p
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  color: "#334155",
-                }}
-              >
-                Carlos Silva
-              </p>
-              <p style={{ fontSize: "12px", color: "#64748b" }}>
-                ⭐ 4.9 · 1.240 entregas
-              </p>
+            <div className="flex items-center gap-3">
+              <Truck size={18} color="#122a4c" />
+              <div>
+                <p style={{ fontSize: "12px", color: "#64748b" }}>Tipo</p>
+                <p style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
+                  {selectedOrder.type === "delivery" ? "Entrega" : "Retirada"}
+                </p>
+              </div>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                className="rounded-full p-2.5"
-                style={{ backgroundColor: "#eef4fb" }}
-              >
-                <MessageCircle size={18} color="#122a4c" />
-              </button>
-              <button
-                className="rounded-full p-2.5"
-                style={{ backgroundColor: "#eef4fb" }}
-              >
-                <Phone size={18} color="#122a4c" />
-              </button>
-            </div>
+            {selectedOrder.backendStatus && (
+              <div className="flex items-center gap-3">
+                <ReceiptText size={18} color="#122a4c" />
+                <div>
+                  <p style={{ fontSize: "12px", color: "#64748b" }}>Status da API</p>
+                  <p style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
+                    {selectedOrder.backendStatus}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Order summary */}
-        <div
-          className="bg-white rounded-2xl p-4 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
-        >
+        <div className="bg-white rounded-2xl p-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
           <div className="flex justify-between items-center">
-            <p
-              style={{
-                fontSize: "14px",
-                fontWeight: 700,
-                color: "#334155",
-              }}
-            >
+            <p style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
               Resumo do pedido
             </p>
             <button
               onClick={() => navigate(tenantPath("orders"))}
-              style={{
-                fontSize: "12px",
-                color: "#122a4c",
-                fontWeight: 600,
-              }}
+              style={{ fontSize: "12px", color: "#122a4c", fontWeight: 600 }}
             >
               Ver detalhes
             </button>
           </div>
 
-          <div className="mt-2 flex justify-between">
-            <span
-              style={{ fontSize: "13px", color: "#64748b" }}
-            >
-              Total
-            </span>
-            <span
-              style={{
-                fontSize: "14px",
-                fontWeight: 700,
-                color: "#122a4c",
-              }}
-            >
-              R$ 64,83
-            </span>
+          <div className="mt-3 flex flex-col gap-2">
+            <div className="flex justify-between">
+              <span style={{ fontSize: "13px", color: "#64748b" }}>Subtotal</span>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
+                {formatCurrency(selectedOrder.subtotal)}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span style={{ fontSize: "13px", color: "#64748b" }}>Entrega</span>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
+                {hasDeliveryFee ? formatCurrency(selectedOrder.deliveryFee) : "Grátis"}
+              </span>
+            </div>
+
+            {hasDiscount && (
+              <div className="flex justify-between">
+                <span style={{ fontSize: "13px", color: "#64748b" }}>Desconto</span>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#15803d" }}>
+                  -{formatCurrency(selectedOrder.discount)}
+                </span>
+              </div>
+            )}
+
+            {selectedOrder.cpfNaNota && (
+              <div className="flex justify-between">
+                <span style={{ fontSize: "13px", color: "#64748b" }}>CPF na nota</span>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
+                  {selectedOrder.cpfNaNotaCpf || "Solicitado"}
+                </span>
+              </div>
+            )}
+
+            <div className="h-px my-1" style={{ backgroundColor: "#e2e8f0" }} />
+
+            <div className="flex justify-between items-center">
+              <span style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
+                Total
+              </span>
+              <span style={{ fontSize: "16px", fontWeight: 800, color: "#122a4c" }}>
+                {formatCurrency(selectedOrder.total)}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "#eef4fb" }}>
+            <CreditCard size={15} color="#122a4c" />
+            <p style={{ fontSize: "11px", color: "#1b3d6d", fontWeight: 600 }}>
+              Valores exibidos conforme retorno atual da API de pedidos.
+            </p>
           </div>
         </div>
       </div>

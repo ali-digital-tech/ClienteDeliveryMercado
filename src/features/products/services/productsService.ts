@@ -103,23 +103,30 @@ export async function getProductsByMarketId(
 
   const data = response?.data;
   const total = Array.isArray(data) ? data.length : Number(data?.total ?? 0);
-  const responsePage = Array.isArray(data) ? page : Number(data?.page ?? page);
-  const responsePerPage = Array.isArray(data) ? requestedLimit : Number(data?.per_page ?? requestedLimit);
-  const totalPages = Array.isArray(data) ? 1 : Number(data?.total_pages ?? 0);
+  const responsePage = filters.useOffsetPagination
+    ? page
+    : Array.isArray(data) ? page : Number(data?.page ?? page);
+  const responsePerPage = filters.useOffsetPagination
+    ? perPage
+    : Array.isArray(data) ? requestedLimit : Number(data?.per_page ?? requestedLimit);
+  const totalPages = filters.useOffsetPagination
+    ? 0
+    : Array.isArray(data) ? 1 : Number(data?.total_pages ?? 0);
   const rawProducts = unwrapList<ApiStoreProduct>(response)
     .filter(product => product.ativo_na_loja !== false && product.produto_ativo !== false)
     .map(mapStoreProduct);
   const products = filters.useOffsetPagination ? rawProducts.slice(0, perPage) : rawProducts;
   const hasLookaheadProduct = filters.useOffsetPagination && rawProducts.length > perPage;
-  const hasNextByTotal = filters.useOffsetPagination && total > 0 && offset + perPage < total;
 
   return {
     products,
     total,
     page: responsePage,
-    perPage: filters.useOffsetPagination ? perPage : responsePerPage,
+    perPage: responsePerPage,
     totalPages,
-    hasNextPage: hasLookaheadProduct || hasNextByTotal || responsePage < totalPages,
+    hasNextPage: filters.useOffsetPagination
+      ? hasLookaheadProduct
+      : responsePage < totalPages,
   };
 }
 

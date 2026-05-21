@@ -142,8 +142,9 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     const user = authService.persistSession(session);
     sessionExpiredHandledRef.current = false;
     setCurrentUser(user);
+    void refreshOrders();
     return user;
-  }, [storeId]);
+  }, [refreshOrders, storeId]);
 
   const logout = useCallback(() => {
     authService.clearSession();

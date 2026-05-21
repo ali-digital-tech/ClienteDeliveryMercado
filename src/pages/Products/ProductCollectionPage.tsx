@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { UIEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, PackageSearch, ShoppingCart } from "lucide-react";
@@ -69,6 +69,7 @@ export function ProductCollectionPage() {
     error,
     hasNextPage,
     loadMore,
+    page,
   } = useProducts(marketId, {
     allowGlobal: true,
     perPage: COLLECTION_PAGE_SIZE,
@@ -83,27 +84,54 @@ export function ProductCollectionPage() {
       .filter(config.filter)
       .sort(config.sort ?? (() => 0));
   }, [config, products]);
+  const [canLoadMoreVisibleProducts, setCanLoadMoreVisibleProducts] = useState(true);
+  const pendingLoadRef = useRef<{ page: number; visibleCount: number } | null>(null);
+  const triggeredPageRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setCanLoadMoreVisibleProducts(true);
+    pendingLoadRef.current = null;
+    triggeredPageRef.current = null;
+  }, [collection, marketId]);
+
+  useEffect(() => {
+    if (isLoadingMore || !pendingLoadRef.current) return;
+
+    const pendingLoad = pendingLoadRef.current;
+    if (page <= pendingLoad.page) return;
+
+    if (visibleProducts.length <= pendingLoad.visibleCount) {
+      setCanLoadMoreVisibleProducts(false);
+    }
+
+    pendingLoadRef.current = null;
+  }, [isLoadingMore, page, visibleProducts.length]);
 
   const handleContentScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
     const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
 
-    if (distanceToBottom < 360 && hasNextPage && !isLoading && !isLoadingMore) {
-      void loadMore();
-    }
-  }, [hasNextPage, isLoading, isLoadingMore, loadMore]);
-
-  useEffect(() => {
     if (
-      config &&
-      visibleProducts.length < COLLECTION_PAGE_SIZE &&
+      distanceToBottom < 240 &&
+      canLoadMoreVisibleProducts &&
       hasNextPage &&
       !isLoading &&
-      !isLoadingMore
+      !isLoadingMore &&
+      triggeredPageRef.current !== page
     ) {
+      triggeredPageRef.current = page;
+      pendingLoadRef.current = { page, visibleCount: visibleProducts.length };
       void loadMore();
     }
-  }, [config, hasNextPage, isLoading, isLoadingMore, loadMore, visibleProducts.length]);
+  }, [
+    canLoadMoreVisibleProducts,
+    hasNextPage,
+    isLoading,
+    isLoadingMore,
+    loadMore,
+    page,
+    visibleProducts.length,
+  ]);
 
   if (!config) {
     return (

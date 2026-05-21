@@ -3,16 +3,35 @@ import { useNavigate } from "react-router";
 import { CheckCircle2, Home, Eye } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 
+const statusLabels = {
+  pendente: "Pendente",
+  recebido: "Recebido",
+  confirmado: "Confirmado",
+  separacao: "Em separação",
+  saiu: "Saiu para entrega",
+  entregue: "Entregue",
+  cancelado: "Cancelado",
+};
+
 export function OrderConfirmedScreen() {
   const navigate = useNavigate();
-  const { cartTotal, discount, tenantPath } = useApp();
+  const { cartTotal, discount, orders, tenantPath } = useApp();
   const [orderId, setOrderId] = useState("");
+  const [rawOrderId, setRawOrderId] = useState("");
   const [show, setShow] = useState(false);
   const [savedTotal, setSavedTotal] = useState(0);
+  const normalizedOrderId = (rawOrderId || orderId).replace(/^#/, "");
+  const apiOrder = orders.find((order) => (
+    [order.rawId, order.id, order.number]
+      .filter(Boolean)
+      .some((value) => value!.replace(/^#/, "") === normalizedOrderId)
+  ));
+  const displayedTotal = apiOrder?.total ?? savedTotal;
+  const displayedStatus = apiOrder ? statusLabels[apiOrder.status] : "Recebido";
 
   useEffect(() => {
     const total = cartTotal - discount;
-    let order: { id?: string; total?: number | string } | null = null;
+    let order: { id?: string; rawId?: string; total?: number | string } | null = null;
 
     try {
       const stored = sessionStorage.getItem('cliente_delivery_last_order');
@@ -23,6 +42,7 @@ export function OrderConfirmedScreen() {
 
     setSavedTotal(Number(order?.total || total || 0));
     setOrderId(order?.id || "");
+    setRawOrderId(order?.rawId || order?.id || "");
     setTimeout(() => setShow(true), 100);
   }, [cartTotal, discount]);
 
@@ -147,7 +167,7 @@ export function OrderConfirmedScreen() {
               <span
                 style={{ fontSize: "13px", color: "#64748b" }}
               >
-                Endereço
+                Status
               </span>
               <span
                 style={{
@@ -158,9 +178,7 @@ export function OrderConfirmedScreen() {
                   maxWidth: "150px",
                 }}
               >
-                Rua das Flores, 123
-                <br />
-                Jardim Paulista
+                {displayedStatus}
               </span>
             </div>
 
@@ -186,7 +204,7 @@ export function OrderConfirmedScreen() {
                   color: "#122a4c",
                 }}
               >
-                R$ {savedTotal.toFixed(2).replace('.', ',')}
+                R$ {displayedTotal.toFixed(2).replace('.', ',')}
               </span>
             </div>
           </div>
@@ -291,7 +309,9 @@ export function OrderConfirmedScreen() {
         }}
       >
         <button
-          onClick={() => navigate(tenantPath("order-tracking"))}
+          onClick={() => navigate(tenantPath("order-tracking"), {
+            state: { orderId: rawOrderId || orderId },
+          })}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           style={{ backgroundColor: "#122a4c" }}
         >
