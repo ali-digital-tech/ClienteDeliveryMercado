@@ -112,22 +112,22 @@ export function MarketPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div
-        className="flex-shrink-0 px-4 pt-12 md:pt-5 pb-3"
+        className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-2"
         style={{
           background:
             "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
         }}
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <div>
-            <p className="text-white" style={{ fontSize: "16px", fontWeight: 800 }}>
+            <p className="text-white" style={{ fontSize: "15px", fontWeight: 800 }}>
               {currentMarket.name}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              className="relative rounded-full p-2"
+              className="relative rounded-full p-1.5"
               style={{
                 backgroundColor: "rgba(255,255,255,0.14)",
               }}
@@ -145,7 +145,7 @@ export function MarketPage() {
             </button>
 
             <button
-              className="relative rounded-full p-2"
+              className="relative rounded-full p-1.5"
               style={{
                 backgroundColor: "rgba(255,255,255,0.14)",
               }}

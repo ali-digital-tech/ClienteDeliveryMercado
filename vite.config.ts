@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 
 
 function figmaAssetResolver() {
@@ -23,6 +24,46 @@ export default defineConfig({
     // Tailwind is not being actively used – do not remove them
     react(),
     tailwindcss(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'],
+      manifest: {
+        name: 'Cliente Delivery Mercado',
+        short_name: 'Delivery Mercado',
+        description: 'App de compras e entrega de mercado.',
+        theme_color: '#16a34a',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'portrait',
+        start_url: '/',
+        scope: '/',
+        lang: 'pt-BR',
+        icons: [
+          {
+            src: '/icons/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      workbox: {
+        navigateFallback: '/',
+        cleanupOutdatedCaches: true,
+      },
+    }),
   ],
   resolve: {
     alias: {

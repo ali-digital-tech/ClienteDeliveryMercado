@@ -117,7 +117,7 @@ export function CartPage() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 bg-white px-4 pt-12 md:pt-5 pb-4 border-b border-gray-100">
+      <div className="flex-shrink-0 bg-white px-4 pt-8 md:pt-4 pb-3 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="bg-gray-100 rounded-full p-2">
             <ChevronLeft size={20} color="#374151" />

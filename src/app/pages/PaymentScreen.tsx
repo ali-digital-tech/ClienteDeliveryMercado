@@ -250,7 +250,7 @@ export function PaymentScreen() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div
-        className="flex-shrink-0 bg-white px-4 pt-12 md:pt-5 pb-4 border-b"
+        className="flex-shrink-0 bg-white px-4 pt-8 md:pt-4 pb-3 border-b"
         style={{ borderColor: "#d9e4f2" }}
       >
         <div className="flex items-center gap-3">

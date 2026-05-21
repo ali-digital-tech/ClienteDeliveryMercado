@@ -42,10 +42,10 @@ export function ProfileScreen() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div
-        className="flex-shrink-0 px-4 pt-12 md:pt-5 pb-6"
+        className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-4"
         style={{ background: "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)" }}
       >
-        <h1 className="mb-4 text-white" style={{ fontSize: "20px", fontWeight: 800 }}>
+        <h1 className="mb-3 text-white" style={{ fontSize: "18px", fontWeight: 800 }}>
           Meu Perfil
         </h1>
 
@@ -53,17 +53,17 @@ export function ProfileScreen() {
           <div
             className="rounded-full flex items-center justify-center"
             style={{
-              width: "64px",
-              height: "64px",
+              width: "52px",
+              height: "52px",
               backgroundColor: "rgba(255,255,255,0.16)",
-              fontSize: "28px",
+              fontSize: "24px",
             }}
           >
             👤
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-white truncate" style={{ fontSize: "18px", fontWeight: 800 }}>
+            <p className="text-white truncate" style={{ fontSize: "16px", fontWeight: 800 }}>
               {currentUser?.nome || (isLoggedIn ? "Cliente" : "Visitante")}
             </p>
 
@@ -87,17 +87,17 @@ export function ProfileScreen() {
           </button>
         </div>
 
-        <div className="mt-4 flex gap-3">
+        <div className="mt-3 flex gap-2">
           {[
             { label: "Pedidos", value: orders.length },
             { label: "Favoritos", value: favorites.length },
           ].map((stat) => (
             <div
               key={stat.label}
-              className="flex-1 rounded-2xl py-2 px-3 text-center backdrop-blur-sm"
+              className="flex-1 rounded-xl py-1.5 px-3 text-center backdrop-blur-sm"
               style={{ backgroundColor: "rgba(255,255,255,0.14)" }}
             >
-              <p className="text-white" style={{ fontSize: "18px", fontWeight: 800 }}>
+              <p className="text-white" style={{ fontSize: "16px", fontWeight: 800 }}>
                 {stat.value}
               </p>
               <p style={{ fontSize: "10px", color: "#c7d7ee" }}>{stat.label}</p>

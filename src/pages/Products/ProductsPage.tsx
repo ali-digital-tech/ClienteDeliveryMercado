@@ -421,7 +421,7 @@ export function ProductsPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div
-        className="flex-shrink-0 bg-white px-4 pt-10 md:pt-4 pb-2 border-b"
+        className="flex-shrink-0 bg-white px-4 pt-8 md:pt-4 pb-2 border-b"
         style={{ borderColor: "#d9e4f2" }}
       >
         <div className="mb-2 flex items-center gap-1.5">

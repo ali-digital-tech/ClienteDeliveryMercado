@@ -81,7 +81,7 @@ export function LoginScreen() {
     >
       {/* Header */}
       <div
-        className="flex-shrink-0 px-4 pt-12 md:pt-5 pb-6"
+        className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-4"
         style={{
           background:
             "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
@@ -89,10 +89,10 @@ export function LoginScreen() {
       >
         <div className="flex items-center gap-3">
           <div
-            className="flex items-center justify-center overflow-hidden rounded-2xl"
+            className="flex items-center justify-center overflow-hidden rounded-xl"
             style={{
-              width: "96px",
-              height: "76px",
+              width: "72px",
+              height: "56px",
               backgroundColor: "rgba(255,255,255,0.14)",
             }}
           >
@@ -104,7 +104,7 @@ export function LoginScreen() {
                 onError={() => setLogoFailed(true)}
               />
             ) : (
-              <span style={{ fontSize: "34px" }}>🛒</span>
+              <span style={{ fontSize: "28px" }}>🛒</span>
             )}
           </div>
 
@@ -112,7 +112,7 @@ export function LoginScreen() {
             <p
               className="truncate text-white"
               style={{
-                fontSize: "18px",
+                fontSize: "16px",
                 fontWeight: 800,
               }}
             >

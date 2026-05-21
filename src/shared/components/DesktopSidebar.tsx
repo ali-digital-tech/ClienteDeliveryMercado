@@ -36,12 +36,12 @@ export function DesktopSidebar() {
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-3 px-5 py-5 border-b border-gray-100"
+        className="flex items-center gap-3 px-4 py-3 border-b border-gray-100"
         style={{ background: 'linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)' }}
       >
         <div
           className="rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
-          style={{ width: '38px', height: '38px', background: 'rgba(255,255,255,0.15)' }}
+          style={{ width: '34px', height: '34px', background: 'rgba(255,255,255,0.15)' }}
         >
           {showLogo ? (
             <img
@@ -55,7 +55,7 @@ export function DesktopSidebar() {
           )}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-white" style={{ fontSize: '16px', fontWeight: 800, lineHeight: 1.1 }}>{currentMarket.name}</p>
+          <p className="truncate text-white" style={{ fontSize: '14px', fontWeight: 800, lineHeight: 1.1 }}>{currentMarket.name}</p>
           <p style={{ fontSize: '10px', color: '#c7d7ee', fontWeight: 500 }}>Supermercado Digital</p>
         </div>
       </div>
