@@ -13,16 +13,19 @@ function normalizeStoreId(storeId: string | undefined) {
 
 function getPasswordResetRedirectBaseUrl() {
   const configuredBaseUrl = import.meta.env.VITE_APP_BASE_URL?.trim();
+  const runtimeOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+  const isLocalUrl = (url: string | undefined) => /localhost|127\.0\.0\.1/i.test(url ?? '');
 
-  if (configuredBaseUrl) {
+  if (runtimeOrigin && !isLocalUrl(runtimeOrigin)) {
+    return runtimeOrigin;
+  }
+
+  if (configuredBaseUrl && !isLocalUrl(configuredBaseUrl)) {
     return configuredBaseUrl.replace(/\/$/, '');
   }
 
-  if (typeof window !== 'undefined') {
-    const { origin } = window.location;
-    if (!/localhost|127\.0\.0\.1/i.test(origin)) {
-      return origin;
-    }
+  if (runtimeOrigin) {
+    return runtimeOrigin;
   }
 
   return undefined;
