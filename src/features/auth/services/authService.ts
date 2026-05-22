@@ -10,6 +10,38 @@ function normalizeStoreId(storeId: string | undefined) {
   return storeId;
 }
 
+
+function normalizeBaseUrl(url: string) {
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  try {
+    const parsed = new URL(candidate);
+    return parsed.origin;
+  } catch {
+    return undefined;
+  }
+}
+
+function getPasswordResetRedirectBaseUrl() {
+  const configuredBaseUrl = normalizeBaseUrl(import.meta.env.VITE_APP_BASE_URL ?? '');
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  if (typeof window !== 'undefined') {
+    const runtimeOrigin = normalizeBaseUrl(window.location.origin);
+    if (runtimeOrigin && !/localhost|127\.0\.0\.1/i.test(runtimeOrigin)) {
+      return runtimeOrigin;
+    }
+  }
+
+  return undefined;
+}
+
 function requireStoreId(storeId: string | undefined) {
   const lojaId = normalizeStoreId(storeId);
   if (!lojaId) {
@@ -55,7 +87,10 @@ export const authService = {
         email,
         userType: 'cliente',
         loja_id: lojaId,
-        redirectUrl: `${window.location.origin}/mercado/${lojaId}/reset-password`,
+        redirectUrl: (() => {
+          const baseUrl = getPasswordResetRedirectBaseUrl();
+          return baseUrl ? `${baseUrl}/mercado/${lojaId}/reset-password` : undefined;
+        })(),
       } as any,
     });
   },
