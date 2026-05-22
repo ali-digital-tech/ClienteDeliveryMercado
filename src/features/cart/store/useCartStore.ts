@@ -150,19 +150,23 @@ function reconcileCart(cart: CartItem[], products: Product[]) {
 function clearCouponState(
   marketId: string,
   setCouponByMarket: Dispatch<SetStateAction<Record<string, string>>>,
-  setDiscountByMarket: Dispatch<SetStateAction<Record<string, number>>>
+  setDiscountByMarket: Dispatch<SetStateAction<Record<string, number>>>,
+  setCouponIdByMarket: Dispatch<SetStateAction<Record<string, string>>>
 ) {
   setCouponByMarket(prev => ({ ...prev, [marketId]: '' }));
   setDiscountByMarket(prev => ({ ...prev, [marketId]: 0 }));
+  setCouponIdByMarket(prev => ({ ...prev, [marketId]: '' }));
 }
 
 export function useCartStore(marketId: string, products: Product[] = []) {
   const [cartsByMarket, setCartsByMarket] = useState<Record<string, CartItem[]>>(() => readCartsFromStorage());
   const [couponByMarket, setCouponByMarket] = useState<Record<string, string>>({});
   const [discountByMarket, setDiscountByMarket] = useState<Record<string, number>>({});
+  const [couponIdByMarket, setCouponIdByMarket] = useState<Record<string, string>>({});
 
   const cart = cartsByMarket[marketId] || [];
   const coupon = couponByMarket[marketId] || '';
+  const couponId = couponIdByMarket[marketId] || '';
   const discount = discountByMarket[marketId] || 0;
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.qty, 0);
@@ -194,7 +198,7 @@ export function useCartStore(marketId: string, products: Product[] = []) {
       ...prevByMarket,
       [marketId]: items,
     }));
-    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket);
+    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket, setCouponIdByMarket);
   }, [marketId, updateCartsByMarket]);
 
   const addToCart = useCallback((product: Product, quantity?: number) => {
@@ -218,7 +222,7 @@ export function useCartStore(marketId: string, products: Product[] = []) {
 
       return { ...prevByMarket, [marketId]: [...currentCart, { product, qty: quantityToAdd }] };
     });
-    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket);
+    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket, setCouponIdByMarket);
   }, [marketId, updateCartsByMarket]);
 
   const removeFromCart = useCallback((productId: string) => {
@@ -226,7 +230,7 @@ export function useCartStore(marketId: string, products: Product[] = []) {
       ...prevByMarket,
       [marketId]: (prevByMarket[marketId] || []).filter(item => item.product.id !== productId),
     }));
-    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket);
+    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket, setCouponIdByMarket);
   }, [marketId, updateCartsByMarket]);
 
   const updateQty = useCallback((productId: string, qty: number) => {
@@ -241,13 +245,14 @@ export function useCartStore(marketId: string, products: Product[] = []) {
           : currentCart.map(item => item.product.id === productId ? { ...item, qty: nextQuantity } : item),
       };
     });
-    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket);
+    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket, setCouponIdByMarket);
   }, [marketId, updateCartsByMarket]);
 
   const clearCart = useCallback(() => {
     updateCartsByMarket(prev => ({ ...prev, [marketId]: [] }));
     setCouponByMarket(prev => ({ ...prev, [marketId]: '' }));
     setDiscountByMarket(prev => ({ ...prev, [marketId]: 0 }));
+    setCouponIdByMarket(prev => ({ ...prev, [marketId]: '' }));
   }, [marketId, updateCartsByMarket]);
 
   const applyCoupon = useCallback(async (code: string) => {
@@ -255,6 +260,7 @@ export function useCartStore(marketId: string, products: Product[] = []) {
 
     setCouponByMarket(prev => ({ ...prev, [marketId]: appliedCoupon.code }));
     setDiscountByMarket(prev => ({ ...prev, [marketId]: appliedCoupon.discount }));
+    setCouponIdByMarket(prev => ({ ...prev, [marketId]: appliedCoupon.id || '' }));
 
     return appliedCoupon;
   }, [cart, cartTotal, marketId]);
@@ -262,6 +268,7 @@ export function useCartStore(marketId: string, products: Product[] = []) {
   return {
     cart,
     coupon,
+    couponId,
     discount,
     cartCount,
     cartTotal,

@@ -1,7 +1,49 @@
-const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: string }> = [
+type FriendlyMessage = string | ((match: RegExpMatchArray) => string);
+
+const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> = [
   {
     test: /invalid or expired token|jwt expired|token expired|invalid token|unauthorized/i,
     message: "Sua sessão expirou. Entre novamente para continuar.",
+  },
+  {
+    test: /coupon usage limit reached for this customer/i,
+    message: "Você já usou este cupom no limite permitido.",
+  },
+  {
+    test: /coupon total usage limit reached/i,
+    message: "Este cupom já atingiu o limite de usos.",
+  },
+  {
+    test: /order already has a coupon usage registered/i,
+    message: "Este pedido já tem um cupom registrado.",
+  },
+  {
+    test: /coupon is inactive|coupon is not currently valid/i,
+    message: "Este cupom não está ativo no momento.",
+  },
+  {
+    test: /coupon is not active yet/i,
+    message: "Este cupom ainda não está disponível.",
+  },
+  {
+    test: /coupon has expired/i,
+    message: "Este cupom expirou.",
+  },
+  {
+    test: /minimum order value for this coupon is ([0-9]+(?:\.[0-9]+)?)/i,
+    message: (match) => `Este cupom exige pedido mínimo de R$ ${Number(match[1]).toFixed(2).replace(".", ",")}.`,
+  },
+  {
+    test: /order subtotal does not meet the coupon minimum amount/i,
+    message: "O valor do pedido não atingiu o mínimo exigido para este cupom.",
+  },
+  {
+    test: /coupon not found/i,
+    message: "Cupom não encontrado.",
+  },
+  {
+    test: /coupon must belong to the same store as the order/i,
+    message: "Este cupom não pertence a este mercado.",
   },
   {
     test: /failed to fetch|networkerror|network request failed|load failed/i,
@@ -52,9 +94,12 @@ export function getFriendlyMessage(
   fallback = "Não foi possível concluir a operação. Tente novamente.",
 ) {
   const rawMessage = extractMessage(value).trim();
-  const mapped = TECHNICAL_MESSAGE_MAP.find(({ test }) => test.test(rawMessage));
 
-  if (mapped) return mapped.message;
+  for (const { test, message } of TECHNICAL_MESSAGE_MAP) {
+    const match = rawMessage.match(test);
+    if (match) return typeof message === "function" ? message(match) : message;
+  }
+
   if (!rawMessage) return fallback;
 
   return rawMessage

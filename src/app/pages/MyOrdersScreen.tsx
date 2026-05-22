@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useApp } from "@/app/providers/AppProvider";
 import { BottomNav } from "@/shared/components/BottomNav";
+import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
 import { formatCartQuantity } from "@/features/cart";
 import { ProductImage } from "@/features/products";
 import { loadOrderItems, type Order } from "@/features/orders";
@@ -91,11 +92,24 @@ export function MyOrdersScreen() {
     setRepeatingOrderId(orderId);
 
     try {
-      const items = order.items.length > 0 ? order.items : await loadOrderItems(order);
-      if (items.length === 0) return;
+      const items = await loadOrderItems(order, { forceRefresh: true });
+      if (items.length === 0) {
+        showSystemNotice(
+          "Nenhum produto deste pedido está disponível com preço nesta loja.",
+          "Não foi possível repetir"
+        );
+        return;
+      }
 
       for (const { product, qty } of items) {
         await addToCart(product, qty);
+      }
+
+      const repeatedQuantity = items.reduce((sum, item) => sum + item.qty, 0);
+      if (order.itemCount && repeatedQuantity < order.itemCount) {
+        showSystemNotice(
+          "Alguns produtos do pedido não foram adicionados porque não estão disponíveis com preço nesta loja."
+        );
       }
 
       navigate(tenantPath("carrinho"));
@@ -104,6 +118,27 @@ export function MyOrdersScreen() {
     } finally {
       setRepeatingOrderId(null);
     }
+  };
+
+  const handleOpenOrderDetails = (order: Order) => {
+    const orderId = order.rawId || order.id;
+
+    try {
+      sessionStorage.setItem(
+        "cliente_delivery_last_order",
+        JSON.stringify({
+          id: order.id,
+          rawId: order.rawId || order.id,
+          total: order.total,
+        })
+      );
+    } catch {
+      // Navigation state still carries the selected order for the current session.
+    }
+
+    navigate(tenantPath("order-tracking"), {
+      state: { orderId },
+    });
   };
 
   return (
@@ -194,7 +229,7 @@ export function MyOrdersScreen() {
               const isActive = !["entregue", "cancelado"].includes(order.status);
               const itemCount = order.itemCount ?? order.items.reduce((sum, item) => sum + item.qty, 0);
               const hasItems = order.items.length > 0;
-              const canRepeat = itemCount > 0 || hasItems;
+              const canRepeat = Boolean(order.cartId) || itemCount > 0 || hasItems;
               const isRepeating = repeatingOrderId === (order.rawId || order.id);
               const hasDiscount = Boolean(order.discount && order.discount > 0);
               const hasDeliveryFee = Boolean(order.deliveryFee && order.deliveryFee > 0);
@@ -392,13 +427,7 @@ export function MyOrdersScreen() {
                       </button>
 
                       <button
-                        onClick={() =>
-                          isActive
-                            ? navigate(tenantPath("order-tracking"), {
-                                state: { orderId: order.rawId || order.id },
-                              })
-                            : undefined
-                        }
+                        onClick={() => handleOpenOrderDetails(order)}
                         className="flex items-center gap-1 rounded-xl px-3 py-2"
                         style={{ backgroundColor: "#f1f5f9" }}
                       >

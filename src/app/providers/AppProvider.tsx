@@ -28,6 +28,7 @@ interface AppState {
   isLoggedIn: boolean;
   currentUser: AuthUser | null;
   coupon: string;
+  couponId: string;
   discount: number;
   currentScreen: string;
   addToCart: (product: Product, quantity?: number) => Promise<void>;
@@ -83,6 +84,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   const {
     cart,
     coupon,
+    couponId,
     discount,
     cartCount,
     cartTotal,
@@ -223,7 +225,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   return (
     <AppContext.Provider value={{
       marketId, currentMarket, markets, products, categories,
-      cart, favorites, orders, isLoggedIn, currentUser, coupon, discount,
+      cart, favorites, orders, isLoggedIn, currentUser, coupon, couponId, discount,
       currentScreen: '',
       addToCart, removeFromCart, updateQty, clearCart,
       toggleFavorite, isFavorite, applyCoupon, placeOrder,

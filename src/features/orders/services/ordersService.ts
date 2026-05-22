@@ -58,6 +58,7 @@ export interface CreateCheckoutOrderInput {
   addressId: string;
   type: 'delivery' | 'pickup';
   deliveryFee: number;
+  couponId?: string | null;
   discount?: number;
   notes?: string;
   cpfNaNota?: boolean;
@@ -155,9 +156,8 @@ function unwrapCartItems(payload: any): ApiCartItem[] {
 
 async function fetchCartItemsPayload(cartId: string) {
   const attempts = [
-    () => apiRequest(`/itens_carrinho/carrinho/${cartId}`),
-    () => apiRequest('/itens_carrinho', { params: { carrinho_id: cartId } }),
     () => apiRequest(`/carrinhos/${cartId}/itens`),
+    () => apiRequest('/itens_carrinho', { params: { carrinho_id: cartId, per_page: 100 } }),
   ];
 
   for (const attempt of attempts) {
@@ -178,6 +178,7 @@ async function fetchCartItemsPayload(cartId: string) {
 function resolveProductFromCartItem(item: ApiCartItem, marketId: string): Product | null {
   const sourceProduct = item.produto_loja || item.produto;
   if (!sourceProduct || typeof sourceProduct !== 'object') return null;
+  if (sourceProduct.loja_id && sourceProduct.loja_id !== marketId) return null;
 
   return mapStoreProduct({
     ...sourceProduct,
@@ -186,18 +187,22 @@ function resolveProductFromCartItem(item: ApiCartItem, marketId: string): Produc
   });
 }
 
+function isSellableStoreProduct(product: Product | null, marketId: string) {
+  return Boolean(product && product.marketId === marketId && product.price > 0);
+}
+
 async function mapCartItemToOrderItem(item: ApiCartItem, marketId: string): Promise<Order['items'][number] | null> {
   const qty = toNumber(item.quantidade);
   if (qty <= 0) return null;
 
   const embeddedProduct = resolveProductFromCartItem(item, marketId);
-  if (embeddedProduct) return { product: embeddedProduct, qty };
+  if (isSellableStoreProduct(embeddedProduct, marketId)) return { product: embeddedProduct as Product, qty };
 
   if (!item.produto_id) return null;
 
   try {
     const product = await getProductById(marketId, item.produto_id);
-    return product ? { product, qty } : null;
+    return isSellableStoreProduct(product, marketId) ? { product: product as Product, qty } : null;
   } catch {
     return null;
   }
@@ -214,13 +219,13 @@ async function getOrderItemsFromCart(order: Order): Promise<Order['items']> {
   return mappedItems.filter((item): item is Order['items'][number] => Boolean(item));
 }
 
-export async function loadOrderItems(order: Order): Promise<Order['items']> {
-  if (order.items.length > 0) return order.items;
+export async function loadOrderItems(order: Order, options: { forceRefresh?: boolean } = {}): Promise<Order['items']> {
+  if (!options.forceRefresh && order.items.length > 0) return order.items;
 
   const cache = getOrderItemsCache();
   const cachedItems = getCachedOrderItems(order, cache);
 
-  if (cachedItems) return cachedItems;
+  if (!options.forceRefresh && cachedItems) return cachedItems;
 
   const items = await getOrderItemsFromCart(order);
   saveCachedOrderItems(order, items, cache);
@@ -280,6 +285,7 @@ export async function createCheckoutOrder(input: CreateCheckoutOrderInput) {
       carrinho_id: input.cartId,
       tipo_pedido: input.type === 'pickup' ? 'retirada' : 'entrega',
       taxa_entrega: input.deliveryFee,
+      cupom_id: input.couponId || null,
       desconto: input.discount || 0,
       origem_checkout: 'app',
       observacoes: input.notes || null,

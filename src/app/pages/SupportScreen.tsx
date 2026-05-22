@@ -11,6 +11,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useState } from "react";
+import { normalizeSearchText } from "@/shared/utils/searchText";
 
 const faqs = [
   {
@@ -58,11 +59,12 @@ export function SupportScreen() {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const normalizedSearchQuery = normalizeSearchText(searchQuery);
 
   const filteredFaqs = faqs.filter(
     (f) =>
-      f.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      f.a.toLowerCase().includes(searchQuery.toLowerCase())
+      normalizeSearchText(f.q).includes(normalizedSearchQuery) ||
+      normalizeSearchText(f.a).includes(normalizedSearchQuery)
   );
 
   return (

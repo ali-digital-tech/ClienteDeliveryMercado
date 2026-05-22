@@ -97,6 +97,7 @@ export function CheckoutPage() {
     cartTotal,
     currentMarket,
     currentUser,
+    couponId,
     discount,
     marketId,
     tenantPath,
@@ -370,6 +371,7 @@ export function CheckoutPage() {
         addressId: selectedAddress.id,
         type: 'delivery',
         deliveryFee,
+        couponId,
         discount,
         ...cpfInvoicePayload,
       });

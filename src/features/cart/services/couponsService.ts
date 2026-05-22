@@ -2,6 +2,7 @@ import { apiRequest } from '@/shared/lib/api';
 import type { CartItem } from '../types/cart';
 
 export interface AppliedCoupon {
+  id: string | null;
   code: string;
   discount: number;
   message?: string;
@@ -86,10 +87,13 @@ function normalizeCouponResponse(code: string, subtotal: number, payload: ApiCou
     throw new Error(message);
   }
 
+  const data = payload?.data ?? payload;
+  const coupon = data?.cupom ?? data?.coupon ?? data;
   const discount = normalizeDiscount(payload, subtotal);
   const message = payload?.data?.message || payload?.message;
 
   return {
+    id: typeof coupon?.id === 'string' ? coupon.id : null,
     code,
     discount,
     message,

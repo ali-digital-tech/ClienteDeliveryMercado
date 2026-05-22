@@ -14,7 +14,9 @@ import {
   Truck,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
-import type { Order } from "@/features/orders";
+import { loadOrderItems, type Order } from "@/features/orders";
+import { formatCartQuantity } from "@/features/cart";
+import { ProductImage } from "@/features/products";
 
 const statusConfig: Record<Order["status"], { label: string; color: string; bg: string }> = {
   pendente: { label: "Pendente", color: "#92400e", bg: "#fffbeb" },
@@ -152,6 +154,8 @@ export function OrderTrackingScreen() {
   const location = useLocation();
   const { orders, isLoggedIn, refreshOrders, tenantPath } = useApp();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [orderItems, setOrderItems] = useState<Order["items"]>([]);
+  const [isLoadingItems, setIsLoadingItems] = useState(false);
 
   const selectedOrderId = useMemo(() => {
     const state = location.state as { orderId?: string } | null;
@@ -181,6 +185,32 @@ export function OrderTrackingScreen() {
       isActive = false;
     };
   }, [isLoggedIn, refreshOrders]);
+
+  useEffect(() => {
+    if (!selectedOrder) {
+      setOrderItems([]);
+      return;
+    }
+
+    let isActive = true;
+    setIsLoadingItems(true);
+
+    loadOrderItems(selectedOrder)
+      .then((items) => {
+        if (isActive) setOrderItems(items);
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar itens do pedido:", error);
+        if (isActive) setOrderItems(selectedOrder.items);
+      })
+      .finally(() => {
+        if (isActive) setIsLoadingItems(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedOrder]);
 
   if (isLoadingOrders && orders.length === 0) {
     return (
@@ -222,6 +252,7 @@ export function OrderTrackingScreen() {
   const steps = buildSteps(selectedOrder);
   const hasDiscount = Boolean(selectedOrder.discount && selectedOrder.discount > 0);
   const hasDeliveryFee = Boolean(selectedOrder.deliveryFee && selectedOrder.deliveryFee > 0);
+  const isFinished = ["entregue", "cancelado"].includes(selectedOrder.status);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -243,7 +274,7 @@ export function OrderTrackingScreen() {
 
           <div className="text-center min-w-0 px-3">
             <h1 className="text-white" style={{ fontSize: "16px", fontWeight: 800 }}>
-              Acompanhando pedido
+              {isFinished ? "Detalhes do pedido" : "Acompanhando pedido"}
             </h1>
             <p className="truncate" style={{ fontSize: "12px", color: "#c7d7ee" }}>
               {formatOrderCode(selectedOrder)}
@@ -283,7 +314,7 @@ export function OrderTrackingScreen() {
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-4" style={{ background: "#f8fafc" }}>
         <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
           <h3 className="mb-4" style={{ fontSize: "14px", fontWeight: 700, color: "#122a4c" }}>
-            Progresso do pedido
+            {isFinished ? "Histórico do pedido" : "Progresso do pedido"}
           </h3>
 
           <div className="flex flex-col">
@@ -387,7 +418,7 @@ export function OrderTrackingScreen() {
               <div className="flex items-center gap-3">
                 <ReceiptText size={18} color="#122a4c" />
                 <div>
-                  <p style={{ fontSize: "12px", color: "#64748b" }}>Status da API</p>
+                  <p style={{ fontSize: "12px", color: "#64748b" }}>Status do pedido</p>
                   <p style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
                     {selectedOrder.backendStatus}
                   </p>
@@ -395,6 +426,56 @@ export function OrderTrackingScreen() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+          <p className="mb-3" style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
+            Itens do pedido
+          </p>
+
+          {isLoadingItems ? (
+            <div className="flex items-center gap-2 py-2">
+              <Loader2 className="animate-spin" size={16} color="#122a4c" />
+              <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 600 }}>
+                Carregando itens...
+              </span>
+            </div>
+          ) : orderItems.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {orderItems.map(({ product, qty }) => (
+                <div key={product.id} className="flex items-center gap-3">
+                  <ProductImage
+                    src={product.image}
+                    alt={product.name}
+                    className="rounded-xl object-cover border flex-shrink-0"
+                    style={{
+                      width: "46px",
+                      height: "46px",
+                      borderColor: "#e2e8f0",
+                    }}
+                    iconSize={18}
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate" style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
+                      {product.name}
+                    </p>
+                    <p style={{ fontSize: "12px", color: "#64748b" }}>
+                      {formatCartQuantity(qty)} {qty === 1 ? "item" : "itens"} · {formatCurrency(product.price)}
+                    </p>
+                  </div>
+
+                  <p style={{ fontSize: "13px", fontWeight: 800, color: "#122a4c" }}>
+                    {formatCurrency(product.price * qty)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontSize: "13px", color: "#64748b", lineHeight: 1.5 }}>
+              Os itens deste pedido não vieram detalhados na listagem atual.
+            </p>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl p-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
@@ -406,7 +487,7 @@ export function OrderTrackingScreen() {
               onClick={() => navigate(tenantPath("orders"))}
               style={{ fontSize: "12px", color: "#122a4c", fontWeight: 600 }}
             >
-              Ver detalhes
+              Ver pedidos
             </button>
           </div>
 
@@ -458,7 +539,7 @@ export function OrderTrackingScreen() {
           <div className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "#eef4fb" }}>
             <CreditCard size={15} color="#122a4c" />
             <p style={{ fontSize: "11px", color: "#1b3d6d", fontWeight: 600 }}>
-              Valores exibidos conforme retorno atual da API de pedidos.
+              Pagamento registrado com segurança.
             </p>
           </div>
         </div>

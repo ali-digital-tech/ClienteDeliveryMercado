@@ -17,6 +17,7 @@ import type { Product } from '@/features/products';
 import { getCategoriesByMarketId, useCategories } from '@/features/categories';
 import type { Category } from '@/features/categories';
 import { BannerRenderer, getBannerProducts, useBanners } from '@/features/banners';
+import { normalizeSearchText } from '@/shared/utils/searchText';
 
 const sortOptions = [
   "Relevância",
@@ -47,12 +48,13 @@ function readRecentSearches(marketId: string): string[] {
 
 function saveRecentSearch(marketId: string, term: string) {
   const normalized = term.trim();
-  if (normalized.length < MIN_SEARCH_LENGTH) return readRecentSearches(marketId);
+  const normalizedForSearch = normalizeSearchText(normalized);
+  if (normalizedForSearch.length < MIN_SEARCH_LENGTH) return readRecentSearches(marketId);
 
   const current = readRecentSearches(marketId);
   const next = [
     normalized,
-    ...current.filter((item) => item.toLowerCase() !== normalized.toLowerCase()),
+    ...current.filter((item) => normalizeSearchText(item) !== normalizedForSearch),
   ].slice(0, MAX_RECENT_SEARCHES);
 
   try {
@@ -193,8 +195,10 @@ export function ProductsPage() {
   const categorySurfaceStrong = colorWithAlpha(primaryColor, 0.14);
   const categoryBorder = colorWithAlpha(primaryColor, 0.2);
   const categoryShadow = colorWithAlpha(primaryColor, 0.18);
-  const normalizedQuery = query.trim();
-  const normalizedSubmittedQuery = submittedQuery.trim();
+  const displayQuery = query.trim();
+  const displaySubmittedQuery = submittedQuery.trim();
+  const normalizedQuery = normalizeSearchText(displayQuery);
+  const normalizedSubmittedQuery = normalizeSearchText(displaySubmittedQuery);
   const hasSearchQuery = normalizedSubmittedQuery.length >= MIN_SEARCH_LENGTH;
   const canSubmitSearch = normalizedQuery.length >= MIN_SEARCH_LENGTH;
   const isAwaitingSearchSubmit = normalizedQuery.length > 0 && normalizedQuery !== normalizedSubmittedQuery;
@@ -230,7 +234,7 @@ export function ProductsPage() {
 
   const submitSearch = useCallback(() => {
     const nextQuery = query.trim();
-    if (nextQuery.length < MIN_SEARCH_LENGTH) return;
+    if (normalizeSearchText(nextQuery).length < MIN_SEARCH_LENGTH) return;
 
     setSubmittedQuery(nextQuery);
     setRecentSearches(saveRecentSearch(marketId, nextQuery));
@@ -714,7 +718,7 @@ export function ProductsPage() {
             <p className="max-w-xs text-center" style={{ fontSize: "15px", color: "#64748b", lineHeight: 1.5 }}>
               {normalizedQuery.length < MIN_SEARCH_LENGTH
                 ? `Digite pelo menos ${MIN_SEARCH_LENGTH} letras para buscar.`
-                : `Toque em Buscar para pesquisar por "${normalizedQuery}".`}
+                : `Toque em Buscar para pesquisar por "${displayQuery}".`}
             </p>
           </div>
         ) : (
@@ -725,7 +729,7 @@ export function ProductsPage() {
             >
               {isLoadingBannerProducts || isLoadingCategories ? "Carregando" : visibleResultCount} resultado
               {visibleResultCount !== 1 ? "s" : ""}
-              {normalizedSubmittedQuery ? ` para "${normalizedSubmittedQuery}"` : bannerId && bannerTitle ? ` em ${bannerTitle}` : selectedCategory ? ` em ${selectedCategory.name}` : ""}
+              {displaySubmittedQuery ? ` para "${displaySubmittedQuery}"` : bannerId && bannerTitle ? ` em ${bannerTitle}` : selectedCategory ? ` em ${selectedCategory.name}` : ""}
             </p>
 
             {isLoadingBannerProducts || isLoadingCategories || (isLoadingProducts && filtered.length === 0) ? (
@@ -756,10 +760,10 @@ export function ProductsPage() {
                   style={{ fontSize: "15px", color: "#64748b" }}
                 >
                   Nenhum produto encontrado
-                  {normalizedSubmittedQuery && (
+                  {displaySubmittedQuery && (
                     <>
                       <br />
-                      para "{normalizedSubmittedQuery}"
+                      para "{displaySubmittedQuery}"
                     </>
                   )}
                 </p>
