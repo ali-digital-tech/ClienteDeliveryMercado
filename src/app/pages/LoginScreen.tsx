@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { useLocation, useNavigate } from "react-router";
-import { Eye, EyeOff, Mail, Lock, Phone } from "lucide-react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { ArrowLeft, Eye, EyeOff, Mail, Lock, Phone } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { authService } from '@/features/auth';
 import { getProductById } from '@/features/products';
@@ -10,19 +10,80 @@ import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 export function LoginScreen() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { addToCart, currentMarket, login, marketId } = useApp();
+  const recoveryParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const resetAccessToken = searchParams.get("access_token") || recoveryParams.get("access_token") || "";
+  const resetRefreshToken = searchParams.get("refresh_token") || recoveryParams.get("refresh_token") || undefined;
   const [logoFailed, setLogoFailed] = useState(false);
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">(resetAccessToken ? "reset" : "login");
   const [showPass, setShowPass] = useState(false);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const showMarketLogo = Boolean(currentMarket.logo && !logoFailed);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    const storeId = currentMarket.id || marketId;
+
+    if (mode === "forgot") {
+      if (!email.trim()) {
+        showSystemNotice("Informe seu e-mail.");
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const response = await authService.forgotPassword(email.trim(), storeId);
+        showSystemNotice(response.message || "Verifique seu e-mail para redefinir a senha.");
+      } catch (error: any) {
+        showSystemNotice(error?.message || "Não foi possível iniciar a recuperação.");
+      } finally {
+        setLoading(false);
+      }
+
+      return;
+    }
+
+    if (mode === "reset") {
+      if (!resetAccessToken) {
+        showSystemNotice("Link de recuperação inválido.");
+        return;
+      }
+
+      if (password.length < 6) {
+        showSystemNotice("A senha deve ter pelo menos 6 caracteres.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showSystemNotice("As senhas não conferem.");
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        await authService.resetPassword(resetAccessToken, resetRefreshToken, password);
+        showSystemNotice("Senha redefinida com sucesso. Entre com sua nova senha.");
+        setPassword("");
+        setConfirmPassword("");
+        setMode("login");
+        navigate(`/mercado/${storeId}/login`, { replace: true });
+      } catch (error: any) {
+        showSystemNotice(error?.message || "Não foi possível redefinir a senha.");
+      } finally {
+        setLoading(false);
+      }
+
+      return;
+    }
+
     if (!email.trim() || !password) {
       showSystemNotice("Preencha e-mail e senha.");
       return;
@@ -36,8 +97,6 @@ export function LoginScreen() {
     setLoading(true);
 
     try {
-      const storeId = currentMarket.id || marketId;
-
       if (mode === "signup") {
         await authService.registerCustomer({
           nome: name.trim(),
@@ -126,7 +185,11 @@ export function LoginScreen() {
             >
               {mode === "login"
                 ? "Bem-vindo de volta!"
-                : "Crie sua conta"}
+                : mode === "signup"
+                  ? "Crie sua conta"
+                  : mode === "forgot"
+                    ? "Recupere sua senha"
+                    : "Defina sua nova senha"}
             </p>
           </div>
         </div>
@@ -149,6 +212,7 @@ export function LoginScreen() {
         </button>
         <button
           onClick={() => setMode("signup")}
+          disabled={mode === "reset"}
           className="flex-1 py-3 transition-all"
           style={{
             backgroundColor:
@@ -164,6 +228,12 @@ export function LoginScreen() {
 
       <div className="flex-1 overflow-y-auto px-4 pt-6 pb-6">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {mode === "forgot" && (
+            <p className="text-sm text-gray-600">
+              Informe o e-mail cadastrado para receber as instruções de recuperação.
+            </p>
+          )}
+
           {mode === "signup" && (
             <div
               className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm"
@@ -184,7 +254,8 @@ export function LoginScreen() {
             </div>
           )}
 
-          <div
+          {mode !== "reset" && (
+            <div
             className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm"
             style={{ border: "1px solid #d9e4f2" }}
           >
@@ -201,6 +272,7 @@ export function LoginScreen() {
               }}
             />
           </div>
+          )}
 
           {mode === "signup" && (
             <div
@@ -222,7 +294,8 @@ export function LoginScreen() {
             </div>
           )}
 
-          <div
+          {mode !== "forgot" && (
+            <div
             className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm"
             style={{ border: "1px solid #d9e4f2" }}
           >
@@ -246,10 +319,32 @@ export function LoginScreen() {
               )}
             </button>
           </div>
+          )}
+
+          {mode === "reset" && (
+            <div
+              className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm"
+              style={{ border: "1px solid #d9e4f2" }}
+            >
+              <Lock size={18} color="#122a4c" />
+              <input
+                type={showPass ? "text" : "password"}
+                placeholder="Confirme sua nova senha"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="flex-1 bg-transparent outline-none placeholder:text-gray-400"
+                style={{
+                  fontSize: "14px",
+                  color: "#334155",
+                }}
+              />
+            </div>
+          )}
 
           {mode === "login" && (
             <button
               type="button"
+              onClick={() => setMode("forgot")}
               className="text-right"
               style={{
                 fontSize: "13px",
@@ -276,8 +371,27 @@ export function LoginScreen() {
               ? "Aguarde..."
               : mode === "login"
                 ? "Entrar na conta"
-                : "Criar minha conta"}
+                : mode === "signup"
+                  ? "Criar minha conta"
+                  : mode === "forgot"
+                    ? "Enviar instruções"
+                    : "Redefinir senha"}
           </button>
+
+          {(mode === "forgot" || mode === "reset") && (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("login");
+                navigate(`/mercado/${currentMarket.id || marketId}/login`, { replace: true });
+              }}
+              className="flex items-center justify-center gap-2 text-sm font-semibold"
+              style={{ color: "#122a4c" }}
+            >
+              <ArrowLeft size={16} />
+              Voltar para entrar
+            </button>
+          )}
         </form>
       </div>
     </div>

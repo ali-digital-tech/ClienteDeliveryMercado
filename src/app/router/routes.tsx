@@ -43,6 +43,7 @@ export const router = createBrowserRouter([
       { path: 'cart', Component: CartPage },
       { path: 'carrinho', Component: CartPage },
       { path: 'login', Component: LoginScreen },
+      { path: 'reset-password', Component: LoginScreen },
       { path: 'addresses', Component: AddressesScreen },
       { path: 'delivery', Component: DeliveryScreen },
       { path: 'checkout', Component: CheckoutPage },

@@ -1,5 +1,5 @@
 import { apiRequest, clearAuthTokens } from '@/shared/lib/api';
-import type { AuthUser, LoginCredentials, LoginResponse, RegisterCustomerPayload } from '../types/auth';
+import type { AuthUser, ForgotPasswordResponse, LoginCredentials, LoginResponse, RegisterCustomerPayload } from '../types/auth';
 
 const AUTH_TOKEN_KEY = 'token';
 const AUTH_USER_KEY = 'user';
@@ -46,6 +46,31 @@ export const authService = {
     });
   },
 
+  async forgotPassword(email: string, storeId: string | undefined) {
+    const lojaId = requireStoreId(storeId);
+
+    return apiRequest<ForgotPasswordResponse>('/auth/forgot-password', {
+      method: 'POST',
+      body: {
+        email,
+        userType: 'cliente',
+        loja_id: lojaId,
+        redirectUrl: `${window.location.origin}/mercado/${lojaId}/reset-password`,
+      } as any,
+    });
+  },
+
+  async resetPassword(accessToken: string, refreshToken: string | undefined, password: string) {
+    return apiRequest<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        password,
+      } as any,
+    });
+  },
+
   async getCurrentCustomer() {
     const response = await apiRequest<{ data: AuthUser }>('/clientes/me');
     return response.data;
@@ -62,6 +87,9 @@ export const authService = {
 
   persistSession(session: LoginResponse) {
     localStorage.setItem(AUTH_TOKEN_KEY, session.access_token);
+    if (session.refresh_token) {
+      localStorage.setItem('refresh_token', session.refresh_token);
+    }
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(session.user));
     return session.user;
   },
@@ -77,6 +105,7 @@ export const authService = {
 
   clearSession() {
     clearAuthTokens();
+    localStorage.removeItem('refresh_token');
     localStorage.removeItem(AUTH_USER_KEY);
   },
 };

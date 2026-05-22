@@ -37,6 +37,7 @@ export function getAuthToken() {
 export function clearAuthTokens() {
   localStorage.removeItem('token');
   localStorage.removeItem('authToken');
+  localStorage.removeItem('refresh_token');
 }
 
 export function isSessionExpiredError(status: number, message: string) {
