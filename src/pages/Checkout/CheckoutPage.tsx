@@ -8,7 +8,9 @@ import {
   ChevronRight,
   AlertTriangle,
   CheckCircle2,
+  Copy,
   Info,
+  Loader2,
   ReceiptText,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
@@ -28,6 +30,7 @@ import { ProductImage } from '@/features/products';
 import { createCheckoutOrder } from '@/features/orders/services/ordersService';
 import { getAuthToken } from '@/shared/lib/api';
 import {
+  cancelPayment,
   createCardPayment,
   createPixPayment,
   getPaymentById,
@@ -113,6 +116,8 @@ export function CheckoutPage() {
   const [pixSecondsRemaining, setPixSecondsRemaining] = useState(PIX_PAYMENT_WINDOW_SECONDS);
   const [pixStatus, setPixStatus] = useState<'idle' | 'waiting' | 'expired' | 'failed'>('idle');
   const [isPollingPayment, setIsPollingPayment] = useState(false);
+  const [isCancellingPix, setIsCancellingPix] = useState(false);
+  const [pixCodeCopied, setPixCodeCopied] = useState(false);
   const [pixFailureMessage, setPixFailureMessage] = useState('');
   const [customerProfile, setCustomerProfile] = useState<AuthUser | null>(currentUser);
   const [wantsCpfInvoice, setWantsCpfInvoice] = useState(false);
@@ -241,8 +246,57 @@ export function CheckoutPage() {
     setPixExpiresAt(null);
     setPixSecondsRemaining(PIX_PAYMENT_WINDOW_SECONDS);
     setPixStatus('idle');
+    setPixCodeCopied(false);
     setPixFailureMessage('');
     navigate(tenantPath("payment"));
+  };
+
+  const handleCopyPixCode = async () => {
+    const code = paymentResult?.qr_code || '';
+    if (!code) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = code;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+
+      setPixCodeCopied(true);
+      window.setTimeout(() => setPixCodeCopied(false), 2500);
+    } catch (error) {
+      console.error('Erro ao copiar código PIX:', error);
+      showSystemNotice('Não foi possível copiar o código PIX.');
+    }
+  };
+
+  const handleCancelPixPayment = async () => {
+    const paymentId = paymentResult?.payment.id;
+
+    if (!paymentId) {
+      resetPixPayment();
+      return;
+    }
+
+    setIsCancellingPix(true);
+
+    try {
+      await cancelPayment(paymentId);
+      resetPixPayment();
+    } catch (error) {
+      console.error('Erro ao cancelar PIX:', error);
+      showSystemNotice(error || 'Não foi possível cancelar o pagamento PIX.');
+    } finally {
+      setIsCancellingPix(false);
+    }
   };
 
   const resolveCpfInvoicePayload = () => {
@@ -358,6 +412,7 @@ export function CheckoutPage() {
 
     setIsSubmitting(true);
     setPixStatus('idle');
+    setPixCodeCopied(false);
     setPixFailureMessage('');
 
     try {
@@ -875,16 +930,25 @@ export function CheckoutPage() {
           </div>
         </div>
 
-        {paymentResult?.qr_code && (
+      </div>
+
+      {paymentResult?.qr_code && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 px-3 pb-3 pt-8 sm:items-center sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pix-payment-title"
+        >
           <div
-            className="bg-white rounded-2xl p-4 mb-4 shadow-sm"
+            className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl"
             style={{
               border: `1px solid ${pixStatus === 'waiting' ? '#bbf7d0' : '#fde68a'}`,
             }}
           >
-            <h3 style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }} className="mb-3">
+            <h3 id="pix-payment-title" style={{ fontSize: "16px", fontWeight: 800, color: "#122a4c" }} className="mb-3">
               Pagamento via PIX
             </h3>
+
             <div className="mb-4 rounded-xl p-3" style={{ backgroundColor: pixStatus === 'waiting' ? "#f0fdf4" : "#fffbeb" }}>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <span style={{ fontSize: "12px", fontWeight: 800, color: pixStatus === 'waiting' ? "#15803d" : "#b45309" }}>
@@ -913,49 +977,69 @@ export function CheckoutPage() {
                   : pixFailureMessage}
               </p>
               {isPollingPayment && pixStatus === 'waiting' && (
-                <p className="mt-1" style={{ fontSize: "11px", color: "#15803d", fontWeight: 700 }}>
+                <p className="mt-1 inline-flex items-center gap-1.5" style={{ fontSize: "11px", color: "#15803d", fontWeight: 700 }}>
+                  <Loader2 size={13} className="animate-spin" />
                   Verificando confirmação do pagamento...
                 </p>
               )}
             </div>
+
             {paymentResult.qr_code_base64 && (
               <img
                 src={`data:image/png;base64,${paymentResult.qr_code_base64}`}
                 alt="QR Code PIX"
-                className="mx-auto mb-3"
+                className="mx-auto mb-3 rounded-xl"
                 style={{ width: "180px", height: "180px" }}
               />
             )}
+
             <textarea
               readOnly
               value={paymentResult.qr_code}
-              className="w-full rounded-xl border px-3 py-2 text-xs"
+              className="w-full resize-none rounded-xl border px-3 py-2 text-xs outline-none"
+              style={{ borderColor: "#d9e4f2", color: "#334155" }}
               rows={4}
+              aria-label="Código PIX copia e cola"
             />
+
+            {pixCodeCopied && (
+              <p className="mt-2 rounded-xl px-3 py-2 text-center" style={{ backgroundColor: "#f0fdf4", color: "#15803d", fontSize: "12px", fontWeight: 800 }}>
+                Código PIX copiado.
+              </p>
+            )}
+
             <button
-              onClick={() => navigator.clipboard?.writeText(paymentResult.qr_code || "")}
-              className="mt-3 w-full rounded-xl px-4 py-3 text-white"
+              type="button"
+              onClick={handleCopyPixCode}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white"
               style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 700 }}
             >
-              Copiar código PIX
+              <Copy size={16} />
+              {pixCodeCopied ? "Código copiado" : "Copiar código PIX"}
             </button>
-            {canChooseAnotherPayment && (
-              <button
-                onClick={resetPixPayment}
-                className="mt-2 w-full rounded-xl px-4 py-3"
-                style={{
-                  backgroundColor: "#eef4fb",
-                  color: "#122a4c",
-                  fontSize: "13px",
-                  fontWeight: 800,
-                }}
-              >
-                Escolher outra forma de pagamento
-              </button>
-            )}
+
+            <button
+              type="button"
+              onClick={canChooseAnotherPayment ? resetPixPayment : handleCancelPixPayment}
+              disabled={isCancellingPix}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 disabled:opacity-70"
+              style={{
+                backgroundColor: "#eef4fb",
+                color: "#122a4c",
+                fontSize: "13px",
+                fontWeight: 800,
+              }}
+            >
+              {isCancellingPix && <Loader2 size={16} className="animate-spin" />}
+              {isCancellingPix
+                ? "Cancelando..."
+                : canChooseAnotherPayment
+                  ? "Escolher outra forma de pagamento"
+                  : "Cancelar pagamento"}
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* CTA */}
       <div

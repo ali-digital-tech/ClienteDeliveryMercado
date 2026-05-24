@@ -113,6 +113,14 @@ export async function getPaymentById(paymentId: string) {
   return response.data;
 }
 
+export async function cancelPayment(paymentId: string) {
+  const response = await apiRequest<{ data: LocalPayment }>(`/pagamentos/${paymentId}/cancelar`, {
+    method: 'PATCH',
+  });
+
+  return response.data;
+}
+
 export async function createCardPayment(
   pedidoId: string,
   payer: PayerData,
