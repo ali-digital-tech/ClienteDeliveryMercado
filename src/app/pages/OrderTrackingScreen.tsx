@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import {
   CalendarClock,
   CheckCircle2,
@@ -152,6 +152,7 @@ function buildSteps(order: Order) {
 export function OrderTrackingScreen() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { orders, isLoggedIn, refreshOrders, tenantPath } = useApp();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [orderItems, setOrderItems] = useState<Order["items"]>([]);
@@ -159,8 +160,8 @@ export function OrderTrackingScreen() {
 
   const selectedOrderId = useMemo(() => {
     const state = location.state as { orderId?: string } | null;
-    return state?.orderId || getStoredOrderId();
-  }, [location.state]);
+    return searchParams.get('orderId') || state?.orderId || getStoredOrderId();
+  }, [location.state, searchParams]);
 
   const selectedOrder = useMemo(() => {
     if (selectedOrderId) {

@@ -11,6 +11,7 @@ import { useCategories, type Category } from '@/features/categories';
 import { useMarkets, type Market } from '@/features/markets';
 import { useOrdersStore, type Order } from '@/features/orders';
 import type { Product } from '@/features/products';
+import { disableCustomerPush, listenForCustomerPush, refreshCustomerPushIfGranted } from '@/features/notifications';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 import { getAuthToken, onSessionExpired } from '@/shared/lib/api';
 
@@ -145,10 +146,12 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     sessionExpiredHandledRef.current = false;
     setCurrentUser(user);
     void refreshOrders();
+    void refreshCustomerPushIfGranted().catch(() => {});
     return user;
   }, [refreshOrders, storeId]);
 
   const logout = useCallback(() => {
+    void disableCustomerPush().catch(() => {});
     authService.clearSession();
     setCurrentUser(null);
   }, []);
@@ -191,6 +194,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
         if (!isActive) return;
         sessionExpiredHandledRef.current = false;
         setCurrentUser(profile);
+        void refreshCustomerPushIfGranted().catch(() => {});
       })
       .catch((error) => {
         console.error('Erro ao validar sessão do cliente:', error);
@@ -200,6 +204,34 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
       isActive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    let unlisten = () => {};
+    let active = true;
+
+    listenForCustomerPush((payload) => {
+      void refreshOrders();
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const data = payload.data || {};
+        const foregroundNotification = new Notification(data.title || 'Nova notificação', { body: data.body });
+        foregroundNotification.onclick = () => {
+          window.focus();
+          if (data.route) {
+            navigate(data.route.startsWith('/mercado/') ? data.route : tenantPath(data.route));
+          }
+        };
+      }
+    }).then((cleanup) => {
+      if (active) unlisten = cleanup;
+      else cleanup();
+    });
+
+    return () => {
+      active = false;
+      unlisten();
+    };
+  }, [currentUser, navigate, refreshOrders, tenantPath]);
 
   const addToCart = useCallback(async (product: Product, quantity?: number) => {
     if (product.marketId !== marketId) return;

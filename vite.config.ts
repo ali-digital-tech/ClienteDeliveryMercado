@@ -25,6 +25,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
@@ -59,9 +62,8 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        navigateFallback: '/',
-        cleanupOutdatedCaches: true,
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
       },
     }),
   ],

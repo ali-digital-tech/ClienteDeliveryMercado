@@ -34,6 +34,7 @@ export const router = createBrowserRouter([
       { path: 'splash', Component: SplashScreen },
       { path: 'welcome', Component: WelcomeScreen },
       { path: 'home', Component: MarketPage },
+      { path: 'promocoes', Component: MarketPage },
       { path: 'categories', Component: CategoriesPage },
       { path: 'produtos', Component: ProductsPage },
       { path: 'search', Component: ProductsPage },
