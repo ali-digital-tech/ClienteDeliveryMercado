@@ -42,9 +42,13 @@ export async function enableCustomerPush(requestPermission = true) {
     throw new Error('Este navegador não suporta notificações push.');
   }
 
+  if (!firebaseVapidKey) {
+    throw new Error('A chave VITE_FIREBASE_VAPID_KEY não foi incluída no build do app do cliente.');
+  }
+
   const messaging = await getWebMessaging();
-  if (!messaging || !firebaseVapidKey) {
-    throw new Error('Firebase Web Push não está configurado neste ambiente.');
+  if (!messaging) {
+    throw new Error('FCM Web Push requer um navegador compatível e execução em HTTPS ou localhost.');
   }
 
   const permission = requestPermission ? await Notification.requestPermission() : Notification.permission;
