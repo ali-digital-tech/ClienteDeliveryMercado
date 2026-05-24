@@ -973,7 +973,7 @@ export function CheckoutPage() {
               </div>
               <p className="mt-2" style={{ fontSize: "11px", lineHeight: 1.5, color: pixStatus === 'waiting' ? "#166534" : "#92400e" }}>
                 {pixStatus === 'waiting'
-                  ? `Você tem ${formatPixCountdown(pixSecondsRemaining)} para realizar o pagamento. Verificamos automaticamente a cada 5 segundos.`
+                  ? `Você tem ${formatPixCountdown(pixSecondsRemaining)} para realizar o pagamento. Estamos verificando se você já fez o pagamento.`
                   : pixFailureMessage}
               </p>
               {isPollingPayment && pixStatus === 'waiting' && (
