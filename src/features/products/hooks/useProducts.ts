@@ -14,6 +14,7 @@ interface UseProductsOptions {
   enabled?: boolean;
   allowGlobal?: boolean;
   useOffsetPagination?: boolean;
+  paginationMode?: 'append' | 'paged';
 }
 
 interface ProductsCacheEntry {
@@ -22,6 +23,7 @@ interface ProductsCacheEntry {
   total: number;
   hasNextPage: boolean;
   loadedPages: Set<number>;
+  pages?: Map<number, Product[]>;
   updatedAt: number;
 }
 
@@ -68,6 +70,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     enabled = true,
     allowGlobal = false,
     useOffsetPagination = false,
+    paginationMode = 'append',
   } = options;
   const normalizedSearch = search.trim();
   const requestCategoryId = subcategoryId || categoryId || null;
@@ -81,8 +84,9 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
       search: normalizedSearch,
       limit: perPage,
       mode: useOffsetPagination ? 'offset-lookahead' : 'page',
+      paginationMode,
     }),
-    [categoryId, departmentId, marketId, normalizedSearch, perPage, subcategoryId, useOffsetPagination],
+    [categoryId, departmentId, marketId, normalizedSearch, paginationMode, perPage, subcategoryId, useOffsetPagination],
   );
   const latestRequestKeyRef = useRef(requestKey);
   const loadingMoreRef = useRef(false);
@@ -111,7 +115,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
 
     const cached = getFreshCacheEntry(requestKey);
     if (cached) {
-      setProducts(cached.products);
+      setProducts(paginationMode === 'paged' ? (cached.pages?.get(cached.page) ?? cached.products) : cached.products);
       setPage(cached.page);
       setHasNextPage(cached.hasNextPage);
       setTotal(cached.total);
@@ -139,11 +143,12 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
         setHasNextPage(result.hasNextPage);
         setTotal(result.total);
         saveCacheEntry(requestKey, {
-          products: result.products,
+          products: dedupeProducts(result.products),
           page: result.page,
           total: result.total,
           hasNextPage: result.hasNextPage,
           loadedPages: new Set([result.page]),
+          pages: new Map([[result.page, dedupeProducts(result.products)]]),
           updatedAt: Date.now(),
         });
       })
@@ -161,10 +166,18 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     return () => {
       ignore = true;
     };
-  }, [allowGlobal, enabled, marketId, normalizedSearch, perPage, requestCategoryId, requestKey, useOffsetPagination]);
+  }, [allowGlobal, enabled, marketId, normalizedSearch, paginationMode, perPage, requestCategoryId, requestKey, useOffsetPagination]);
 
   const loadMore = useCallback(async () => {
-    if (!marketId || !enabled || (!requestCategoryId && !allowGlobal) || isLoading || loadingMoreRef.current || !hasNextPage) return;
+    if (
+      paginationMode !== 'append'
+      || !marketId
+      || !enabled
+      || (!requestCategoryId && !allowGlobal)
+      || isLoading
+      || loadingMoreRef.current
+      || !hasNextPage
+    ) return;
 
     const keyAtStart = latestRequestKeyRef.current;
     const nextPage = page + 1;
@@ -213,6 +226,10 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
         total: result.total,
         hasNextPage: result.hasNextPage,
         loadedPages: new Set([...(previousEntry?.loadedPages ?? []), result.page]),
+        pages: new Map([
+          ...(previousEntry?.pages?.entries() ?? []),
+          [result.page, dedupeProducts(result.products)],
+        ]),
         updatedAt: Date.now(),
       });
     } catch (error) {
@@ -225,7 +242,83 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
         setIsLoadingMore(false);
       }
     }
-  }, [allowGlobal, enabled, hasNextPage, isLoading, marketId, normalizedSearch, page, perPage, products, requestCategoryId, useOffsetPagination]);
+  }, [allowGlobal, enabled, hasNextPage, isLoading, marketId, normalizedSearch, page, paginationMode, perPage, products, requestCategoryId, useOffsetPagination]);
+
+  const loadPage = useCallback(async (targetPage: number) => {
+    const safePage = Math.max(1, targetPage);
+
+    if (
+      paginationMode !== 'paged'
+      || !marketId
+      || !enabled
+      || (!requestCategoryId && !allowGlobal)
+      || isLoading
+      || loadingMoreRef.current
+    ) return;
+
+    const keyAtStart = latestRequestKeyRef.current;
+    const cached = productsCache.get(keyAtStart);
+    const cachedPage = cached?.pages?.get(safePage);
+
+    if (cachedPage) {
+      const totalPages = Math.max(1, Math.ceil((cached.total || 0) / perPage));
+      setProducts(cachedPage);
+      setPage(safePage);
+      setHasNextPage(safePage < totalPages);
+      setTotal(cached.total);
+      saveCacheEntry(keyAtStart, {
+        ...cached,
+        page: safePage,
+        hasNextPage: safePage < totalPages,
+      });
+      return;
+    }
+
+    loadingMoreRef.current = true;
+    setIsLoadingMore(true);
+
+    try {
+      const result = await getProductsByMarketId(marketId, {
+        categoryId: requestCategoryId,
+        search: normalizedSearch,
+        page: safePage,
+        perPage,
+        offset: (safePage - 1) * perPage,
+        useOffsetPagination,
+      });
+
+      if (latestRequestKeyRef.current !== keyAtStart) return;
+
+      const previousEntry = productsCache.get(keyAtStart);
+      const pageProducts = dedupeProducts(result.products);
+
+      setProducts(pageProducts);
+      setPage(result.page);
+      setHasNextPage(result.hasNextPage);
+      setTotal(result.total);
+      saveCacheEntry(keyAtStart, {
+        products: pageProducts,
+        page: result.page,
+        total: result.total,
+        hasNextPage: result.hasNextPage,
+        loadedPages: new Set([...(previousEntry?.loadedPages ?? []), result.page]),
+        pages: new Map([
+          ...(previousEntry?.pages?.entries() ?? []),
+          [result.page, pageProducts],
+        ]),
+        updatedAt: Date.now(),
+      });
+    } catch (error) {
+      if (latestRequestKeyRef.current === keyAtStart) {
+        setError(error as Error);
+      }
+    } finally {
+      if (latestRequestKeyRef.current === keyAtStart) {
+        loadingMoreRef.current = false;
+        setIsLoadingMore(false);
+      }
+    }
+  }, [allowGlobal, enabled, isLoading, marketId, normalizedSearch, paginationMode, perPage, requestCategoryId, useOffsetPagination]);
 
   return {
     products,
@@ -234,6 +327,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     error,
     hasNextPage,
     loadMore,
+    loadPage,
     page,
     total,
   };

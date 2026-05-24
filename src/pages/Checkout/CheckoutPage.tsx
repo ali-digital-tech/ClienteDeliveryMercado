@@ -115,7 +115,6 @@ export function CheckoutPage() {
   const [pixExpiresAt, setPixExpiresAt] = useState<number | null>(null);
   const [pixSecondsRemaining, setPixSecondsRemaining] = useState(PIX_PAYMENT_WINDOW_SECONDS);
   const [pixStatus, setPixStatus] = useState<'idle' | 'waiting' | 'expired' | 'failed'>('idle');
-  const [isPollingPayment, setIsPollingPayment] = useState(false);
   const [isCancellingPix, setIsCancellingPix] = useState(false);
   const [pixCodeCopied, setPixCodeCopied] = useState(false);
   const [pixFailureMessage, setPixFailureMessage] = useState('');
@@ -353,7 +352,6 @@ export function CheckoutPage() {
     let cancelled = false;
     const intervalId = window.setInterval(async () => {
       try {
-        setIsPollingPayment(true);
         const payment = await getPaymentById(paymentResult.payment.id);
         if (cancelled) return;
 
@@ -379,8 +377,6 @@ export function CheckoutPage() {
         }
       } catch (error) {
         console.error('Erro ao consultar status do PIX:', error);
-      } finally {
-        if (!cancelled) setIsPollingPayment(false);
       }
     }, PIX_POLL_INTERVAL_MS);
 
@@ -976,12 +972,6 @@ export function CheckoutPage() {
                   ? `Você tem ${formatPixCountdown(pixSecondsRemaining)} para realizar o pagamento. Estamos verificando se você já fez o pagamento.`
                   : pixFailureMessage}
               </p>
-              {isPollingPayment && pixStatus === 'waiting' && (
-                <p className="mt-1 inline-flex items-center gap-1.5" style={{ fontSize: "11px", color: "#15803d", fontWeight: 700 }}>
-                  <Loader2 size={13} className="animate-spin" />
-                  Verificando confirmação do pagamento...
-                </p>
-              )}
             </div>
 
             {paymentResult.qr_code_base64 && (

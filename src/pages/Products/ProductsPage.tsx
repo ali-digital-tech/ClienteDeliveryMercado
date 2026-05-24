@@ -32,6 +32,8 @@ const RECENT_SEARCHES_CACHE_KEY = 'cliente_delivery_recent_searches_by_market';
 const DEFAULT_SEARCH_SUGGESTIONS = ["Leite", "Pão", "Frango", "Café", "Ovos"];
 const MAX_RECENT_SEARCHES = 8;
 const MIN_SEARCH_LENGTH = 3;
+const PRODUCTS_PER_PAGE = 30;
+const DESKTOP_PAGINATION_QUERY = "(min-width: 768px)";
 
 function readRecentSearches(marketId: string): string[] {
   try {
@@ -89,6 +91,41 @@ function colorWithAlpha(color: string, alpha: number) {
   }
 
   return normalized;
+}
+
+function useDesktopPaginationMode() {
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia(DESKTOP_PAGINATION_QUERY).matches;
+  });
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(DESKTOP_PAGINATION_QUERY);
+    const update = () => setIsDesktop(mediaQuery.matches);
+
+    update();
+    mediaQuery.addEventListener("change", update);
+
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
+
+  return isDesktop;
+}
+
+function getPaginationItems(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  if (currentPage <= 4) {
+    return [1, 2, 3, 4, 5, "ellipsis", totalPages] as const;
+  }
+
+  if (currentPage >= totalPages - 3) {
+    return [1, "ellipsis", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages] as const;
+  }
+
+  return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages] as const;
 }
 
 function useHorizontalDragScroll<T extends HTMLElement>() {
@@ -162,6 +199,8 @@ export function ProductsPage() {
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentSearches(marketId));
   const [showSort, setShowSort] = useState(false);
   const [sort, setSort] = useState("Relevância");
+  const [desktopBannerPage, setDesktopBannerPage] = useState(1);
+  const isDesktopPagination = useDesktopPaginationMode();
   const categoryDrag = useHorizontalDragScroll<HTMLDivElement>();
   const subcategoryDrag = useHorizontalDragScroll<HTMLDivElement>();
 
@@ -221,15 +260,18 @@ export function ProductsPage() {
     error: productsError,
     hasNextPage,
     loadMore,
+    loadPage,
+    page,
     total,
   } = useProducts(marketId, {
     departmentId: selectedDepartmentId || null,
     categoryId: selectedLevel2Id || null,
     subcategoryId: selectedSubcategoryId || null,
     search: hasSearchQuery ? normalizedSubmittedQuery : '',
-    perPage: 30,
+    perPage: PRODUCTS_PER_PAGE,
     enabled: canLoadProducts,
     allowGlobal: hasSearchQuery,
+    paginationMode: isDesktopPagination ? 'paged' : 'append',
   });
 
   const submitSearch = useCallback(() => {
@@ -396,13 +438,15 @@ export function ProductsPage() {
   }, [bannerId, marketId]);
 
   const handleContentScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
+    if (isDesktopPagination) return;
+
     const target = event.currentTarget;
     const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
 
     if (distanceToBottom < 360 && hasNextPage && !isLoadingProducts && !isLoadingMore) {
       void loadMore();
     }
-  }, [hasNextPage, isLoadingMore, isLoadingProducts, loadMore]);
+  }, [hasNextPage, isDesktopPagination, isLoadingMore, isLoadingProducts, loadMore]);
 
   const sourceProducts = bannerProducts ?? products;
 
@@ -420,6 +464,28 @@ export function ProductsPage() {
       return 0;
     });
   const visibleResultCount = bannerId ? filtered.length : total;
+  const totalPages = Math.max(1, Math.ceil(visibleResultCount / PRODUCTS_PER_PAGE));
+  const currentPage = bannerId ? Math.min(desktopBannerPage, totalPages) : page;
+  const displayedProducts = bannerId && isDesktopPagination
+    ? filtered.slice((currentPage - 1) * PRODUCTS_PER_PAGE, currentPage * PRODUCTS_PER_PAGE)
+    : filtered;
+  const shouldShowDesktopPagination = isDesktopPagination && visibleResultCount > PRODUCTS_PER_PAGE;
+  const paginationItems = getPaginationItems(currentPage, totalPages);
+
+  useEffect(() => {
+    setDesktopBannerPage(1);
+  }, [bannerId, normalizedSubmittedQuery, selectedDepartmentId, selectedLevel2Id, selectedSubcategoryId, sort]);
+
+  const handlePageChange = useCallback((nextPage: number) => {
+    const safePage = Math.max(1, Math.min(nextPage, totalPages));
+
+    if (bannerId) {
+      setDesktopBannerPage(safePage);
+      return;
+    }
+
+    void loadPage(safePage);
+  }, [bannerId, loadPage, totalPages]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -771,16 +837,84 @@ export function ProductsPage() {
             ) : (
               <>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pb-2">
-                  {filtered.map((p) => (
+                  {displayedProducts.map((p) => (
                     <ProductCard key={p.id} product={p} compact fluid />
                   ))}
                 </div>
-                {isLoadingMore && (
+                {isLoadingMore && !isDesktopPagination && (
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pt-2 pb-2">
                     {[0, 1].map((item) => (
                       <div key={item} className="h-[210px] animate-pulse rounded-2xl bg-white" />
                     ))}
                   </div>
+                )}
+                {shouldShowDesktopPagination && (
+                  <nav
+                    aria-label="Paginação de produtos"
+                    className="hidden items-center justify-center gap-1 pb-3 pt-4 md:flex"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage <= 1 || isLoadingMore}
+                      className="flex h-9 min-w-9 items-center justify-center rounded-full px-3 transition-all disabled:opacity-40"
+                      style={{
+                        backgroundColor: "#ffffff",
+                        border: "1px solid #d9e4f2",
+                        color: "#122a4c",
+                        fontSize: "13px",
+                        fontWeight: 800,
+                      }}
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+
+                    {paginationItems.map((item, index) => (
+                      item === "ellipsis" ? (
+                        <span
+                          key={`ellipsis-${index}`}
+                          className="flex h-9 min-w-9 items-center justify-center"
+                          style={{ color: "#64748b", fontSize: "13px", fontWeight: 800 }}
+                        >
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => handlePageChange(item)}
+                          disabled={isLoadingMore || item === currentPage}
+                          aria-current={item === currentPage ? "page" : undefined}
+                          className="flex h-9 min-w-9 items-center justify-center rounded-full px-3 transition-all disabled:cursor-default"
+                          style={{
+                            backgroundColor: item === currentPage ? primaryColor : "#ffffff",
+                            border: `1px solid ${item === currentPage ? primaryColor : "#d9e4f2"}`,
+                            color: item === currentPage ? "#ffffff" : "#122a4c",
+                            fontSize: "13px",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {item}
+                        </button>
+                      )
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= totalPages || isLoadingMore}
+                      className="flex h-9 min-w-9 items-center justify-center rounded-full px-3 transition-all disabled:opacity-40"
+                      style={{
+                        backgroundColor: "#ffffff",
+                        border: "1px solid #d9e4f2",
+                        color: "#122a4c",
+                        fontSize: "13px",
+                        fontWeight: 800,
+                      }}
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </nav>
                 )}
               </>
             )}
