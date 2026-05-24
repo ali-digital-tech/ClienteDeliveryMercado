@@ -5,6 +5,7 @@ import { useApp } from '@/app/providers/AppProvider';
 import {
   enableCustomerPush,
   fetchCustomerNotifications,
+  hasCustomerPushRegistration,
   readCustomerNotification,
   type CustomerNotification,
 } from '@/features/notifications';
@@ -28,6 +29,7 @@ export function NotificationsFeedScreen() {
   const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState('');
+  const [pushEnabled, setPushEnabled] = useState(() => hasCustomerPushRegistration());
 
   const load = async () => {
     if (!isLoggedIn) {
@@ -68,6 +70,7 @@ export function NotificationsFeedScreen() {
     }
     try {
       const token = await enableCustomerPush();
+      setPushEnabled(Boolean(token));
       setFeedback(token ? 'Notificações ativadas neste dispositivo.' : 'Permissão de notificações não concedida.');
     } catch (error: any) {
       setFeedback(error?.message || 'Não foi possível ativar notificações.');
@@ -116,6 +119,11 @@ export function NotificationsFeedScreen() {
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {feedback && <div className="mb-4 rounded-md bg-white border px-3 py-2 text-sm" style={{ borderColor: '#d9e4f2', color: '#475569' }}>{feedback}</div>}
+        {isLoggedIn && !pushEnabled && (
+          <button onClick={activatePush} className="mb-4 w-full rounded-md px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2" style={{ backgroundColor: '#122a4c' }}>
+            <Smartphone size={18} /> Ativar notificações push
+          </button>
+        )}
         {!isLoggedIn && <p className="text-sm text-center py-10" style={{ color: '#64748b' }}>Entre na sua conta para ver suas notificações.</p>}
         {isLoggedIn && loading && <p className="text-sm text-center py-10" style={{ color: '#64748b' }}>Carregando...</p>}
         {!loading && isLoggedIn && !notifications.length && <p className="text-sm text-center py-10" style={{ color: '#64748b' }}>Nenhuma notificação.</p>}

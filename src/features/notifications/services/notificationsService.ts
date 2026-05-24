@@ -15,6 +15,10 @@ export interface CustomerNotification {
 
 const DEVICE_TOKEN_STORAGE_KEY = 'customer_notification_fcm_token';
 
+export function hasCustomerPushRegistration() {
+  return Boolean(localStorage.getItem(DEVICE_TOKEN_STORAGE_KEY));
+}
+
 const firebaseConfigured = () => Boolean(
   firebaseWebConfig.apiKey && firebaseWebConfig.projectId && firebaseWebConfig.messagingSenderId && firebaseWebConfig.appId
 );
