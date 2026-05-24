@@ -6,6 +6,7 @@ import {
   X,
   SlidersHorizontal,
   ChevronLeft,
+  ChevronRight,
   ShoppingCart,
   PackageSearch,
 } from "lucide-react";
