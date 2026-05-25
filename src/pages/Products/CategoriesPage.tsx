@@ -50,14 +50,19 @@ export function CategoriesPage() {
               <button
                 key={cat.id}
                 onClick={() => navigate(`${tenantPath('produtos')}?categoria=${encodeURIComponent(cat.id)}`)}
-                className="flex items-center gap-4 rounded-2xl p-4 shadow-sm active:scale-[0.98] transition-transform bg-white"
+                className="flex h-[92px] items-center gap-3 rounded-2xl p-4 shadow-sm active:scale-[0.98] transition-transform bg-white"
               >
                 <div className="rounded-2xl flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: cat.bgColor, width: '52px', height: '52px' }}>
                   <span style={{ fontSize: '26px' }}>{cat.emoji}</span>
                 </div>
                 <div className="text-left flex-1 min-w-0">
-                  <p style={{ fontSize: '14px', fontWeight: 700, color: '#1f2937' }}>{cat.name}</p>
+                  <p
+                    className="line-clamp-2"
+                    style={{ fontSize: '14px', fontWeight: 700, lineHeight: 1.25, color: '#1f2937' }}
+                  >
+                    {cat.name}
+                  </p>
                   <p style={{ fontSize: '11px', color: cat.color, fontWeight: 500 }}>
                     {hasProductCount
                       ? `${cat.productCount} ${cat.productCount === 1 ? 'produto' : 'produtos'}`

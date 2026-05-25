@@ -95,6 +95,13 @@ export const authService = {
     });
   },
 
+  async changePassword(password: string) {
+    return apiRequest<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: { password } as any,
+    });
+  },
+
   async getCurrentCustomer() {
     const response = await apiRequest<{ data: AuthUser }>('/clientes/me');
     return response.data;

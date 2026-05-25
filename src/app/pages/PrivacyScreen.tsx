@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router";
 import {
   AlertTriangle,
@@ -6,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  EyeOff,
   Key,
   ReceiptText,
   Shield,
@@ -54,6 +56,11 @@ export function PrivacyScreen() {
   const [cpf, setCpf] = useState(formatCpf(currentUser?.cpf || ""));
   const [cpfAsDefault, setCpfAsDefault] = useState(Boolean(currentUser?.cpf_na_nota_padrao));
   const [isSavingCpf, setIsSavingCpf] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -97,6 +104,35 @@ export function PrivacyScreen() {
       showSystemNotice(error || "Não foi possível atualizar sua preferência.");
     } finally {
       setIsSavingCpf(false);
+    }
+  };
+
+  const handleChangePassword = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (newPassword.length < 6) {
+      showSystemNotice("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showSystemNotice("As senhas não conferem.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      await authService.changePassword(newPassword);
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowPassword(false);
+      setShowPasswordForm(false);
+      showSystemNotice("Senha alterada com sucesso.");
+    } catch (error) {
+      showSystemNotice(error || "Não foi possível alterar sua senha.");
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -254,15 +290,74 @@ export function PrivacyScreen() {
             Credenciais
           </p>
           <div className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #d9e4f2" }}>
-            <button className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50" style={{ borderBottom: "1px solid #eef2f7" }}>
+            <button
+              onClick={() => {
+                if (!isLoggedIn) {
+                  navigate(tenantPath("login"), { state: { redirectTo: tenantPath("privacy") } });
+                  return;
+                }
+
+                setShowPasswordForm((visible) => !visible);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50"
+              style={{ borderBottom: "1px solid #eef2f7" }}
+            >
               <div className="rounded-xl flex items-center justify-center flex-shrink-0" style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}>
                 <Key size={18} color="#122a4c" />
               </div>
               <span className="flex-1 text-left" style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
                 Alterar senha
               </span>
-              <ChevronRight size={16} color="#94a3b8" />
+              <ChevronRight
+                size={16}
+                color="#94a3b8"
+                style={{ transform: showPasswordForm ? "rotate(90deg)" : undefined, transition: "transform 160ms ease" }}
+              />
             </button>
+            {showPasswordForm && isLoggedIn && (
+              <form
+                onSubmit={handleChangePassword}
+                className="space-y-3 px-4 py-4"
+                style={{ borderBottom: "1px solid #eef2f7", backgroundColor: "#f8fafc" }}
+              >
+                <p style={{ fontSize: "12px", lineHeight: 1.45, color: "#64748b" }}>
+                  Escolha uma nova senha com no mínimo 6 caracteres.
+                </p>
+                <div className="flex items-center gap-2 rounded-xl bg-white px-3" style={{ border: "1px solid #d9e4f2" }}>
+                  <Key size={16} color="#64748b" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder="Nova senha"
+                    autoComplete="new-password"
+                    className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none"
+                  />
+                  <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}>
+                    {showPassword ? <EyeOff size={16} color="#64748b" /> : <Eye size={16} color="#64748b" />}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl bg-white px-3" style={{ border: "1px solid #d9e4f2" }}>
+                  <Key size={16} color="#64748b" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="Confirmar nova senha"
+                    autoComplete="new-password"
+                    className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isChangingPassword}
+                  className="w-full rounded-xl px-4 py-3 text-white disabled:opacity-60"
+                  style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}
+                >
+                  {isChangingPassword ? "Alterando..." : "Salvar nova senha"}
+                </button>
+              </form>
+            )}
             <button className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50">
               <div className="rounded-xl flex items-center justify-center flex-shrink-0" style={{ width: "38px", height: "38px", backgroundColor: "#fff0f0" }}>
                 <AlertTriangle size={18} color="#dc2626" />

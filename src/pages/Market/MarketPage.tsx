@@ -227,10 +227,9 @@ export function MarketPage() {
               <button
                 key={cat.id}
                 onClick={() => navigate(`${tenantPath("produtos")}?categoria=${encodeURIComponent(cat.id)}`)}
-                className="flex-shrink-0 flex flex-col items-center gap-1.5 rounded-2xl p-3 transition-all active:scale-95"
+                className="flex h-[104px] w-[88px] flex-shrink-0 flex-col items-center justify-between gap-1.5 rounded-2xl p-3 transition-all active:scale-95"
                 style={{
                   backgroundColor: "#eef4fb",
-                  minWidth: "68px",
                   border: "1px solid #d9e4f2",
                 }}
               >
@@ -238,11 +237,14 @@ export function MarketPage() {
                   {cat.emoji}
                 </span>
                 <span
+                  className="line-clamp-2"
                   style={{
                     fontSize: "10px",
                     fontWeight: 600,
+                    lineHeight: 1.3,
                     color: "#122a4c",
-                    whiteSpace: "nowrap",
+                    minHeight: "26px",
+                    textAlign: "center",
                   }}
                 >
                   {cat.name}
