@@ -2,6 +2,10 @@ type FriendlyMessage = string | ((match: RegExpMatchArray) => string);
 
 const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> = [
   {
+    test: /invalid login credentials|invalid credentials|email or password are invalid/i,
+    message: "E-mail ou senha incorretos. Verifique os dados e tente novamente.",
+  },
+  {
     test: /invalid or expired token|jwt expired|token expired|invalid token|unauthorized/i,
     message: "Sua sessão expirou. Entre novamente para continuar.",
   },

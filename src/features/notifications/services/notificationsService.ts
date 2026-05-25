@@ -14,6 +14,8 @@ export interface CustomerNotification {
 }
 
 const DEVICE_TOKEN_STORAGE_KEY = 'customer_notification_fcm_token';
+const PUSH_SERVICE_WORKER_URL = '/sw.js';
+const SERVICE_WORKER_READY_TIMEOUT_MS = 10000;
 
 export function hasCustomerPushRegistration() {
   return Boolean(localStorage.getItem(DEVICE_TOKEN_STORAGE_KEY));
@@ -27,6 +29,37 @@ async function getWebMessaging() {
   if (!firebaseConfigured() || !(await isSupported())) return null;
   const app = getApps()[0] || initializeApp(firebaseWebConfig);
   return getMessaging(app);
+}
+
+async function getPushServiceWorkerRegistration() {
+  let registration: ServiceWorkerRegistration;
+
+  try {
+    registration = await navigator.serviceWorker.register(PUSH_SERVICE_WORKER_URL, { scope: '/' });
+  } catch (error: any) {
+    const detail = error?.message || 'erro desconhecido';
+    throw new Error(`Não foi possível ativar o serviço de notificações neste dispositivo: ${detail}`);
+  }
+
+  if (registration.active) return registration;
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('tempo limite excedido ao iniciar o service worker')),
+          SERVICE_WORKER_READY_TIMEOUT_MS
+        );
+      }),
+    ]);
+  } catch (error: any) {
+    const detail = error?.message || 'erro desconhecido';
+    throw new Error(`O serviço de notificações não ficou pronto: ${detail}. Recarregue a página e tente novamente.`);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 async function saveToken(token: string) {
@@ -54,6 +87,7 @@ export async function enableCustomerPush(requestPermission = true) {
     throw new Error('A chave VITE_FIREBASE_VAPID_KEY não foi incluída no build do app do cliente.');
   }
 
+  const registration = await getPushServiceWorkerRegistration();
   const messaging = await getWebMessaging();
   if (!messaging) {
     throw new Error('FCM Web Push requer um navegador compatível e execução em HTTPS ou localhost.');
@@ -62,7 +96,6 @@ export async function enableCustomerPush(requestPermission = true) {
   const permission = requestPermission ? await Notification.requestPermission() : Notification.permission;
   if (permission !== 'granted') return null;
 
-  const registration = await navigator.serviceWorker.ready;
   let token: string;
   try {
     token = await getToken(messaging, {

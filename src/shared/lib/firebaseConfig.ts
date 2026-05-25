@@ -8,4 +8,5 @@ export const firebaseWebConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-ZV43RFEWZP',
 };
 
-export const firebaseVapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
+// Public web push key for the default Firebase project configured above.
+export const firebaseVapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || 'BDmIXTMtxIFzHfNZkgZkJdLJit_5CJbiufG7CNyKN0Dlo3uf_taFX5bk8I1ZHMGsIMes3UEnNCKqUnaRRSe3Pcs';
