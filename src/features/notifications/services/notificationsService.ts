@@ -15,7 +15,7 @@ export interface CustomerNotification {
 
 const DEVICE_TOKEN_STORAGE_KEY = 'customer_notification_fcm_token';
 const PUSH_SERVICE_WORKER_URL = '/sw.js';
-const SERVICE_WORKER_READY_TIMEOUT_MS = 10000;
+const SERVICE_WORKER_READY_TIMEOUT_MS = 30000;
 
 export function hasCustomerPushRegistration() {
   return Boolean(localStorage.getItem(DEVICE_TOKEN_STORAGE_KEY));
@@ -31,6 +31,43 @@ async function getWebMessaging() {
   return getMessaging(app);
 }
 
+async function waitForActiveServiceWorker(registration: ServiceWorkerRegistration) {
+  if (registration.active) return registration;
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const worker = registration.installing || registration.waiting;
+
+  try {
+    return await Promise.race([
+      new Promise<ServiceWorkerRegistration>((resolve, reject) => {
+        if (!worker) {
+          navigator.serviceWorker.ready.then(resolve, reject);
+          return;
+        }
+
+        const resolveWhenActive = () => {
+          if (worker.state === 'activated' || registration.active) {
+            resolve(registration);
+          } else if (worker.state === 'redundant') {
+            reject(new Error('o service worker falhou durante a instalação'));
+          }
+        };
+
+        worker.addEventListener('statechange', resolveWhenActive);
+        resolveWhenActive();
+      }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('tempo limite excedido ao iniciar o service worker')),
+          SERVICE_WORKER_READY_TIMEOUT_MS
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function getPushServiceWorkerRegistration() {
   let registration: ServiceWorkerRegistration;
 
@@ -41,24 +78,11 @@ async function getPushServiceWorkerRegistration() {
     throw new Error(`Não foi possível ativar o serviço de notificações neste dispositivo: ${detail}`);
   }
 
-  if (registration.active) return registration;
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error('tempo limite excedido ao iniciar o service worker')),
-          SERVICE_WORKER_READY_TIMEOUT_MS
-        );
-      }),
-    ]);
+    return await waitForActiveServiceWorker(registration);
   } catch (error: any) {
     const detail = error?.message || 'erro desconhecido';
     throw new Error(`O serviço de notificações não ficou pronto: ${detail}. Recarregue a página e tente novamente.`);
-  } finally {
-    if (timer) clearTimeout(timer);
   }
 }
 
@@ -80,21 +104,23 @@ async function saveToken(token: string) {
 
 export async function enableCustomerPush(requestPermission = true) {
   if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-    throw new Error('Este navegador não suporta notificações push.');
+    throw new Error('Este navegador não suporta notificações push. No iPhone, instale e abra o app pela Tela de Início.');
   }
 
   if (!firebaseVapidKey) {
     throw new Error('A chave VITE_FIREBASE_VAPID_KEY não foi incluída no build do app do cliente.');
   }
 
-  const registration = await getPushServiceWorkerRegistration();
-  const messaging = await getWebMessaging();
-  if (!messaging) {
-    throw new Error('FCM Web Push requer um navegador compatível e execução em HTTPS ou localhost.');
-  }
-
+  // iOS requires the permission prompt to be initiated directly by the user's tap.
   const permission = requestPermission ? await Notification.requestPermission() : Notification.permission;
   if (permission !== 'granted') return null;
+
+  const messaging = await getWebMessaging();
+  if (!messaging) {
+    throw new Error('Notificações push não são compatíveis com este navegador. No iPhone, use o app instalado na Tela de Início em iOS 16.4 ou superior.');
+  }
+
+  const registration = await getPushServiceWorkerRegistration();
 
   let token: string;
   try {

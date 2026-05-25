@@ -11,7 +11,12 @@ const CACHE_NAME = 'cliente-delivery-push-v1';
 const PRECACHE_URLS = self.__WB_MANIFEST.map((entry) => entry.url);
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => Promise.all(PRECACHE_URLS.map((url) => cache.add(url).catch(() => undefined))))
+      .catch(() => undefined)
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -29,7 +34,15 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-if (firebaseWebConfig.apiKey && firebaseWebConfig.projectId && firebaseWebConfig.messagingSenderId && firebaseWebConfig.appId) {
+const supportsPushMessaging = (
+  'PushManager' in self &&
+  'Notification' in self &&
+  'PushSubscription' in self &&
+  ServiceWorkerRegistration.prototype.hasOwnProperty('showNotification') &&
+  PushSubscription.prototype.hasOwnProperty('getKey')
+);
+
+if (supportsPushMessaging && firebaseWebConfig.apiKey && firebaseWebConfig.projectId && firebaseWebConfig.messagingSenderId && firebaseWebConfig.appId) {
   const messaging = getMessaging(initializeApp(firebaseWebConfig));
   onBackgroundMessage(messaging, (payload) => {
     const data = payload.data || {};

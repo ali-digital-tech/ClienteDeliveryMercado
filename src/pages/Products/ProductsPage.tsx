@@ -220,6 +220,8 @@ export function ProductsPage() {
   const [isLoadingLevel3Categories, setIsLoadingLevel3Categories] = useState(false);
   const [level2CategoriesError, setLevel2CategoriesError] = useState<Error | null>(null);
   const [level3CategoriesError, setLevel3CategoriesError] = useState<Error | null>(null);
+  const [loadedLevel2DepartmentId, setLoadedLevel2DepartmentId] = useState<string | null>(null);
+  const [loadedLevel3CategoryId, setLoadedLevel3CategoryId] = useState<string | null>(null);
   const selectedDepartment = departments.find((cat) => cat.id === selectedDepartmentId);
   const selectedLevel2 = level2Categories.find((cat) => cat.id === selectedLevel2Id);
   const selectedSubcategory = selectedSubcategoryId
@@ -318,6 +320,8 @@ export function ProductsPage() {
     setLevel3Categories([]);
     setLevel2CategoriesError(null);
     setLevel3CategoriesError(null);
+    setLoadedLevel2DepartmentId(null);
+    setLoadedLevel3CategoryId(null);
 
     if (!selectedDepartmentId) {
       setIsLoadingLevel2Categories(false);
@@ -330,6 +334,7 @@ export function ProductsPage() {
       .then((data) => {
         if (!ignore) {
           setLevel2Categories(sortByOrder(data.filter((category) => category.parentId === selectedDepartmentId)));
+          setLoadedLevel2DepartmentId(selectedDepartmentId);
         }
       })
       .catch((error) => {
@@ -348,7 +353,12 @@ export function ProductsPage() {
   }, [marketId, selectedDepartmentId]);
 
   useEffect(() => {
-    if (!selectedDepartmentId || isLoadingLevel2Categories || level2CategoriesError) return;
+    if (
+      !selectedDepartmentId
+      || loadedLevel2DepartmentId !== selectedDepartmentId
+      || isLoadingLevel2Categories
+      || level2CategoriesError
+    ) return;
     if (level2Categories.length === 0) {
       if (selectedLevel2Id || selectedSubcategoryId) {
         updateNavigation({ categoriaNivel2: "", subcategoria: null });
@@ -362,6 +372,7 @@ export function ProductsPage() {
     isLoadingLevel2Categories,
     level2Categories,
     level2CategoriesError,
+    loadedLevel2DepartmentId,
     selectedDepartmentId,
     selectedLevel2Id,
     selectedSubcategoryId,
@@ -373,6 +384,7 @@ export function ProductsPage() {
 
     setLevel3Categories([]);
     setLevel3CategoriesError(null);
+    setLoadedLevel3CategoryId(null);
 
     if (!selectedDepartmentId || !selectedLevel2Id || isLoadingLevel2Categories || !selectedLevel2) {
       setIsLoadingLevel3Categories(false);
@@ -384,6 +396,7 @@ export function ProductsPage() {
       .then((data) => {
         if (!ignore) {
           setLevel3Categories(sortByOrder(data.filter((category) => category.parentId === selectedLevel2Id)));
+          setLoadedLevel3CategoryId(selectedLevel2Id);
         }
       })
       .catch((error) => {
@@ -402,11 +415,24 @@ export function ProductsPage() {
   }, [isLoadingLevel2Categories, marketId, selectedDepartmentId, selectedLevel2, selectedLevel2Id]);
 
   useEffect(() => {
-    if (!selectedSubcategoryId || isLoadingLevel3Categories || level3CategoriesError) return;
+    if (
+      !selectedSubcategoryId
+      || loadedLevel3CategoryId !== selectedLevel2Id
+      || isLoadingLevel3Categories
+      || level3CategoriesError
+    ) return;
     if (level3Categories.some((category) => category.id === selectedSubcategoryId)) return;
 
     updateNavigation({ subcategoria: null });
-  }, [isLoadingLevel3Categories, level3Categories, level3CategoriesError, selectedSubcategoryId, updateNavigation]);
+  }, [
+    isLoadingLevel3Categories,
+    level3Categories,
+    level3CategoriesError,
+    loadedLevel3CategoryId,
+    selectedLevel2Id,
+    selectedSubcategoryId,
+    updateNavigation,
+  ]);
 
   useEffect(() => {
     let ignore = false;
