@@ -30,14 +30,18 @@ async function getWebMessaging() {
 }
 
 async function saveToken(token: string) {
-  await apiRequest('/notifications/register-device', {
-    method: 'POST',
-    body: {
-      fcm_token: token,
-      platform: 'web',
-      app_type: 'customer_app',
-    },
-  });
+  try {
+    await apiRequest('/notifications/register-device', {
+      method: 'POST',
+      body: {
+        fcm_token: token,
+        platform: 'web',
+        app_type: 'customer_app',
+      },
+    });
+  } catch (error: any) {
+    throw new Error(`Token FCM obtido, mas o backend não registrou o dispositivo: ${error?.message || 'erro desconhecido'}`);
+  }
   localStorage.setItem(DEVICE_TOKEN_STORAGE_KEY, token);
 }
 
@@ -59,10 +63,16 @@ export async function enableCustomerPush(requestPermission = true) {
   if (permission !== 'granted') return null;
 
   const registration = await navigator.serviceWorker.ready;
-  const token = await getToken(messaging, {
-    vapidKey: firebaseVapidKey,
-    serviceWorkerRegistration: registration,
-  });
+  let token: string;
+  try {
+    token = await getToken(messaging, {
+      vapidKey: firebaseVapidKey,
+      serviceWorkerRegistration: registration,
+    });
+  } catch (error: any) {
+    const detail = error?.code || error?.message || 'erro desconhecido';
+    throw new Error(`Permissão concedida, mas o Firebase não gerou o token push: ${detail}`);
+  }
 
   if (!token) throw new Error('Não foi possível registrar este dispositivo.');
   await saveToken(token);
