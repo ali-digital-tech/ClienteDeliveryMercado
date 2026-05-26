@@ -35,6 +35,11 @@ const statusConfig: Record<Order["status"], { label: string; color: string; bg: 
     color: "#2f5b93",
     bg: "#edf3fb",
   },
+  pronto: {
+    label: "Pronto",
+    color: "#1e40af",
+    bg: "#dbeafe",
+  },
   saiu: {
     label: "Saiu para entrega",
     color: "#3f5f8a",

@@ -23,6 +23,7 @@ const statusConfig: Record<Order["status"], { label: string; color: string; bg: 
   recebido: { label: "Recebido", color: "#1b3d6d", bg: "#eef4fb" },
   confirmado: { label: "Confirmado", color: "#122a4c", bg: "#e8f0fb" },
   separacao: { label: "Em separação", color: "#2f5b93", bg: "#edf3fb" },
+  pronto: { label: "Pronto", color: "#1e40af", bg: "#dbeafe" },
   saiu: { label: "Saiu para entrega", color: "#3f5f8a", bg: "#eff4fb" },
   entregue: { label: "Entregue", color: "#122a4c", bg: "#eef4fb" },
   cancelado: { label: "Cancelado", color: "#b91c1c", bg: "#fef2f2" },
@@ -33,8 +34,9 @@ const statusIndex: Record<Order["status"], number> = {
   recebido: 0,
   confirmado: 1,
   separacao: 2,
-  saiu: 3,
-  entregue: 4,
+  pronto: 3,
+  saiu: 4,
+  entregue: 5,
   cancelado: 1,
 };
 
@@ -125,6 +127,13 @@ function buildSteps(order: Order) {
       desc: "Produtos em preparação",
       time: "--",
       icon: ShoppingBag,
+    },
+    {
+      id: "pronto",
+      label: "Pedido pronto",
+      desc: "Pronto para retirada ou envio",
+      time: "--",
+      icon: Package,
     },
     {
       id: "saiu",

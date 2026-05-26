@@ -17,7 +17,7 @@ export interface Order {
   discount?: number;
   deliveryFee?: number;
   total: number;
-  status: 'pendente' | 'recebido' | 'confirmado' | 'separacao' | 'saiu' | 'entregue' | 'cancelado';
+  status: 'pendente' | 'recebido' | 'confirmado' | 'separacao' | 'pronto' | 'saiu' | 'entregue' | 'cancelado';
   backendStatus?: string;
   address: string;
   type: 'delivery' | 'pickup';

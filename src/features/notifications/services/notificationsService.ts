@@ -13,6 +13,12 @@ export interface CustomerNotification {
   created_at: string;
 }
 
+export interface CustomerNotificationPreferences {
+  id?: string;
+  orders_enabled: boolean;
+  campaigns_enabled: boolean;
+}
+
 const DEVICE_TOKEN_STORAGE_KEY = 'customer_notification_fcm_token';
 const PUSH_SERVICE_WORKER_URL = '/sw.js';
 const SERVICE_WORKER_READY_TIMEOUT_MS = 30000;
@@ -175,6 +181,21 @@ export async function fetchCustomerNotifications() {
 export async function readCustomerNotification(id: string) {
   const response = await apiRequest<{ data: CustomerNotification }>(`/notifications/${id}/read`, {
     method: 'PATCH',
+  });
+  return response.data;
+}
+
+export async function fetchCustomerNotificationPreferences() {
+  const response = await apiRequest<{ data: CustomerNotificationPreferences }>('/notifications/preferences');
+  return response.data;
+}
+
+export async function updateCustomerNotificationPreferences(
+  preferences: Partial<Pick<CustomerNotificationPreferences, 'orders_enabled' | 'campaigns_enabled'>>
+) {
+  const response = await apiRequest<{ data: CustomerNotificationPreferences }>('/notifications/preferences', {
+    method: 'PATCH',
+    body: preferences as unknown as BodyInit,
   });
   return response.data;
 }

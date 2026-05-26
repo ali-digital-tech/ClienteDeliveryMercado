@@ -120,6 +120,8 @@ export const authService = {
     localStorage.setItem(AUTH_TOKEN_KEY, session.access_token);
     if (session.refresh_token) {
       localStorage.setItem('refresh_token', session.refresh_token);
+    } else {
+      localStorage.removeItem('refresh_token');
     }
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(session.user));
     return session.user;

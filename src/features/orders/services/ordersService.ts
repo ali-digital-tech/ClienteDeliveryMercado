@@ -122,11 +122,13 @@ function formatDate(value: string | null | undefined) {
 }
 
 function mapStatus(status: string | null | undefined): Order['status'] {
-  if (status === 'pendente' || status === 'aguardando_pagamento') return 'pendente';
+  if (status === 'aguardando_pagamento') return 'pendente';
+  if (status === 'pendente') return 'recebido';
   if (status === 'recebido') return 'recebido';
   if (status === 'confirmado') return 'confirmado';
   if (status === 'em_separacao' || status === 'preparando') return 'separacao';
-  if (status === 'saiu_entrega' || status === 'em_entrega') return 'saiu';
+  if (status === 'pronto') return 'pronto';
+  if (status === 'saiu_para_entrega' || status === 'saiu_entrega' || status === 'em_entrega') return 'saiu';
   if (status === 'entregue') return 'entregue';
   if (status === 'cancelado' || status === 'cancelada') return 'cancelado';
 

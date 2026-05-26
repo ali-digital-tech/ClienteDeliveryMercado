@@ -8,6 +8,7 @@ const statusLabels = {
   recebido: "Recebido",
   confirmado: "Confirmado",
   separacao: "Em separação",
+  pronto: "Pronto",
   saiu: "Saiu para entrega",
   entregue: "Entregue",
   cancelado: "Cancelado",
