@@ -28,7 +28,9 @@ export function OrderConfirmedScreen() {
       .some((value) => value!.replace(/^#/, "") === normalizedOrderId)
   ));
   const displayedTotal = apiOrder?.total ?? savedTotal;
-  const displayedStatus = apiOrder ? statusLabels[apiOrder.status] : "Recebido";
+  const displayedStatus = apiOrder?.type === "pickup" && apiOrder.status === "entregue"
+    ? "Retirado"
+    : apiOrder ? statusLabels[apiOrder.status] : "Recebido";
 
   useEffect(() => {
     const total = cartTotal - discount;

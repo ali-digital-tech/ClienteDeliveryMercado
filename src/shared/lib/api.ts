@@ -134,9 +134,17 @@ async function sendRequest(path: string, options: ApiRequestOptions, token: stri
   return { response, payload };
 }
 
+async function sendFriendlyRequest(path: string, options: ApiRequestOptions, token: string | null) {
+  try {
+    return await sendRequest(path, options, token);
+  } catch (error) {
+    throw new Error(getFriendlyMessage(error));
+  }
+}
+
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const token = getAuthToken();
-  let { response, payload } = await sendRequest(path, options, token);
+  let { response, payload } = await sendFriendlyRequest(path, options, token);
 
   if (!response.ok) {
     const initialMessage = payload?.message || payload?.error?.message || payload?.error || '';
@@ -145,7 +153,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     if (canRefresh) {
       const refreshed = await refreshSession();
       if (refreshed) {
-        ({ response, payload } = await sendRequest(path, options, getAuthToken()));
+        ({ response, payload } = await sendFriendlyRequest(path, options, getAuthToken()));
       }
 
       const finalMessage = payload?.message || payload?.error?.message || payload?.error || '';

@@ -230,7 +230,10 @@ export function MyOrdersScreen() {
         ) : (
           <div className="flex flex-col gap-3">
             {orders.map((order) => {
-              const status = statusConfig[order.status] ?? statusConfig.recebido;
+              const defaultStatus = statusConfig[order.status] ?? statusConfig.recebido;
+              const status = order.type === "pickup" && order.status === "entregue"
+                ? { ...defaultStatus, label: "Retirado" }
+                : defaultStatus;
               const isActive = !["entregue", "cancelado"].includes(order.status);
               const itemCount = order.itemCount ?? order.items.reduce((sum, item) => sum + item.qty, 0);
               const hasItems = order.items.length > 0;

@@ -1,4 +1,5 @@
-import { apiRequest } from '@/shared/lib/api';
+import { apiRequest, getAuthToken } from '@/shared/lib/api';
+import { getFriendlyMessage } from '@/shared/lib/userMessages';
 import type { CartItem } from '../types/cart';
 
 export interface AppliedCoupon {
@@ -96,7 +97,7 @@ function normalizeCouponResponse(code: string, subtotal: number, payload: ApiCou
     id: typeof coupon?.id === 'string' ? coupon.id : null,
     code,
     discount,
-    message,
+    message: message ? getFriendlyMessage(message) : undefined,
   };
 }
 
@@ -110,6 +111,10 @@ export async function validateCoupon(
 
   if (!normalizedCode) {
     throw new Error('Informe um cupom.');
+  }
+
+  if (!getAuthToken()) {
+    throw new Error('Faça login para usar um cupom.');
   }
 
   if (cart.length === 0 || subtotal <= 0) {

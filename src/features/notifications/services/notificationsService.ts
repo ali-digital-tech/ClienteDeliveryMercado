@@ -2,6 +2,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getMessaging, getToken, isSupported, onMessage, type MessagePayload } from 'firebase/messaging';
 import { apiRequest } from '@/shared/lib/api';
 import { firebaseVapidKey, firebaseWebConfig } from '@/shared/lib/firebaseConfig';
+import { getFriendlyMessage } from '@/shared/lib/userMessages';
 
 export interface CustomerNotification {
   id: string;
@@ -79,16 +80,14 @@ async function getPushServiceWorkerRegistration() {
 
   try {
     registration = await navigator.serviceWorker.register(PUSH_SERVICE_WORKER_URL, { scope: '/' });
-  } catch (error: any) {
-    const detail = error?.message || 'erro desconhecido';
-    throw new Error(`Não foi possível ativar o serviço de notificações neste dispositivo: ${detail}`);
+  } catch {
+    throw new Error('Não foi possível ativar o serviço de notificações neste dispositivo. Tente novamente.');
   }
 
   try {
     return await waitForActiveServiceWorker(registration);
-  } catch (error: any) {
-    const detail = error?.message || 'erro desconhecido';
-    throw new Error(`O serviço de notificações não ficou pronto: ${detail}. Recarregue a página e tente novamente.`);
+  } catch {
+    throw new Error('O serviço de notificações não ficou pronto. Recarregue a página e tente novamente.');
   }
 }
 
@@ -103,7 +102,7 @@ async function saveToken(token: string) {
       },
     });
   } catch (error: any) {
-    throw new Error(`Token FCM obtido, mas o backend não registrou o dispositivo: ${error?.message || 'erro desconhecido'}`);
+    throw new Error(getFriendlyMessage(error, 'Não foi possível registrar este dispositivo para receber notificações.'));
   }
   localStorage.setItem(DEVICE_TOKEN_STORAGE_KEY, token);
 }
@@ -134,9 +133,8 @@ export async function enableCustomerPush(requestPermission = true) {
       vapidKey: firebaseVapidKey,
       serviceWorkerRegistration: registration,
     });
-  } catch (error: any) {
-    const detail = error?.code || error?.message || 'erro desconhecido';
-    throw new Error(`Permissão concedida, mas o Firebase não gerou o token push: ${detail}`);
+  } catch {
+    throw new Error('Permissão concedida, mas não foi possível registrar as notificações push. Tente novamente.');
   }
 
   if (!token) throw new Error('Não foi possível registrar este dispositivo.');

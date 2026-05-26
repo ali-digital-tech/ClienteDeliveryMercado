@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { CartItem } from '@/features/cart';
 import { getOrdersByMarketId } from '../services/ordersService';
 import type { Order } from '../types/order';
+import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
 export function useOrdersStore(marketId: string) {
   const [ordersByMarket, setOrdersByMarket] = useState<Record<string, Order[]>>({});
@@ -47,7 +48,7 @@ export function useOrdersStore(marketId: string) {
     const newOrder: Order = {
       id: orderId,
       marketId,
-      date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }),
+      date: formatBrasiliaDate(new Date(), { day: '2-digit', month: 'short', year: 'numeric' }),
       items: items.map(item => ({ product: item.product, qty: item.qty })),
       total,
       status: 'recebido',

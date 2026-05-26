@@ -12,6 +12,7 @@ import {
   type CustomerNotification,
   type CustomerNotificationPreferences,
 } from '@/features/notifications';
+import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
 function iconFor(notification: CustomerNotification) {
   if (notification.type === 'TENANT_CAMPAIGN') return { icon: Tag, bg: '#fef3c7', color: '#d97706' };
@@ -20,10 +21,10 @@ function iconFor(notification: CustomerNotification) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('pt-BR', {
+  return formatBrasiliaDate(value, {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(new Date(value));
+  });
 }
 
 export function NotificationsFeedScreen() {
@@ -162,7 +163,7 @@ export function NotificationsFeedScreen() {
               Escolha o que deseja receber por push. Ao ativar as notificações, as duas categorias começam habilitadas.
             </p>
             {[
-              { field: 'orders_enabled' as const, title: 'Informações sobre pedidos', description: 'Recebido, confirmado, em separação, pronto, saiu para entrega e entregue.' },
+              { field: 'orders_enabled' as const, title: 'Informações sobre pedidos', description: 'Recebido, confirmado, em separação, pronto e conclusão da entrega ou retirada.' },
               { field: 'campaigns_enabled' as const, title: 'Campanhas e promoções', description: 'Ofertas enviadas pela loja para o seu perfil.' },
             ].map((option) => {
               const active = Boolean(preferences?.[option.field]);

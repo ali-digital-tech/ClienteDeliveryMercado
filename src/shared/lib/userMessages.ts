@@ -6,8 +6,44 @@ const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> =
     message: "E-mail ou senha incorretos. Verifique os dados e tente novamente.",
   },
   {
-    test: /invalid or expired token|jwt expired|token expired|invalid token|unauthorized/i,
+    test: /missing authorization token|authentication required|not authenticated/i,
+    message: "Faça login para continuar.",
+  },
+  {
+    test: /invalid token format|invalid or expired token|jwt expired|token expired|invalid token|invalid jwt|invalid refresh token|unauthorized/i,
     message: "Sua sessão expirou. Entre novamente para continuar.",
+  },
+  {
+    test: /email must be a valid email address/i,
+    message: "Informe um e-mail válido.",
+  },
+  {
+    test: /password is required|email and password are required/i,
+    message: "Informe e-mail e senha.",
+  },
+  {
+    test: /cpf already registered/i,
+    message: "Este CPF já está cadastrado.",
+  },
+  {
+    test: /email already registered/i,
+    message: "Este e-mail já está cadastrado.",
+  },
+  {
+    test: /phone number already registered/i,
+    message: "Este telefone já está cadastrado.",
+  },
+  {
+    test: /customer already registered/i,
+    message: "Já existe um cadastro com esses dados.",
+  },
+  {
+    test: /coupon validated successfully/i,
+    message: "Cupom aplicado com sucesso.",
+  },
+  {
+    test: /(?:created|updated|deleted|connected) successfully|(?:card|pix|boleto) payment created|refund created/i,
+    message: "Operação concluída com sucesso.",
   },
   {
     test: /coupon usage limit reached for this customer/i,
@@ -50,6 +86,58 @@ const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> =
     message: "Este cupom não pertence a este mercado.",
   },
   {
+    test: /customer address not found/i,
+    message: "Endereço não encontrado.",
+  },
+  {
+    test: /customer not found/i,
+    message: "Cliente não encontrado.",
+  },
+  {
+    test: /active cart not found|cart not found/i,
+    message: "Carrinho não encontrado.",
+  },
+  {
+    test: /cart must be active to (?:change items|create an order)/i,
+    message: "Este carrinho não está mais ativo.",
+  },
+  {
+    test: /cart item not found/i,
+    message: "Item não encontrado no carrinho.",
+  },
+  {
+    test: /cart must have at least one item to create an order/i,
+    message: "Adicione produtos ao carrinho antes de finalizar o pedido.",
+  },
+  {
+    test: /order already exists for this cart/i,
+    message: "Este carrinho já gerou um pedido.",
+  },
+  {
+    test: /order not found/i,
+    message: "Pedido não encontrado.",
+  },
+  {
+    test: /product not found/i,
+    message: "Produto não encontrado.",
+  },
+  {
+    test: /store not found/i,
+    message: "Mercado não encontrado.",
+  },
+  {
+    test: /this order already has an approved payment/i,
+    message: "Este pedido já possui um pagamento aprovado.",
+  },
+  {
+    test: /payment not found/i,
+    message: "Pagamento não encontrado.",
+  },
+  {
+    test: /failed to fetch payment methods/i,
+    message: "Não foi possível carregar as formas de pagamento.",
+  },
+  {
     test: /failed to fetch|networkerror|network request failed|load failed/i,
     message: "Não foi possível conectar. Verifique sua internet e tente novamente.",
   },
@@ -70,6 +158,8 @@ const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> =
     message: "Confirme os dados do cartão antes de continuar.",
   },
 ];
+
+const UNTRANSLATED_TECHNICAL_MESSAGE = /\b(?:missing|required|must|invalid|unauthorized|forbidden|not found|already|cannot|unable|failed|successfully|created|updated|deleted|expired|declined|rejected|wrong|unknown|unsupported|this|your|the|is|are|was|were|does|could|please|with|without)\b|error (?:finding|saving|processing|creating|updating|deleting|loading)/i;
 
 function extractMessage(value: unknown): string {
   if (typeof value === "string") return value;
@@ -105,6 +195,10 @@ export function getFriendlyMessage(
   }
 
   if (!rawMessage) return fallback;
+
+  if (UNTRANSLATED_TECHNICAL_MESSAGE.test(rawMessage)) {
+    return fallback;
+  }
 
   return rawMessage
     .replace(/\bNao\b/g, "Não")

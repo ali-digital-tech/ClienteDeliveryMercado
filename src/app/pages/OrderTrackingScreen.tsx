@@ -17,6 +17,7 @@ import { useApp } from '@/app/providers/AppProvider';
 import { loadOrderItems, type Order } from "@/features/orders";
 import { formatCartQuantity } from "@/features/cart";
 import { ProductImage } from "@/features/products";
+import { formatBrasiliaDate } from "@/shared/lib/dateTime";
 
 const statusConfig: Record<Order["status"], { label: string; color: string; bg: string }> = {
   pendente: { label: "Pendente", color: "#92400e", bg: "#fffbeb" },
@@ -27,17 +28,6 @@ const statusConfig: Record<Order["status"], { label: string; color: string; bg: 
   saiu: { label: "Saiu para entrega", color: "#3f5f8a", bg: "#eff4fb" },
   entregue: { label: "Entregue", color: "#122a4c", bg: "#eef4fb" },
   cancelado: { label: "Cancelado", color: "#b91c1c", bg: "#fef2f2" },
-};
-
-const statusIndex: Record<Order["status"], number> = {
-  pendente: 0,
-  recebido: 0,
-  confirmado: 1,
-  separacao: 2,
-  pronto: 3,
-  saiu: 4,
-  entregue: 5,
-  cancelado: 1,
 };
 
 function formatCurrency(value: number | undefined) {
@@ -53,12 +43,12 @@ function formatOrderCode(order: Order) {
 function formatDateTime(value?: string | null) {
   if (!value) return "--";
 
-  return new Intl.DateTimeFormat("pt-BR", {
+  return formatBrasiliaDate(value, {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  });
 }
 
 function getStoredOrderId() {
@@ -82,6 +72,8 @@ function matchesOrder(order: Order, orderId: string) {
 }
 
 function buildSteps(order: Order) {
+  const isPickup = order.type === "pickup";
+
   if (order.status === "cancelado") {
     return [
       {
@@ -105,7 +97,6 @@ function buildSteps(order: Order) {
     ];
   }
 
-  const currentIndex = statusIndex[order.status] ?? 0;
   const definitions = [
     {
       id: "recebido",
@@ -130,26 +121,28 @@ function buildSteps(order: Order) {
     },
     {
       id: "pronto",
-      label: "Pedido pronto",
-      desc: "Pronto para retirada ou envio",
+      label: isPickup ? "Pronto para retirada" : "Pedido pronto para envio",
+      desc: isPickup ? "Disponível para retirada no mercado" : "Aguardando saída para entrega",
       time: "--",
       icon: Package,
     },
-    {
+    ...(!isPickup ? [{
       id: "saiu",
       label: "Saiu para entrega",
       desc: "Pedido em rota de entrega",
       time: "--",
       icon: Truck,
-    },
+    }] : []),
     {
       id: "entregue",
-      label: "Entregue",
-      desc: "Pedido entregue ao cliente",
+      label: isPickup ? "Retirado" : "Entregue",
+      desc: isPickup ? "Pedido retirado no mercado" : "Pedido entregue ao cliente",
       time: formatDateTime(order.deliveredAt),
       icon: Home,
     },
   ];
+  const currentStepId = order.status === "pendente" ? "recebido" : order.status;
+  const currentIndex = Math.max(definitions.findIndex((step) => step.id === currentStepId), 0);
 
   return definitions.map((step, index) => ({
     ...step,
@@ -258,7 +251,10 @@ export function OrderTrackingScreen() {
     );
   }
 
-  const status = statusConfig[selectedOrder.status] ?? statusConfig.recebido;
+  const defaultStatus = statusConfig[selectedOrder.status] ?? statusConfig.recebido;
+  const status = selectedOrder.type === "pickup" && selectedOrder.status === "entregue"
+    ? { ...defaultStatus, label: "Retirado" }
+    : defaultStatus;
   const steps = buildSteps(selectedOrder);
   const hasDiscount = Boolean(selectedOrder.discount && selectedOrder.discount > 0);
   const hasDeliveryFee = Boolean(selectedOrder.deliveryFee && selectedOrder.deliveryFee > 0);
@@ -510,9 +506,13 @@ export function OrderTrackingScreen() {
             </div>
 
             <div className="flex justify-between">
-              <span style={{ fontSize: "13px", color: "#64748b" }}>Entrega</span>
+              <span style={{ fontSize: "13px", color: "#64748b" }}>
+                {selectedOrder.type === "delivery" ? "Entrega" : "Retirada"}
+              </span>
               <span style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
-                {hasDeliveryFee ? formatCurrency(selectedOrder.deliveryFee) : "Grátis"}
+                {selectedOrder.type === "delivery"
+                  ? (hasDeliveryFee ? formatCurrency(selectedOrder.deliveryFee) : "Grátis")
+                  : "No mercado"}
               </span>
             </div>
 

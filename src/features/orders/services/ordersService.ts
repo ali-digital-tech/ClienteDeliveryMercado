@@ -2,6 +2,7 @@ import { apiRequest, getAuthToken, unwrapList } from '@/shared/lib/api';
 import { getProductById, mapStoreProduct } from '@/features/products';
 import type { Product } from '@/features/products';
 import type { Order } from '../types/order';
+import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
 const ORDER_ITEMS_CACHE_KEY = 'cliente_delivery_order_items_by_cart_v1';
 const ORDER_ITEMS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -114,11 +115,11 @@ function saveCachedOrderItems(order: Order, items: Order['items'], cache: OrderI
 function formatDate(value: string | null | undefined) {
   if (!value) return '';
 
-  return new Intl.DateTimeFormat('pt-BR', {
+  return formatBrasiliaDate(value, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 function mapStatus(status: string | null | undefined): Order['status'] {
