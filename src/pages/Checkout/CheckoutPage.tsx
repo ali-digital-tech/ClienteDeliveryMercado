@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   ChevronLeft,
@@ -28,7 +28,7 @@ import {
 import { formatCartQuantity, syncCartItemsBatch } from '@/features/cart';
 import { ProductImage } from '@/features/products';
 import { createCheckoutOrder } from '@/features/orders/services/ordersService';
-import { getAuthToken } from '@/shared/lib/api';
+import { apiRequest, getAuthToken } from '@/shared/lib/api';
 import {
   cancelPayment,
   createCardPayment,
@@ -44,6 +44,14 @@ import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 const PIX_PAYMENT_WINDOW_SECONDS = 5 * 60;
 const PIX_POLL_INTERVAL_MS = 5000;
 const PIX_TERMINAL_STATUSES = new Set(['rejeitado', 'cancelado', 'expirado', 'estornado']);
+const BRASILIA_TIME_ZONE = 'America/Sao_Paulo';
+
+interface BusinessHour {
+  dia_semana: number;
+  aberto: boolean;
+  horario_abertura?: string | null;
+  horario_fechamento?: string | null;
+}
 
 interface PendingCheckoutOrder {
   id: string;
@@ -62,6 +70,55 @@ function formatPixCountdown(seconds: number) {
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function unwrapBusinessHours(payload: any): BusinessHour[] {
+  const data = payload?.data;
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+}
+
+function getBrasiliaParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BRASILIA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const year = Number(values.year);
+  const month = Number(values.month);
+  const day = Number(values.day);
+
+  return {
+    dayOfWeek: new Date(Date.UTC(year, month - 1, day)).getUTCDay(),
+    minutes: Number(values.hour) * 60 + Number(values.minute),
+  };
+}
+
+function parseTimeToMinutes(value?: string | null) {
+  if (!value) return null;
+  const match = value.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+function isOpenNow(schedule: BusinessHour | undefined, currentMinutes: number) {
+  if (!schedule?.aberto) return false;
+  const opening = parseTimeToMinutes(schedule.horario_abertura);
+  const closing = parseTimeToMinutes(schedule.horario_fechamento);
+
+  if (opening === null || closing === null) return false;
+  if (opening <= closing) return currentMinutes >= opening && currentMinutes < closing;
+  return currentMinutes >= opening || currentMinutes < closing;
 }
 
 function formatCpf(value: string) {
@@ -123,6 +180,8 @@ export function CheckoutPage() {
   const [wantsCpfInvoice, setWantsCpfInvoice] = useState(false);
   const [cpfInvoice, setCpfInvoice] = useState('');
   const [saveCpfAsDefault, setSaveCpfAsDefault] = useState(false);
+  const [businessHours, setBusinessHours] = useState<BusinessHour[]>([]);
+  const [loadingBusinessHours, setLoadingBusinessHours] = useState(false);
 
   const deliveryFee = Math.max(0, currentMarket.deliveryFee || 0);
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
@@ -156,6 +215,16 @@ export function CheckoutPage() {
     effectiveCustomerProfile?.cpf_na_nota_padrao
   );
   const savedCpfInvoice = effectiveCustomerProfile?.cpf || '';
+  const marketScheduleStatus = useMemo(() => {
+    if (businessHours.length === 0) {
+      return { isOpen: currentMarket.status === 'open' };
+    }
+
+    const currentTime = getBrasiliaParts();
+    const todaySchedule = businessHours.find((schedule) => Number(schedule.dia_semana) === currentTime.dayOfWeek);
+
+    return { isOpen: isOpenNow(todaySchedule, currentTime.minutes) };
+  }, [businessHours, currentMarket.status]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -175,6 +244,30 @@ export function CheckoutPage() {
       isActive = false;
     };
   }, [currentUser, marketId]);
+
+  useEffect(() => {
+    if (!marketId) return;
+
+    let isActive = true;
+    setLoadingBusinessHours(true);
+
+    apiRequest(`/horarios_funcionamento/${marketId}`)
+      .then((payload) => {
+        if (!isActive) return;
+        setBusinessHours(unwrapBusinessHours(payload));
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar horário de funcionamento:', error);
+        if (isActive) setBusinessHours([]);
+      })
+      .finally(() => {
+        if (isActive) setLoadingBusinessHours(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [marketId]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -677,9 +770,43 @@ export function CheckoutPage() {
             </button>
           </div>
 
-          <p style={{ fontSize: "13px", color: "#64748b", lineHeight: 1.4 }}>
-            Você pode fazer o pedido em qualquer horário. Se ele for feito fora do horário de funcionamento, a entrega será no próximo dia em que o mercado estiver aberto.
-          </p>
+          <div className="space-y-2">
+            <div
+              className="rounded-xl px-3 py-2"
+              style={{
+                backgroundColor: marketScheduleStatus.isOpen ? "#f0fdf4" : "#fffbeb",
+                border: `1px solid ${marketScheduleStatus.isOpen ? "#bbf7d0" : "#fde68a"}`,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 800,
+                  color: marketScheduleStatus.isOpen ? "#15803d" : "#b45309",
+                }}
+              >
+                {loadingBusinessHours
+                  ? "Verificando horário do mercado..."
+                  : marketScheduleStatus.isOpen
+                    ? "Mercado aberto agora."
+                    : "Mercado fechado agora."}
+              </p>
+            </div>
+
+            <div
+              className="rounded-xl px-3 py-2"
+              style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}
+            >
+              <p style={{ fontSize: "13px", color: "#15803d", lineHeight: 1.4, fontWeight: 700 }}>
+                Você pode fazer o pedido normalmente em qualquer horário.
+              </p>
+              {!marketScheduleStatus.isOpen && !loadingBusinessHours && (
+                <p style={{ fontSize: "12px", color: "#166534", lineHeight: 1.4, marginTop: "2px" }}>
+                  Como o mercado está fechado, a entrega será no próximo dia em que ele estiver aberto.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Pagamento */}
