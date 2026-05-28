@@ -12,6 +12,7 @@ import {
   type CustomerNotification,
   type CustomerNotificationPreferences,
 } from '@/features/notifications';
+import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
 function iconFor(notification: CustomerNotification) {
@@ -32,7 +33,6 @@ export function NotificationsFeedScreen() {
   const { isLoggedIn, tenantPath } = useApp();
   const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState('');
   const [pushEnabled, setPushEnabled] = useState(() => hasCustomerPushRegistration());
   const [preferences, setPreferences] = useState<CustomerNotificationPreferences | null>(null);
   const [savingPreference, setSavingPreference] = useState(false);
@@ -43,6 +43,7 @@ export function NotificationsFeedScreen() {
       return;
     }
     try {
+      setPushEnabled(hasCustomerPushRegistration());
       const [items, pushPreferences] = await Promise.all([
         fetchCustomerNotifications(),
         fetchCustomerNotificationPreferences(),
@@ -50,7 +51,7 @@ export function NotificationsFeedScreen() {
       setNotifications(items);
       setPreferences(pushPreferences);
     } catch (error: any) {
-      setFeedback(error?.message || 'Não foi possível carregar notificações.');
+      showSystemNotice(error?.message || 'Não foi possível carregar notificações.');
     } finally {
       setLoading(false);
     }
@@ -64,13 +65,17 @@ export function NotificationsFeedScreen() {
   }, [isLoggedIn]);
 
   const openNotification = async (notification: CustomerNotification) => {
-    if (!notification.read_at) {
-      const updated = await readCustomerNotification(notification.id);
-      setNotifications((items) => items.map((item) => item.id === updated.id ? updated : item));
-    }
+    try {
+      if (!notification.read_at) {
+        const updated = await readCustomerNotification(notification.id);
+        setNotifications((items) => items.map((item) => item.id === updated.id ? updated : item));
+      }
 
-    if (notification.data?.route) {
-      navigate(notification.data.route.startsWith('/mercado/') ? notification.data.route : tenantPath(notification.data.route));
+      if (notification.data?.route) {
+        navigate(notification.data.route.startsWith('/mercado/') ? notification.data.route : tenantPath(notification.data.route));
+      }
+    } catch (error: any) {
+      showSystemNotice(error?.message || 'Não foi possível abrir a notificação.');
     }
   };
 
@@ -85,25 +90,24 @@ export function NotificationsFeedScreen() {
       if (token) {
         setPreferences(await fetchCustomerNotificationPreferences());
       }
-      setFeedback(token ? 'Notificações ativadas neste dispositivo.' : 'Permissão de notificações não concedida.');
+      showSystemNotice(token ? 'Notificações ativadas neste dispositivo.' : 'Permissão de notificações não concedida.');
     } catch (error: any) {
-      setFeedback(error?.message || 'Não foi possível ativar notificações.');
+      showSystemNotice(error?.message || 'Não foi possível ativar notificações.');
     }
   };
 
   const togglePreference = async (field: 'orders_enabled' | 'campaigns_enabled') => {
     if (!preferences?.id) {
-      setFeedback('Ative as notificações push para escolher as categorias.');
+      showSystemNotice('Ative as notificações push para escolher as categorias.');
       return;
     }
     setSavingPreference(true);
-    setFeedback('');
     try {
       const updated = await updateCustomerNotificationPreferences({ [field]: !preferences[field] });
       setPreferences(updated);
-      setFeedback('Preferências de notificações atualizadas.');
+      showSystemNotice('Preferências de notificações atualizadas.');
     } catch (error: any) {
-      setFeedback(error?.message || 'Não foi possível atualizar suas preferências.');
+      showSystemNotice(error?.message || 'Não foi possível atualizar suas preferências.');
     } finally {
       setSavingPreference(false);
     }
@@ -150,7 +154,6 @@ export function NotificationsFeedScreen() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        {feedback && <div className="mb-4 rounded-md bg-white border px-3 py-2 text-sm" style={{ borderColor: '#d9e4f2', color: '#475569' }}>{feedback}</div>}
         {isLoggedIn && !pushEnabled && (
           <button onClick={activatePush} className="mb-4 w-full rounded-md px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2" style={{ backgroundColor: '#122a4c' }}>
             <Smartphone size={18} /> Ativar notificações push

@@ -35,6 +35,24 @@ interface ApiOrder {
     cidade?: string | null;
     estado?: string | null;
   } | null;
+  entrega?: {
+    id?: string;
+    status?: string | null;
+    entregador?: {
+      id?: string;
+      nome?: string | null;
+      telefone?: string | null;
+    } | null;
+    automovel?: {
+      id?: string;
+      tipo?: string | null;
+      marca?: string | null;
+      modelo?: string | null;
+      placa?: string | null;
+      cor?: string | null;
+      ano?: number | null;
+    } | null;
+  } | null;
 }
 
 interface ApiCartItem {
@@ -262,6 +280,23 @@ function mapOrder(order: ApiOrder): Order {
     backendStatus: order.status || undefined,
     address: formatAddress(order.endereco_cliente),
     type: order.tipo_pedido === 'retirada' ? 'pickup' : 'delivery',
+    deliveryInfo: order.entrega?.entregador ? {
+      status: order.entrega.status || null,
+      driver: {
+        id: order.entrega.entregador.id,
+        name: order.entrega.entregador.nome || null,
+        phone: order.entrega.entregador.telefone || null,
+      },
+      vehicle: order.entrega.automovel ? {
+        id: order.entrega.automovel.id,
+        type: order.entrega.automovel.tipo || null,
+        brand: order.entrega.automovel.marca || null,
+        model: order.entrega.automovel.modelo || null,
+        plate: order.entrega.automovel.placa || null,
+        color: order.entrega.automovel.cor || null,
+        year: order.entrega.automovel.ano || null,
+      } : null,
+    } : null,
     cpfNaNota: Boolean(order.cpf_na_nota),
     cpfNaNotaCpf: order.cpf_na_nota_cpf || null,
     source: order.origem_checkout || null,

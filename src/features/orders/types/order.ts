@@ -21,6 +21,23 @@ export interface Order {
   backendStatus?: string;
   address: string;
   type: 'delivery' | 'pickup';
+  deliveryInfo?: {
+    status?: string | null;
+    driver?: {
+      id?: string;
+      name?: string | null;
+      phone?: string | null;
+    } | null;
+    vehicle?: {
+      id?: string;
+      type?: string | null;
+      brand?: string | null;
+      model?: string | null;
+      plate?: string | null;
+      color?: string | null;
+      year?: number | null;
+    } | null;
+  } | null;
   cpfNaNota?: boolean;
   cpfNaNotaCpf?: string | null;
   source?: string | null;

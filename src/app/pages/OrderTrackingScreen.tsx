@@ -12,6 +12,7 @@ import {
   ReceiptText,
   ShoppingBag,
   Truck,
+  User,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { loadOrderItems, type Order } from "@/features/orders";
@@ -49,6 +50,15 @@ function formatDateTime(value?: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatVehicle(order: Order) {
+  const vehicle = order.deliveryInfo?.vehicle;
+  if (!vehicle) return null;
+
+  const name = [vehicle.brand, vehicle.model].filter(Boolean).join(" ") || vehicle.type || "Automóvel";
+  const details = [vehicle.color, vehicle.plate].filter(Boolean).join(" · ");
+  return details ? `${name} (${details})` : name;
 }
 
 function getStoredOrderId() {
@@ -259,6 +269,8 @@ export function OrderTrackingScreen() {
   const hasDiscount = Boolean(selectedOrder.discount && selectedOrder.discount > 0);
   const hasDeliveryFee = Boolean(selectedOrder.deliveryFee && selectedOrder.deliveryFee > 0);
   const isFinished = ["entregue", "cancelado"].includes(selectedOrder.status);
+  const assignedDriver = selectedOrder.type === "delivery" ? selectedOrder.deliveryInfo?.driver : null;
+  const assignedVehicle = selectedOrder.type === "delivery" ? formatVehicle(selectedOrder) : null;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -393,6 +405,36 @@ export function OrderTrackingScreen() {
             })}
           </div>
         </div>
+
+        {assignedDriver && (
+          <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+            <p className="mb-3" style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
+              Entrega
+            </p>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <User size={18} color="#122a4c" />
+                <div>
+                  <p style={{ fontSize: "12px", color: "#64748b" }}>Entregador</p>
+                  <p style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
+                    {assignedDriver.name || "Entregador atribuído"}
+                  </p>
+                </div>
+              </div>
+              {assignedVehicle && (
+                <div className="flex items-center gap-3">
+                  <Truck size={18} color="#122a4c" />
+                  <div>
+                    <p style={{ fontSize: "12px", color: "#64748b" }}>Automóvel</p>
+                    <p style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
+                      {assignedVehicle}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
           <p className="mb-3" style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
