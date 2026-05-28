@@ -19,6 +19,7 @@ import {
   deleteAddress,
   formatAddressLine,
   formatAddressLocation,
+  geocodeAddress,
   getAddressCoordinates,
   getMyAddresses,
   lookupCep,
@@ -55,6 +56,9 @@ const emptyForm = {
 };
 
 type AddressForm = typeof emptyForm;
+type LocationSource = 'manual' | 'gps';
+
+const LOCATION_FIELDS: Array<keyof AddressForm> = ['cep', 'rua', 'numero', 'bairro', 'cidade', 'estado'];
 
 function optionalText(value: string) {
   const trimmed = value.trim();
@@ -77,6 +81,8 @@ export function AddressesScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [locationSource, setLocationSource] = useState<LocationSource>('manual');
 
   const selectedAddress = useMemo(
     () => addresses.find(address => address.id === selected) || addresses.find(address => address.principal) || addresses[0],
@@ -111,7 +117,17 @@ export function AddressesScreen() {
   }, [loadAddresses]);
 
   const updateForm = (field: keyof AddressForm, value: string | boolean) => {
-    setForm(prev => ({ ...prev, [field]: value }));
+    const affectsCoordinates = LOCATION_FIELDS.includes(field);
+
+    if (affectsCoordinates) {
+      setLocationSource('manual');
+    }
+
+    setForm(prev => ({
+      ...prev,
+      [field]: value,
+      ...(affectsCoordinates ? { latitude: '', longitude: '' } : {}),
+    }));
   };
 
   const handleSelect = (address: CustomerAddress) => {
@@ -172,6 +188,7 @@ export function AddressesScreen() {
     }
 
     setIsLocating(true);
+    setLocationSource('gps');
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -218,7 +235,7 @@ export function AddressesScreen() {
       apelido: optionalText(form.apelido),
       nome_destinatario: optionalText(form.nome_destinatario),
       telefone_destinatario: optionalText(form.telefone_destinatario),
-      cep: form.cep.trim(),
+      cep: optionalText(form.cep),
       rua: form.rua.trim(),
       numero: optionalText(form.numero),
       complemento: optionalText(form.complemento),
@@ -228,18 +245,55 @@ export function AddressesScreen() {
       ponto_referencia: optionalText(form.ponto_referencia),
       latitude: coordinateFromInput(form.latitude),
       longitude: coordinateFromInput(form.longitude),
+      geocoding_provider: locationSource === 'gps' && formHasCoordinates ? null : undefined,
+      geocoding_source: locationSource === 'gps' && formHasCoordinates ? 'gps' : undefined,
+      formatted_address: null,
+      google_place_id: null,
+      location_type: null,
+      coordinates_confirmed: locationSource === 'gps' && formHasCoordinates,
       principal: addresses.length === 0 ? true : form.principal,
     };
 
-    if (!payload.cep || !payload.rua || !payload.bairro || !payload.cidade || !payload.estado) {
-      showSystemNotice('Preencha CEP, rua, bairro, cidade e UF.');
+    if (!payload.rua || !payload.numero || !payload.bairro || !payload.cidade || !payload.estado) {
+      showSystemNotice('Preencha rua, número, bairro, cidade e estado.');
       return;
     }
 
     setIsSaving(true);
 
     try {
-      const created = await createAddress(payload);
+      let addressPayload = payload;
+
+      if (payload.latitude === null || payload.longitude === null) {
+        setIsGeocoding(true);
+
+        const geocodedAddress = await geocodeAddress({
+          street: payload.rua,
+          number: payload.numero || '',
+          neighborhood: payload.bairro,
+          city: payload.cidade,
+          state: payload.estado,
+          zipCode: payload.cep,
+          complement: payload.complemento,
+          tenantId: marketId,
+          userId: currentUser?.id,
+          customerId: currentUser?.cliente_id,
+        });
+
+        addressPayload = {
+          ...payload,
+          latitude: geocodedAddress.latitude,
+          longitude: geocodedAddress.longitude,
+          geocoding_provider: geocodedAddress.geocodingProvider,
+          geocoding_source: geocodedAddress.geocodingSource,
+          formatted_address: geocodedAddress.formattedAddress,
+          google_place_id: geocodedAddress.placeId || null,
+          location_type: geocodedAddress.locationType || null,
+          coordinates_confirmed: geocodedAddress.coordinatesConfirmed,
+        };
+      }
+
+      const created = await createAddress(addressPayload);
       setAddresses(prev => [
         created,
         ...prev.map(address => ({ ...address, principal: created.principal ? false : address.principal })),
@@ -247,11 +301,13 @@ export function AddressesScreen() {
       setSelected(created.id);
       setSelectedAddressId(marketId, created.id);
       setForm(emptyForm);
+      setLocationSource('manual');
       setShowForm(false);
       setTimeout(() => navigate(-1), 250);
     } catch (error) {
       showSystemNotice(error || 'Não foi possível salvar o endereço.');
     } finally {
+      setIsGeocoding(false);
       setIsSaving(false);
     }
   };
@@ -410,7 +466,7 @@ export function AddressesScreen() {
             <div className="flex flex-col gap-3">
               <button
                 onClick={handleUseCurrentLocation}
-                disabled={isLocating}
+                disabled={isLocating || isSaving}
                 className="rounded-xl px-4 py-3.5 flex items-center justify-center gap-2 w-full text-white shadow-sm transition-transform active:scale-[0.98]"
                 style={{ backgroundColor: currentMarket?.primaryColor || '#2563eb', fontSize: '14px', fontWeight: 700 }}
               >
@@ -490,7 +546,7 @@ export function AddressesScreen() {
                 style={{ backgroundColor: isSaving ? '#94a3b8' : '#16a34a', fontSize: '14px', fontWeight: 700 }}
               >
                 {isSaving && <Loader2 size={16} className="animate-spin" />}
-                Salvar endereço
+                {isGeocoding ? 'Localizando endereço...' : 'Salvar endereço'}
               </button>
             </div>
           </div>

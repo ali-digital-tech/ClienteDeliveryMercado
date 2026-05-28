@@ -1,5 +1,10 @@
 import { apiRequest, unwrapList } from '@/shared/lib/api';
-import type { CustomerAddress, CustomerAddressPayload } from '../types/address';
+import type {
+  CustomerAddress,
+  CustomerAddressPayload,
+  GeocodeAddressPayload,
+  GeocodeAddressResult,
+} from '../types/address';
 
 const SELECTED_ADDRESS_STORAGE_KEY = 'cliente_delivery_selected_address_by_market';
 
@@ -51,6 +56,15 @@ export async function getMyAddresses() {
 
 export async function createAddress(payload: CustomerAddressPayload) {
   const response = await apiRequest<{ data: CustomerAddress }>('/enderecos_cliente', {
+    method: 'POST',
+    body: payload as any,
+  });
+
+  return response.data;
+}
+
+export async function geocodeAddress(payload: GeocodeAddressPayload) {
+  const response = await apiRequest<{ data: GeocodeAddressResult }>('/geocode-address', {
     method: 'POST',
     body: payload as any,
   });
