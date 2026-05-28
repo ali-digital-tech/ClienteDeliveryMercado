@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router";
 import {
   ChevronLeft,
   MapPin,
+  Store,
   Truck,
   CreditCard,
   ChevronRight,
@@ -28,6 +29,7 @@ import {
 import { formatCartQuantity, syncCartItemsBatch } from '@/features/cart';
 import { ProductImage } from '@/features/products';
 import { createCheckoutOrder } from '@/features/orders/services/ordersService';
+import { getStoredCheckoutMode } from '@/features/orders/services/checkoutModeService';
 import { apiRequest, getAuthToken } from '@/shared/lib/api';
 import {
   cancelPayment,
@@ -183,8 +185,11 @@ export function CheckoutPage() {
   const [businessHours, setBusinessHours] = useState<BusinessHour[]>([]);
   const [loadingBusinessHours, setLoadingBusinessHours] = useState(false);
 
+  const orderType = getStoredCheckoutMode(marketId);
+  const isPickup = orderType === 'pickup';
   const deliveryFee = Math.max(0, currentMarket.deliveryFee || 0);
-  const total = Math.max(cartTotal - discount + deliveryFee, 0);
+  const effectiveDeliveryFee = isPickup ? 0 : deliveryFee;
+  const total = Math.max(cartTotal - discount + effectiveDeliveryFee, 0);
   const minimumOrder = Math.max(0, currentMarket.minimumOrder || 0);
   const missingMinimumOrder = Math.max(0, minimumOrder - cartTotal);
   const meetsMinimumOrder = minimumOrder <= 0 || missingMinimumOrder <= 0;
@@ -506,7 +511,7 @@ export function CheckoutPage() {
       return;
     }
 
-    if (!selectedAddress) {
+    if (!isPickup && !selectedAddress) {
       showSystemNotice('Selecione um endereço de entrega.');
       return;
     }
@@ -524,9 +529,9 @@ export function CheckoutPage() {
       const order = await createCheckoutOrder({
         marketId,
         cartId: syncedCart.carrinho_id,
-        addressId: selectedAddress.id,
-        type: 'delivery',
-        deliveryFee,
+        addressId: isPickup ? null : selectedAddress?.id || null,
+        type: orderType,
+        deliveryFee: effectiveDeliveryFee,
         couponId,
         discount,
         ...cpfInvoicePayload,
@@ -678,14 +683,14 @@ export function CheckoutPage() {
           </button>
         </div>
 
-        {/* Endereço */}
+        {/* Entrega ou retirada */}
         <div
           className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
           style={{ border: "1px solid #d9e4f2" }}
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <MapPin size={15} color="#122a4c" />
+              {isPickup ? <Store size={15} color="#122a4c" /> : <MapPin size={15} color="#122a4c" />}
               <span
                 style={{
                   fontSize: "14px",
@@ -693,12 +698,12 @@ export function CheckoutPage() {
                   color: "#334155",
                 }}
               >
-                Endereço de entrega
+                {isPickup ? "Retirada no mercado" : "Endereço de entrega"}
               </span>
             </div>
 
             <button
-              onClick={() => navigate(tenantPath("addresses"))}
+              onClick={() => navigate(isPickup ? tenantPath("delivery") : tenantPath("addresses"))}
               style={{
                 fontSize: "12px",
                 color: "#122a4c",
@@ -709,7 +714,19 @@ export function CheckoutPage() {
             </button>
           </div>
 
-          {selectedAddress ? (
+          {isPickup ? (
+            <p
+              style={{
+                fontSize: "13px",
+                lineHeight: 1.5,
+                color: "#64748b",
+              }}
+            >
+              {currentMarket.name}
+              <br />
+              {currentMarket.address || "Endereço do mercado não informado"}
+            </p>
+          ) : selectedAddress ? (
             <>
               <p
                 style={{
@@ -754,7 +771,7 @@ export function CheckoutPage() {
                   color: "#334155",
                 }}
               >
-                Entrega
+                {isPickup ? "Retirada" : "Entrega"}
               </span>
             </div>
 
@@ -802,7 +819,7 @@ export function CheckoutPage() {
               </p>
               {!marketScheduleStatus.isOpen && !loadingBusinessHours && (
                 <p style={{ fontSize: "12px", color: "#166534", lineHeight: 1.4, marginTop: "2px" }}>
-                  Como o mercado está fechado, a entrega será no próximo dia em que ele estiver aberto.
+                  Como o mercado está fechado, {isPickup ? "a retirada" : "a entrega"} será no próximo dia em que ele estiver aberto.
                 </p>
               )}
             </div>
@@ -1042,19 +1059,19 @@ export function CheckoutPage() {
               <span
                 style={{ fontSize: "13px", color: "#64748b" }}
               >
-                Taxa de entrega
+                {isPickup ? "Retirada" : "Taxa de entrega"}
               </span>
               <span
                 style={{
                   fontSize: "13px",
                   fontWeight: 600,
                   color:
-                    deliveryFee === 0 ? "#122a4c" : "#334155",
+                    effectiveDeliveryFee === 0 ? "#122a4c" : "#334155",
                 }}
               >
-                {deliveryFee === 0
+                {effectiveDeliveryFee === 0
                   ? "Grátis"
-                  : `R$ ${deliveryFee.toFixed(2).replace('.', ',')}`}
+                  : `R$ ${effectiveDeliveryFee.toFixed(2).replace('.', ',')}`}
               </span>
             </div>
 

@@ -75,7 +75,7 @@ type OrderItemsCache = Record<string, CachedOrderItems>;
 export interface CreateCheckoutOrderInput {
   marketId: string;
   cartId: string;
-  addressId: string;
+  addressId?: string | null;
   type: 'delivery' | 'pickup';
   deliveryFee: number;
   couponId?: string | null;
@@ -321,7 +321,7 @@ export async function createCheckoutOrder(input: CreateCheckoutOrderInput) {
     method: 'POST',
     body: {
       loja_id: input.marketId,
-      endereco_cliente_id: input.addressId,
+      endereco_cliente_id: input.addressId || null,
       carrinho_id: input.cartId,
       tipo_pedido: input.type === 'pickup' ? 'retirada' : 'entrega',
       taxa_entrega: input.deliveryFee,

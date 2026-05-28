@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useRef } from "react";
 import type { MouseEvent } from "react";
 import { useNavigate } from "react-router";
 import {
@@ -87,26 +87,38 @@ export function MarketPage() {
   const bestsellersDrag = useHorizontalDragScroll<HTMLDivElement>();
   const buyAgainDrag = useHorizontalDragScroll<HTMLDivElement>();
   const featuredDrag = useHorizontalDragScroll<HTMLDivElement>();
-  const { products, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId, {
+  const { products: fallbackProducts, isLoading: isLoadingProducts, error: productsError } = useProducts(marketId, {
     allowGlobal: true,
     perPage: 30,
+  });
+  const { products: promoProducts } = useProducts(marketId, {
+    allowGlobal: true,
+    perPage: 30,
+    promotionActive: true,
+  });
+  const { products: immediateConsumptionProducts } = useProducts(marketId, {
+    allowGlobal: true,
+    perPage: 30,
+    promotionActive: true,
+    immediateConsumption: true,
+  });
+  const { products: bestsellers } = useProducts(marketId, {
+    allowGlobal: true,
+    perPage: 30,
+    bestsellers: true,
+  });
+  const { products: featured } = useProducts(marketId, {
+    allowGlobal: true,
+    perPage: 30,
+    featured: true,
   });
   const { categories } = useCategories(marketId);
   const { banners } = useBanners(marketId, 'home');
   const departments = categories.filter((category) => category.level === 1);
 
-  const promoProducts = products.filter((p) => p.isPromo);
-  const immediateConsumptionProducts = products.filter((p) => p.isImmediateConsumption && p.isPromo);
-  const bestsellers = useMemo(
-    () => products
-      .filter((p) => p.isBestseller)
-      .sort((a, b) => (b.salesCount ?? 0) - (a.salesCount ?? 0) || a.name.localeCompare(b.name)),
-    [products],
-  );
-  const featured = products.filter((p) => p.isFeatured);
   const visibleFeatured = featured.length > 0
     ? featured
-    : (bestsellers.length > 0 ? bestsellers : products).slice(0, 6);
+    : (bestsellers.length > 0 ? bestsellers : fallbackProducts).slice(0, 6);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -460,7 +472,7 @@ export function MarketPage() {
             </button>
           </div>
 
-          {isLoadingProducts && products.length === 0 ? (
+          {isLoadingProducts && fallbackProducts.length === 0 && visibleFeatured.length === 0 ? (
             <div
               {...featuredDrag}
               className="flex cursor-grab gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide"
@@ -469,7 +481,7 @@ export function MarketPage() {
                 <div key={item} className="h-[180px] w-[150px] shrink-0 animate-pulse rounded-2xl bg-white" />
               ))}
             </div>
-          ) : productsError && products.length === 0 ? (
+          ) : productsError && fallbackProducts.length === 0 && visibleFeatured.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-2xl bg-white px-6 py-10 text-center mx-4">
               <PackageSearch size={34} color="#94a3b8" />
               <p style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>

@@ -55,6 +55,26 @@ function isCollectionKey(value: string | undefined): value is CollectionKey {
   return Boolean(value && value in collectionConfigs);
 }
 
+function getCollectionProductFilters(collection: CollectionKey | undefined) {
+  if (collection === "promos") {
+    return { promotionActive: true };
+  }
+
+  if (collection === "immediate") {
+    return { promotionActive: true, immediateConsumption: true };
+  }
+
+  if (collection === "bestsellers" || collection === "buy-again") {
+    return { bestsellers: true };
+  }
+
+  if (collection === "featured") {
+    return { featured: true };
+  }
+
+  return {};
+}
+
 export function ProductCollectionPage() {
   const navigate = useNavigate();
   const { collection } = useParams();
@@ -75,6 +95,7 @@ export function ProductCollectionPage() {
     perPage: COLLECTION_PAGE_SIZE,
     enabled: Boolean(config),
     useOffsetPagination: true,
+    ...getCollectionProductFilters(isCollectionKey(collection) ? collection : undefined),
   });
 
   const visibleProducts = useMemo(() => {

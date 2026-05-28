@@ -29,6 +29,10 @@ interface ApiStoreProduct {
 export interface ProductListFilters {
   categoryId?: string | null;
   search?: string;
+  promotionActive?: boolean;
+  featured?: boolean;
+  immediateConsumption?: boolean;
+  bestsellers?: boolean;
   page?: number;
   perPage?: number;
   offset?: number;
@@ -94,6 +98,10 @@ export async function getProductsByMarketId(
       ativo: true,
       categoria_id: filters.categoryId || undefined,
       busca: filters.search?.trim() || undefined,
+      promocao_ativa: filters.promotionActive,
+      destaque: filters.featured,
+      consumo_imediato: filters.immediateConsumption,
+      mais_vendidos: filters.bestsellers,
       page: filters.useOffsetPagination ? undefined : page,
       per_page: requestedLimit,
       limit: filters.useOffsetPagination ? requestedLimit : undefined,

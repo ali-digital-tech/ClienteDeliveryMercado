@@ -17,13 +17,16 @@ import {
   type CustomerAddress,
 } from '@/features/addresses';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
+import {
+  getStoredCheckoutMode,
+  setStoredCheckoutMode,
+  type CheckoutOrderType,
+} from '@/features/orders/services/checkoutModeService';
 
 export function DeliveryScreen() {
   const navigate = useNavigate();
   const { cartTotal, discount, currentMarket, currentUser, marketId, tenantPath } = useApp();
-  const [mode, setMode] = useState<"delivery" | "pickup">(
-    "delivery",
-  );
+  const [mode, setMode] = useState<CheckoutOrderType>(() => getStoredCheckoutMode(marketId));
   const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
 
   const discountedSubtotal = Math.max(cartTotal - discount, 0);
@@ -36,6 +39,10 @@ export function DeliveryScreen() {
   const total = discountedSubtotal + (mode === "delivery" ? deliveryFee : 0);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
 
+  useEffect(() => {
+    setMode(getStoredCheckoutMode(marketId));
+  }, [marketId]);
+
   const handleContinueToCheckout = () => {
     if (!meetsMinimumOrder) {
       showSystemNotice(
@@ -44,6 +51,7 @@ export function DeliveryScreen() {
       return;
     }
 
+    setStoredCheckoutMode(marketId, mode);
     navigate(tenantPath("checkout"));
   };
 
