@@ -89,6 +89,9 @@ export function CartPage() {
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const primaryColor = currentMarket?.primaryColor || '#122a4c';
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
+  const minimumOrder = Math.max(0, currentMarket?.minimumOrder || 0);
+  const missingMinimumOrder = Math.max(0, minimumOrder - cartTotal);
+  const meetsMinimumOrder = minimumOrder <= 0 || missingMinimumOrder <= 0;
   const selectedSuggestions = suggestedProducts
     .filter(product => product.isFeatured)
     .slice(0, 10);
@@ -112,6 +115,17 @@ export function CartPage() {
     } finally {
       setIsApplyingCoupon(false);
     }
+  };
+
+  const handleContinueToDelivery = () => {
+    if (!meetsMinimumOrder) {
+      showSystemNotice(
+        `O pedido mínimo deste mercado é R$ ${minimumOrder.toFixed(2).replace('.', ',')}. Adicione mais R$ ${missingMinimumOrder.toFixed(2).replace('.', ',')} em produtos para finalizar.`
+      );
+      return;
+    }
+
+    navigate(tenantPath('delivery'));
   };
 
   return (
@@ -312,6 +326,14 @@ export function CartPage() {
                     <span style={{ fontSize: '13px', fontWeight: 600, color: primaryColor }}>-R$ {discount.toFixed(2).replace('.', ',')}</span>
                   </div>
                 )}
+                {minimumOrder > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500" style={{ fontSize: '13px' }}>Pedido mínimo</span>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: meetsMinimumOrder ? primaryColor : '#dc2626' }}>
+                      R$ {minimumOrder.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-500" style={{ fontSize: '13px' }}>Taxa de entrega</span>
                   <span style={{ fontSize: '13px', fontWeight: 600, color: deliveryFee === 0 ? primaryColor : '#374151' }}>
@@ -329,11 +351,13 @@ export function CartPage() {
           {/* CTA */}
           <div className="flex-shrink-0 bg-white px-4 py-4 border-t border-gray-100">
             <button
-              onClick={() => navigate(tenantPath('delivery'))}
+              onClick={handleContinueToDelivery}
               className="w-full rounded-2xl py-4 text-white flex items-center justify-between px-5 transition-all active:scale-[0.98]"
-              style={{ backgroundColor: primaryColor }}
+              style={{ backgroundColor: meetsMinimumOrder ? primaryColor : '#9ca3af' }}
             >
-              <span style={{ fontSize: '15px', fontWeight: 700 }}>Continuar para entrega</span>
+              <span style={{ fontSize: '15px', fontWeight: 700 }}>
+                {meetsMinimumOrder ? 'Continuar para entrega' : 'Pedido mínimo não atingido'}
+              </span>
               <span style={{ fontSize: '15px', fontWeight: 800 }}>R$ {total.toFixed(2).replace('.', ',')} →</span>
             </button>
           </div>

@@ -16,6 +16,7 @@ import {
   resolveSelectedAddress,
   type CustomerAddress,
 } from '@/features/addresses';
+import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
 export function DeliveryScreen() {
   const navigate = useNavigate();
@@ -27,10 +28,24 @@ export function DeliveryScreen() {
 
   const discountedSubtotal = Math.max(cartTotal - discount, 0);
   const deliveryFee = Math.max(0, currentMarket.deliveryFee || 0);
+  const minimumOrder = Math.max(0, currentMarket.minimumOrder || 0);
+  const missingMinimumOrder = Math.max(0, minimumOrder - cartTotal);
+  const meetsMinimumOrder = minimumOrder <= 0 || missingMinimumOrder <= 0;
 
 
   const total = discountedSubtotal + (mode === "delivery" ? deliveryFee : 0);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
+
+  const handleContinueToCheckout = () => {
+    if (!meetsMinimumOrder) {
+      showSystemNotice(
+        `O pedido mínimo deste mercado é R$ ${minimumOrder.toFixed(2).replace('.', ',')}. Adicione mais R$ ${missingMinimumOrder.toFixed(2).replace('.', ',')} em produtos para finalizar.`
+      );
+      return;
+    }
+
+    navigate(tenantPath("checkout"));
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -276,7 +291,7 @@ export function DeliveryScreen() {
             <span
               style={{ fontSize: "13px", color: "#64748b" }}
             >
-              Subtotal
+              Subtotal antes do cupom
             </span>
             <span
               style={{
@@ -285,9 +300,31 @@ export function DeliveryScreen() {
                 color: "#334155",
               }}
             >
-              R$ {discountedSubtotal.toFixed(2).replace('.', ',')}
+              R$ {cartTotal.toFixed(2).replace('.', ',')}
             </span>
           </div>
+
+          {discount > 0 && (
+            <div className="flex justify-between mb-1">
+              <span style={{ fontSize: "13px", color: "#64748b" }}>
+                Desconto cupom
+              </span>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#122a4c" }}>
+                -R$ {discount.toFixed(2).replace('.', ',')}
+              </span>
+            </div>
+          )}
+
+          {minimumOrder > 0 && (
+            <div className="flex justify-between mb-1">
+              <span style={{ fontSize: "13px", color: "#64748b" }}>
+                Pedido mínimo
+              </span>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: meetsMinimumOrder ? "#122a4c" : "#dc2626" }}>
+                R$ {minimumOrder.toFixed(2).replace('.', ',')}
+              </span>
+            </div>
+          )}
 
           <div className="flex justify-between mb-1">
             <span
@@ -343,12 +380,12 @@ export function DeliveryScreen() {
         style={{ borderTop: "1px solid #d9e4f2" }}
       >
         <button
-          onClick={() => navigate(tenantPath("checkout"))}
+          onClick={handleContinueToCheckout}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-          style={{ backgroundColor: "#122a4c" }}
+          style={{ backgroundColor: meetsMinimumOrder ? "#122a4c" : "#9ca3af" }}
         >
           <span style={{ fontSize: "15px", fontWeight: 700 }}>
-            Continuar para pagamento →
+            {meetsMinimumOrder ? "Continuar para pagamento →" : "Pedido mínimo não atingido"}
           </span>
         </button>
       </div>

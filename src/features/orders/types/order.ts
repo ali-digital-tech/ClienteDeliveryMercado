@@ -8,6 +8,7 @@ export interface Order {
   cartId?: string;
   date: string;
   createdAt?: string | null;
+  scheduledFor?: string | null;
   confirmedAt?: string | null;
   canceledAt?: string | null;
   deliveredAt?: string | null;

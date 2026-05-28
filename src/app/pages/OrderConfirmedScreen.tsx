@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { CheckCircle2, Home, Eye } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
+import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
 const statusLabels = {
   pendente: "Pendente",
@@ -21,6 +22,7 @@ export function OrderConfirmedScreen() {
   const [rawOrderId, setRawOrderId] = useState("");
   const [show, setShow] = useState(false);
   const [savedTotal, setSavedTotal] = useState(0);
+  const [savedScheduledFor, setSavedScheduledFor] = useState<string | null>(null);
   const normalizedOrderId = (rawOrderId || orderId).replace(/^#/, "");
   const apiOrder = orders.find((order) => (
     [order.rawId, order.id, order.number]
@@ -28,13 +30,14 @@ export function OrderConfirmedScreen() {
       .some((value) => value!.replace(/^#/, "") === normalizedOrderId)
   ));
   const displayedTotal = apiOrder?.total ?? savedTotal;
+  const displayedScheduledFor = apiOrder?.scheduledFor ?? savedScheduledFor;
   const displayedStatus = apiOrder?.type === "pickup" && apiOrder.status === "entregue"
     ? "Retirado"
     : apiOrder ? statusLabels[apiOrder.status] : "Recebido";
 
   useEffect(() => {
     const total = cartTotal - discount;
-    let order: { id?: string; rawId?: string; total?: number | string } | null = null;
+    let order: { id?: string; rawId?: string; total?: number | string; scheduledFor?: string | null } | null = null;
 
     try {
       const stored = sessionStorage.getItem('cliente_delivery_last_order');
@@ -44,6 +47,7 @@ export function OrderConfirmedScreen() {
     }
 
     setSavedTotal(Number(order?.total || total || 0));
+    setSavedScheduledFor(order?.scheduledFor || null);
     setOrderId(order?.id || "");
     setRawOrderId(order?.rawId || order?.id || "");
     setTimeout(() => setShow(true), 100);
@@ -162,9 +166,19 @@ export function OrderConfirmedScreen() {
                   maxWidth: "180px",
                 }}
               >
-                Por ordem de pedido. Avisaremos quando sair!
+                {displayedScheduledFor
+                  ? `Agendada para ${formatBrasiliaDate(displayedScheduledFor, { dateStyle: "short", timeStyle: "short" })}`
+                  : "Por ordem de pedido. Avisaremos quando sair!"}
               </span>
             </div>
+
+            {displayedScheduledFor && (
+              <div className="rounded-xl px-3 py-2 text-left" style={{ backgroundColor: "#fffbeb" }}>
+                <p style={{ fontSize: "12px", color: "#92400e", lineHeight: 1.4, fontWeight: 600 }}>
+                  Pedido feito fora do horário. A entrega será no próximo dia de mercado aberto.
+                </p>
+              </div>
+            )}
 
             <div className="flex justify-between items-center">
               <span

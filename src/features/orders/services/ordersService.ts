@@ -23,6 +23,7 @@ interface ApiOrder {
   cpf_na_nota_cpf?: string | null;
   origem_checkout?: string | null;
   observacoes?: string | null;
+  agendado_para?: string | null;
   realizado_em?: string | null;
   criado_em?: string | null;
   confirmado_em?: string | null;
@@ -267,6 +268,7 @@ function mapOrder(order: ApiOrder): Order {
     cartId: order.carrinho_id || undefined,
     date: formatDate(order.realizado_em || order.criado_em),
     createdAt: order.realizado_em || order.criado_em || null,
+    scheduledFor: order.agendado_para || null,
     confirmedAt: order.confirmado_em || null,
     canceledAt: order.cancelado_em || null,
     deliveredAt: order.entregue_em || null,

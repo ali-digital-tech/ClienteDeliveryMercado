@@ -134,6 +134,18 @@ const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> =
     message: "Pagamento não encontrado.",
   },
   {
+    test: /no active delivery area found for order/i,
+    message: "Nenhuma área de entrega ativa foi encontrada para este pedido.",
+  },
+  {
+    test: /collector.*hasn'?t enough available money|refund failed.*available money/i,
+    message: "O recebedor não possui saldo disponível suficiente para concluir o reembolso.",
+  },
+  {
+    test: /refund failed/i,
+    message: "Não foi possível realizar o reembolso. Tente novamente em instantes.",
+  },
+  {
     test: /failed to fetch payment methods/i,
     message: "Não foi possível carregar as formas de pagamento.",
   },

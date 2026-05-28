@@ -49,6 +49,7 @@ interface PendingCheckoutOrder {
   id: string;
   numero_pedido?: string | null;
   total?: string | number | null;
+  agendado_para?: string | null;
 }
 
 function formatPixCountdown(seconds: number) {
@@ -125,6 +126,9 @@ export function CheckoutPage() {
 
   const deliveryFee = Math.max(0, currentMarket.deliveryFee || 0);
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
+  const minimumOrder = Math.max(0, currentMarket.minimumOrder || 0);
+  const missingMinimumOrder = Math.max(0, minimumOrder - cartTotal);
+  const meetsMinimumOrder = minimumOrder <= 0 || missingMinimumOrder <= 0;
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
   const paymentSelection = getStoredPaymentSelection();
@@ -224,6 +228,7 @@ export function CheckoutPage() {
       rawId: order.id,
       number: order.numero_pedido,
       total: order.total,
+      scheduledFor: order.agendado_para,
       payment_id: result.payment.id,
       mp_payment_id: result.mp_payment_id,
     }));
@@ -389,6 +394,13 @@ export function CheckoutPage() {
   const handleFinalize = async () => {
     if (cart.length === 0) {
       showSystemNotice('Seu carrinho está vazio.');
+      return;
+    }
+
+    if (!meetsMinimumOrder) {
+      showSystemNotice(
+        `O pedido mínimo deste mercado é R$ ${minimumOrder.toFixed(2).replace('.', ',')}. Adicione mais R$ ${missingMinimumOrder.toFixed(2).replace('.', ',')} em produtos para finalizar.`
+      );
       return;
     }
 
@@ -666,7 +678,7 @@ export function CheckoutPage() {
           </div>
 
           <p style={{ fontSize: "13px", color: "#64748b", lineHeight: 1.4 }}>
-            As entregas são feitas por ordem de pedido. Avisaremos você assim que o entregador sair.
+            Você pode fazer o pedido em qualquer horário. Se ele for feito fora do horário de funcionamento, a entrega será no próximo dia em que o mercado estiver aberto.
           </p>
         </div>
 
@@ -880,6 +892,25 @@ export function CheckoutPage() {
               </div>
             )}
 
+            {minimumOrder > 0 && (
+              <div className="flex justify-between">
+                <span
+                  style={{ fontSize: "13px", color: "#64748b" }}
+                >
+                  Pedido mínimo
+                </span>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: meetsMinimumOrder ? "#122a4c" : "#dc2626",
+                  }}
+                >
+                  R$ {minimumOrder.toFixed(2).replace('.', ',')}
+                </span>
+              </div>
+            )}
+
             <div className="flex justify-between">
               <span
                 style={{ fontSize: "13px", color: "#64748b" }}
@@ -1040,7 +1071,7 @@ export function CheckoutPage() {
           onClick={canChooseAnotherPayment ? resetPixPayment : handleFinalize}
           disabled={isSubmitting || isPixWaiting}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
-          style={{ backgroundColor: "#122a4c" }}
+          style={{ backgroundColor: meetsMinimumOrder ? "#122a4c" : "#9ca3af" }}
         >
           <span style={{ fontSize: "16px", fontWeight: 800 }}>
             {isSubmitting
@@ -1049,7 +1080,9 @@ export function CheckoutPage() {
                 ? "Aguardando pagamento PIX"
                 : canChooseAnotherPayment
                   ? "Escolher outra forma de pagamento"
-                  : `Finalizar pedido · R$ ${total.toFixed(2).replace('.', ',')}`}
+                  : meetsMinimumOrder
+                    ? `Finalizar pedido · R$ ${total.toFixed(2).replace('.', ',')}`
+                    : "Pedido mínimo não atingido"}
           </span>
         </button>
 

@@ -452,6 +452,21 @@ export function OrderTrackingScreen() {
               </div>
             </div>
 
+            {selectedOrder.scheduledFor && (
+              <div className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ backgroundColor: "#fffbeb" }}>
+                <CalendarClock size={18} color="#b45309" />
+                <div>
+                  <p style={{ fontSize: "12px", color: "#b45309" }}>Entrega agendada</p>
+                  <p style={{ fontSize: "13px", fontWeight: 700, color: "#92400e" }}>
+                    {formatDateTime(selectedOrder.scheduledFor)}
+                  </p>
+                  <p style={{ fontSize: "11px", color: "#b45309", lineHeight: 1.35 }}>
+                    Pedido feito fora do horário. A entrega será no próximo dia de mercado aberto.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-3">
               <Truck size={18} color="#122a4c" />
               <div>
