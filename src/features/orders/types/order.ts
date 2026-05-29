@@ -10,6 +10,9 @@ export interface Order {
   createdAt?: string | null;
   scheduledFor?: string | null;
   confirmedAt?: string | null;
+  separationAt?: string | null;
+  readyAt?: string | null;
+  outForDeliveryAt?: string | null;
   canceledAt?: string | null;
   deliveredAt?: string | null;
   items: { product: Product; qty: number }[];
@@ -24,6 +27,8 @@ export interface Order {
   type: 'delivery' | 'pickup';
   deliveryInfo?: {
     status?: string | null;
+    outForDeliveryAt?: string | null;
+    deliveredAt?: string | null;
     driver?: {
       id?: string;
       name?: string | null;

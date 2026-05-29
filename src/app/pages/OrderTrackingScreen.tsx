@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import {
   CalendarClock,
@@ -10,6 +10,7 @@ import {
   Loader2,
   Package,
   ReceiptText,
+  RefreshCw,
   ShoppingBag,
   Truck,
   User,
@@ -126,21 +127,21 @@ function buildSteps(order: Order) {
       id: "separacao",
       label: "Em separação",
       desc: "Produtos em preparação",
-      time: "--",
+      time: formatDateTime(order.separationAt),
       icon: ShoppingBag,
     },
     {
       id: "pronto",
       label: isPickup ? "Pronto para retirada" : "Pedido pronto para envio",
       desc: isPickup ? "Disponível para retirada no mercado" : "Aguardando saída para entrega",
-      time: "--",
+      time: formatDateTime(order.readyAt),
       icon: Package,
     },
     ...(!isPickup ? [{
       id: "saiu",
       label: "Saiu para entrega",
       desc: "Pedido em rota de entrega",
-      time: "--",
+      time: formatDateTime(order.outForDeliveryAt || order.deliveryInfo?.outForDeliveryAt),
       icon: Truck,
     }] : []),
     {
@@ -167,8 +168,12 @@ export function OrderTrackingScreen() {
   const [searchParams] = useSearchParams();
   const { orders, isLoggedIn, refreshOrders, tenantPath } = useApp();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [isRefreshingOrder, setIsRefreshingOrder] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
   const [orderItems, setOrderItems] = useState<Order["items"]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const touchStartYRef = useRef<number | null>(null);
+  const refreshingRef = useRef(false);
 
   const selectedOrderId = useMemo(() => {
     const state = location.state as { orderId?: string } | null;
@@ -224,6 +229,56 @@ export function OrderTrackingScreen() {
       isActive = false;
     };
   }, [selectedOrder]);
+
+  const refreshOrderInfo = useCallback(async () => {
+    if (!isLoggedIn || refreshingRef.current) return;
+
+    refreshingRef.current = true;
+    setIsRefreshingOrder(true);
+
+    try {
+      await refreshOrders();
+    } finally {
+      refreshingRef.current = false;
+      setIsRefreshingOrder(false);
+    }
+  }, [isLoggedIn, refreshOrders]);
+
+  const handleTouchStart = useCallback((event: TouchEvent<HTMLDivElement>) => {
+    if (event.currentTarget.scrollTop > 0) {
+      touchStartYRef.current = null;
+      return;
+    }
+
+    touchStartYRef.current = event.touches[0]?.clientY ?? null;
+  }, []);
+
+  const handleTouchMove = useCallback((event: TouchEvent<HTMLDivElement>) => {
+    if (isRefreshingOrder || touchStartYRef.current === null) return;
+
+    const deltaY = (event.touches[0]?.clientY ?? 0) - touchStartYRef.current;
+    const isAtTop = event.currentTarget.scrollTop <= 0;
+
+    if (!isAtTop || deltaY <= 0) {
+      setPullDistance(0);
+      return;
+    }
+
+    if (deltaY > 8) {
+      event.preventDefault();
+      setPullDistance(Math.min(deltaY * 0.45, 64));
+    }
+  }, [isRefreshingOrder]);
+
+  const handleTouchEnd = useCallback(() => {
+    const shouldRefresh = pullDistance >= 52;
+    touchStartYRef.current = null;
+    setPullDistance(0);
+
+    if (shouldRefresh) {
+      void refreshOrderInfo();
+    }
+  }, [pullDistance, refreshOrderInfo]);
 
   if (isLoadingOrders && orders.length === 0) {
     return (
@@ -329,7 +384,25 @@ export function OrderTrackingScreen() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-4" style={{ background: "#f8fafc" }}>
+      <div
+        className="flex-1 overflow-y-auto px-4 pt-4 pb-4"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        style={{ background: "#f8fafc", overscrollBehaviorY: "contain" }}
+      >
+        {(pullDistance > 0 || isRefreshingOrder) && (
+          <div
+            className="mb-2 flex items-center justify-center overflow-hidden transition-[height]"
+            style={{ height: isRefreshingOrder ? "36px" : `${pullDistance}px` }}
+          >
+            <div className="flex items-center justify-center rounded-full bg-white shadow-sm" style={{ width: "30px", height: "30px", border: "1px solid #d9e4f2" }}>
+              <RefreshCw className={isRefreshingOrder ? "animate-spin" : ""} size={15} color="#122a4c" />
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
           <h3 className="mb-4" style={{ fontSize: "14px", fontWeight: 700, color: "#122a4c" }}>
             {isFinished ? "Histórico do pedido" : "Progresso do pedido"}

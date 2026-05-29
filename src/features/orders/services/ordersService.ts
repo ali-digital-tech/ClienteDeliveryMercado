@@ -27,8 +27,14 @@ interface ApiOrder {
   realizado_em?: string | null;
   criado_em?: string | null;
   confirmado_em?: string | null;
+  em_separacao_em?: string | null;
+  separacao_em?: string | null;
+  pronto_em?: string | null;
+  saiu_para_entrega_em?: string | null;
   cancelado_em?: string | null;
   entregue_em?: string | null;
+  status_tempos?: Record<string, string | null> | null;
+  status_times?: Record<string, string | null> | null;
   endereco_cliente?: {
     rua?: string | null;
     numero?: string | null;
@@ -39,6 +45,8 @@ interface ApiOrder {
   entrega?: {
     id?: string;
     status?: string | null;
+    saiu_para_entrega_em?: string | null;
+    entregue_em?: string | null;
     entregador?: {
       id?: string;
       nome?: string | null;
@@ -153,6 +161,17 @@ function mapStatus(status: string | null | undefined): Order['status'] {
   if (status === 'cancelado' || status === 'cancelada') return 'cancelado';
 
   return 'recebido';
+}
+
+function getStatusTime(order: ApiOrder, ...statuses: string[]) {
+  const statusTimes = order.status_tempos || order.status_times || {};
+
+  for (const status of statuses) {
+    const value = statusTimes[status];
+    if (value) return value;
+  }
+
+  return null;
 }
 
 function formatAddress(address: ApiOrder['endereco_cliente']) {
@@ -270,8 +289,11 @@ function mapOrder(order: ApiOrder): Order {
     createdAt: order.realizado_em || order.criado_em || null,
     scheduledFor: order.agendado_para || null,
     confirmedAt: order.confirmado_em || null,
+    separationAt: order.em_separacao_em || order.separacao_em || getStatusTime(order, 'em_separacao', 'preparando'),
+    readyAt: order.pronto_em || getStatusTime(order, 'pronto'),
+    outForDeliveryAt: order.saiu_para_entrega_em || order.entrega?.saiu_para_entrega_em || getStatusTime(order, 'saiu_para_entrega', 'saiu_entrega', 'em_entrega'),
     canceledAt: order.cancelado_em || null,
-    deliveredAt: order.entregue_em || null,
+    deliveredAt: order.entregue_em || order.entrega?.entregue_em || null,
     items: [],
     itemCount: toNumber(order.carrinho_quantidade_produtos),
     subtotal,
@@ -284,6 +306,8 @@ function mapOrder(order: ApiOrder): Order {
     type: order.tipo_pedido === 'retirada' ? 'pickup' : 'delivery',
     deliveryInfo: order.entrega?.entregador ? {
       status: order.entrega.status || null,
+      outForDeliveryAt: order.entrega.saiu_para_entrega_em || null,
+      deliveredAt: order.entrega.entregue_em || null,
       driver: {
         id: order.entrega.entregador.id,
         name: order.entrega.entregador.nome || null,
