@@ -50,6 +50,11 @@ const statusConfig: Record<Order["status"], { label: string; color: string; bg: 
     color: "#122a4c",
     bg: "#eef4fb",
   },
+  nao_entregue: {
+    label: "Não entregue",
+    color: "#b91c1c",
+    bg: "#fef2f2",
+  },
   cancelado: {
     label: "Cancelado",
     color: "#b91c1c",
@@ -234,7 +239,7 @@ export function MyOrdersScreen() {
               const status = order.type === "pickup" && order.status === "entregue"
                 ? { ...defaultStatus, label: "Retirado" }
                 : defaultStatus;
-              const isActive = !["entregue", "cancelado"].includes(order.status);
+              const isActive = !["entregue", "nao_entregue", "cancelado"].includes(order.status);
               const itemCount = order.itemCount ?? order.items.reduce((sum, item) => sum + item.qty, 0);
               const hasItems = order.items.length > 0;
               const canRepeat = Boolean(order.cartId) || itemCount > 0 || hasItems;

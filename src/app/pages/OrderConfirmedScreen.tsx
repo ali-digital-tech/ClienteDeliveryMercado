@@ -12,6 +12,7 @@ const statusLabels = {
   pronto: "Pronto",
   saiu: "Saiu para entrega",
   entregue: "Entregue",
+  nao_entregue: "Não entregue",
   cancelado: "Cancelado",
 };
 

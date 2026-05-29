@@ -47,6 +47,8 @@ interface ApiOrder {
     status?: string | null;
     saiu_para_entrega_em?: string | null;
     entregue_em?: string | null;
+    falhou_em?: string | null;
+    observacoes?: string | null;
     entregador?: {
       id?: string;
       nome?: string | null;
@@ -158,6 +160,7 @@ function mapStatus(status: string | null | undefined): Order['status'] {
   if (status === 'pronto') return 'pronto';
   if (status === 'saiu_para_entrega' || status === 'saiu_entrega' || status === 'em_entrega') return 'saiu';
   if (status === 'entregue') return 'entregue';
+  if (status === 'nao_entregue' || status === 'falhou') return 'nao_entregue';
   if (status === 'cancelado' || status === 'cancelada') return 'cancelado';
 
   return 'recebido';
@@ -308,6 +311,8 @@ function mapOrder(order: ApiOrder): Order {
       status: order.entrega.status || null,
       outForDeliveryAt: order.entrega.saiu_para_entrega_em || null,
       deliveredAt: order.entrega.entregue_em || null,
+      failedAt: order.entrega.falhou_em || null,
+      failureReason: order.entrega.observacoes || null,
       driver: {
         id: order.entrega.entregador.id,
         name: order.entrega.entregador.nome || null,

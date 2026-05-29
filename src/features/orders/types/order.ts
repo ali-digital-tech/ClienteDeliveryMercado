@@ -21,7 +21,7 @@ export interface Order {
   discount?: number;
   deliveryFee?: number;
   total: number;
-  status: 'pendente' | 'recebido' | 'confirmado' | 'separacao' | 'pronto' | 'saiu' | 'entregue' | 'cancelado';
+  status: 'pendente' | 'recebido' | 'confirmado' | 'separacao' | 'pronto' | 'saiu' | 'entregue' | 'nao_entregue' | 'cancelado';
   backendStatus?: string;
   address: string;
   type: 'delivery' | 'pickup';
@@ -29,6 +29,8 @@ export interface Order {
     status?: string | null;
     outForDeliveryAt?: string | null;
     deliveredAt?: string | null;
+    failedAt?: string | null;
+    failureReason?: string | null;
     driver?: {
       id?: string;
       name?: string | null;

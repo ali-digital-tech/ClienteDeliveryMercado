@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   Truck,
   User,
+  AlertTriangle,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { getOrdersByMarketId, loadOrderItems, type Order } from "@/features/orders";
@@ -29,6 +30,7 @@ const statusConfig: Record<Order["status"], { label: string; color: string; bg: 
   pronto: { label: "Pronto", color: "#1e40af", bg: "#dbeafe" },
   saiu: { label: "Saiu para entrega", color: "#3f5f8a", bg: "#eff4fb" },
   entregue: { label: "Entregue", color: "#122a4c", bg: "#eef4fb" },
+  nao_entregue: { label: "Não entregue", color: "#b91c1c", bg: "#fef2f2" },
   cancelado: { label: "Cancelado", color: "#b91c1c", bg: "#fef2f2" },
 };
 
@@ -85,7 +87,8 @@ function matchesOrder(order: Order, orderId: string) {
 function buildSteps(order: Order) {
   const isPickup = order.type === "pickup";
 
-  if (order.status === "cancelado") {
+  if (order.status === "cancelado" || order.status === "nao_entregue") {
+    const failed = order.status === "nao_entregue";
     return [
       {
         id: "recebido",
@@ -97,11 +100,11 @@ function buildSteps(order: Order) {
         active: false,
       },
       {
-        id: "cancelado",
-        label: "Pedido cancelado",
-        desc: "Pedido cancelado",
-        time: formatDateTime(order.canceledAt),
-        icon: CircleX,
+        id: failed ? "nao_entregue" : "cancelado",
+        label: failed ? "Não entregue" : "Pedido cancelado",
+        desc: failed ? "Houve um problema na entrega" : "Pedido cancelado",
+        time: formatDateTime(failed ? order.deliveryInfo?.failedAt : order.canceledAt),
+        icon: failed ? AlertTriangle : CircleX,
         done: false,
         active: true,
       },
@@ -187,7 +190,7 @@ export function OrderTrackingScreen() {
       if (order) return order;
     }
 
-    return orders.find((order) => !["entregue", "cancelado"].includes(order.status)) || orders[0] || null;
+    return orders.find((order) => !["entregue", "nao_entregue", "cancelado"].includes(order.status)) || orders[0] || null;
   }, [orders, selectedOrderId]);
 
   const selectedOrder = trackedOrder || contextSelectedOrder;
@@ -202,7 +205,7 @@ export function OrderTrackingScreen() {
       const latestOrders = await getOrdersByMarketId(marketId);
       const nextOrder = selectedOrderId
         ? latestOrders.find((item) => matchesOrder(item, selectedOrderId)) || null
-        : latestOrders.find((order) => !["entregue", "cancelado"].includes(order.status)) || latestOrders[0] || null;
+        : latestOrders.find((order) => !["entregue", "nao_entregue", "cancelado"].includes(order.status)) || latestOrders[0] || null;
 
       setTrackedOrder(nextOrder);
       return nextOrder;
@@ -232,7 +235,7 @@ export function OrderTrackingScreen() {
   }, [isLoggedIn, refreshOrderInfo]);
 
   useEffect(() => {
-    if (!isLoggedIn || !selectedOrder || ["entregue", "cancelado"].includes(selectedOrder.status)) return;
+    if (!isLoggedIn || !selectedOrder || ["entregue", "nao_entregue", "cancelado"].includes(selectedOrder.status)) return;
 
     const intervalId = window.setInterval(() => {
       void refreshOrderInfo(false);
@@ -346,9 +349,10 @@ export function OrderTrackingScreen() {
   const steps = buildSteps(selectedOrder);
   const hasDiscount = Boolean(selectedOrder.discount && selectedOrder.discount > 0);
   const hasDeliveryFee = Boolean(selectedOrder.deliveryFee && selectedOrder.deliveryFee > 0);
-  const isFinished = ["entregue", "cancelado"].includes(selectedOrder.status);
+  const isFinished = ["entregue", "nao_entregue", "cancelado"].includes(selectedOrder.status);
   const assignedDriver = selectedOrder.type === "delivery" ? selectedOrder.deliveryInfo?.driver : null;
   const assignedVehicle = selectedOrder.type === "delivery" ? formatVehicle(selectedOrder) : null;
+  const deliveryFailureReason = selectedOrder.deliveryInfo?.failureReason || "";
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -501,6 +505,25 @@ export function OrderTrackingScreen() {
             })}
           </div>
         </div>
+
+        {selectedOrder.status === "nao_entregue" && (
+          <div className="rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #fecaca", backgroundColor: "#fef2f2" }}>
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={20} color="#b91c1c" className="mt-0.5 flex-shrink-0" />
+              <div>
+                <p style={{ fontSize: "14px", fontWeight: 800, color: "#991b1b" }}>
+                  Houve um problema na entrega
+                </p>
+                <p className="mt-1" style={{ fontSize: "13px", color: "#b91c1c", lineHeight: 1.45 }}>
+                  {deliveryFailureReason
+                    ? `Motivo: ${deliveryFailureReason}. `
+                    : ""}
+                  Entre em contato com o mercado para combinar os próximos passos.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {assignedDriver && (
           <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
