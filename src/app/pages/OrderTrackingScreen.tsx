@@ -16,7 +16,7 @@ import {
   User,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
-import { loadOrderItems, type Order } from "@/features/orders";
+import { getOrdersByMarketId, loadOrderItems, type Order } from "@/features/orders";
 import { formatCartQuantity } from "@/features/cart";
 import { ProductImage } from "@/features/products";
 import { formatBrasiliaDate } from "@/shared/lib/dateTime";
@@ -166,10 +166,11 @@ export function OrderTrackingScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { orders, isLoggedIn, refreshOrders, tenantPath } = useApp();
+  const { marketId, orders, isLoggedIn, tenantPath } = useApp();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isRefreshingOrder, setIsRefreshingOrder] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
+  const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<Order["items"]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const touchStartYRef = useRef<number | null>(null);
@@ -180,7 +181,7 @@ export function OrderTrackingScreen() {
     return searchParams.get('orderId') || state?.orderId || getStoredOrderId();
   }, [location.state, searchParams]);
 
-  const selectedOrder = useMemo(() => {
+  const contextSelectedOrder = useMemo(() => {
     if (selectedOrderId) {
       const order = orders.find((item) => matchesOrder(item, selectedOrderId));
       if (order) return order;
@@ -189,20 +190,56 @@ export function OrderTrackingScreen() {
     return orders.find((order) => !["entregue", "cancelado"].includes(order.status)) || orders[0] || null;
   }, [orders, selectedOrderId]);
 
+  const selectedOrder = trackedOrder || contextSelectedOrder;
+
+  const refreshOrderInfo = useCallback(async (showSpinner = true) => {
+    if (!isLoggedIn || refreshingRef.current) return null;
+
+    refreshingRef.current = true;
+    if (showSpinner) setIsRefreshingOrder(true);
+
+    try {
+      const latestOrders = await getOrdersByMarketId(marketId);
+      const nextOrder = selectedOrderId
+        ? latestOrders.find((item) => matchesOrder(item, selectedOrderId)) || null
+        : latestOrders.find((order) => !["entregue", "cancelado"].includes(order.status)) || latestOrders[0] || null;
+
+      setTrackedOrder(nextOrder);
+      return nextOrder;
+    } finally {
+      refreshingRef.current = false;
+      if (showSpinner) setIsRefreshingOrder(false);
+    }
+  }, [isLoggedIn, marketId, selectedOrderId]);
+
+  useEffect(() => {
+    setTrackedOrder(contextSelectedOrder);
+  }, [contextSelectedOrder]);
+
   useEffect(() => {
     if (!isLoggedIn) return;
 
     let isActive = true;
     setIsLoadingOrders(true);
 
-    refreshOrders().finally(() => {
+    refreshOrderInfo(false).finally(() => {
       if (isActive) setIsLoadingOrders(false);
     });
 
     return () => {
       isActive = false;
     };
-  }, [isLoggedIn, refreshOrders]);
+  }, [isLoggedIn, refreshOrderInfo]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !selectedOrder || ["entregue", "cancelado"].includes(selectedOrder.status)) return;
+
+    const intervalId = window.setInterval(() => {
+      void refreshOrderInfo(false);
+    }, 15000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isLoggedIn, refreshOrderInfo, selectedOrder]);
 
   useEffect(() => {
     if (!selectedOrder) {
@@ -229,20 +266,6 @@ export function OrderTrackingScreen() {
       isActive = false;
     };
   }, [selectedOrder]);
-
-  const refreshOrderInfo = useCallback(async () => {
-    if (!isLoggedIn || refreshingRef.current) return;
-
-    refreshingRef.current = true;
-    setIsRefreshingOrder(true);
-
-    try {
-      await refreshOrders();
-    } finally {
-      refreshingRef.current = false;
-      setIsRefreshingOrder(false);
-    }
-  }, [isLoggedIn, refreshOrders]);
 
   const handleTouchStart = useCallback((event: TouchEvent<HTMLDivElement>) => {
     if (event.currentTarget.scrollTop > 0) {
@@ -276,7 +299,7 @@ export function OrderTrackingScreen() {
     setPullDistance(0);
 
     if (shouldRefresh) {
-      void refreshOrderInfo();
+      void refreshOrderInfo(true);
     }
   }, [pullDistance, refreshOrderInfo]);
 
