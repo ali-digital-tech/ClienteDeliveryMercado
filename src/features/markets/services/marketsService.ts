@@ -18,6 +18,11 @@ interface ApiStore {
   taxa_entrega_padrao?: string | number | null;
   cor_primaria?: string | null;
   cor_secundaria?: string | null;
+  telefone?: string | null;
+}
+
+interface ApiStoreConfig {
+  whatsapp_suporte?: string | null;
 }
 
 const fallbackLogo = 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=600&q=80';
@@ -27,7 +32,11 @@ function toNumber(value: string | number | null | undefined, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function mapStoreToMarket(store: ApiStore): Market {
+function unwrapData<T>(payload: any): T {
+  return (payload?.data || payload || {}) as T;
+}
+
+function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market {
   const street = store.endereco || store.rua || store.logradouro;
   const address = [
     [street, store.numero].filter(Boolean).join(', '),
@@ -48,6 +57,8 @@ function mapStoreToMarket(store: ApiStore): Market {
     logo: store.logo_url || fallbackLogo,
     primaryColor: store.cor_primaria || '#122a4c',
     secondaryColor: store.cor_secundaria || '#16a34a',
+    phone: store.telefone || null,
+    whatsappSupport: config.whatsapp_suporte || null,
   };
 }
 
@@ -65,6 +76,19 @@ export async function getMarkets(): Promise<Market[]> {
 export async function getMarketById(marketId: string): Promise<Market | null> {
   if (!marketId) return null;
 
-  const response = await apiRequest<{ data: ApiStore }>(`/lojas/${marketId}`);
-  return response.data ? mapStoreToMarket(response.data) : null;
+  const [storeResult, configResult] = await Promise.allSettled([
+    apiRequest<{ data: ApiStore }>(`/lojas/${marketId}`),
+    apiRequest<{ data: ApiStoreConfig }>(`/lojas/${marketId}/configuracoes`),
+  ]);
+
+  if (storeResult.status !== 'fulfilled') {
+    throw storeResult.reason;
+  }
+
+  const store = unwrapData<ApiStore>(storeResult.value);
+  const config = configResult.status === 'fulfilled'
+    ? unwrapData<ApiStoreConfig>(configResult.value)
+    : {};
+
+  return store.id ? mapStoreToMarket(store, config) : null;
 }

@@ -8,6 +8,7 @@ import {
   CreditCard,
   Home,
   Loader2,
+  MessageCircle,
   Package,
   ReceiptText,
   RefreshCw,
@@ -15,6 +16,7 @@ import {
   Truck,
   User,
   AlertTriangle,
+  type LucideIcon,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { getOrdersByMarketId, loadOrderItems, type Order } from "@/features/orders";
@@ -32,6 +34,17 @@ const statusConfig: Record<Order["status"], { label: string; color: string; bg: 
   entregue: { label: "Entregue", color: "#122a4c", bg: "#eef4fb" },
   nao_entregue: { label: "Não entregue", color: "#b91c1c", bg: "#fef2f2" },
   cancelado: { label: "Cancelado", color: "#b91c1c", bg: "#fef2f2" },
+};
+
+type ProgressStep = {
+  id: string;
+  label: string;
+  desc: string;
+  time: string;
+  icon: LucideIcon;
+  done: boolean;
+  active: boolean;
+  failed?: boolean;
 };
 
 function formatCurrency(value: number | undefined) {
@@ -64,6 +77,18 @@ function formatVehicle(order: Order) {
   return details ? `${name} (${details})` : name;
 }
 
+function getWhatsappPhone(phone: string | null | undefined) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length < 10) return null;
+  return digits.startsWith("55") ? digits : `55${digits}`;
+}
+
+function buildWhatsappUrl(phone: string | null | undefined, message: string) {
+  const normalizedPhone = getWhatsappPhone(phone);
+  if (!normalizedPhone) return null;
+  return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+}
+
 function getStoredOrderId() {
   try {
     const stored = sessionStorage.getItem("cliente_delivery_last_order");
@@ -84,11 +109,11 @@ function matchesOrder(order: Order, orderId: string) {
   ].some((value) => value && value.replace(/^#/, "") === normalized);
 }
 
-function buildSteps(order: Order) {
+function buildSteps(order: Order): ProgressStep[] {
   const isPickup = order.type === "pickup";
+  const isNotDelivered = order.status === "nao_entregue";
 
-  if (order.status === "cancelado" || order.status === "nao_entregue") {
-    const failed = order.status === "nao_entregue";
+  if (order.status === "cancelado") {
     return [
       {
         id: "recebido",
@@ -100,13 +125,14 @@ function buildSteps(order: Order) {
         active: false,
       },
       {
-        id: failed ? "nao_entregue" : "cancelado",
-        label: failed ? "Não entregue" : "Pedido cancelado",
-        desc: failed ? "Houve um problema na entrega" : "Pedido cancelado",
-        time: formatDateTime(failed ? order.deliveryInfo?.failedAt : order.canceledAt),
-        icon: failed ? AlertTriangle : CircleX,
+        id: "cancelado",
+        label: "Pedido cancelado",
+        desc: "Pedido cancelado",
+        time: formatDateTime(order.canceledAt),
+        icon: CircleX,
         done: false,
         active: true,
+        failed: true,
       },
     ];
   }
@@ -148,11 +174,14 @@ function buildSteps(order: Order) {
       icon: Truck,
     }] : []),
     {
-      id: "entregue",
-      label: isPickup ? "Retirado" : "Entregue",
-      desc: isPickup ? "Pedido retirado no mercado" : "Pedido entregue ao cliente",
-      time: formatDateTime(order.deliveredAt),
-      icon: Home,
+      id: isNotDelivered ? "nao_entregue" : "entregue",
+      label: isNotDelivered ? "Não entregue" : isPickup ? "Retirado" : "Entregue",
+      desc: isNotDelivered
+        ? "Entrega não concluída pelo entregador"
+        : isPickup ? "Pedido retirado no mercado" : "Pedido entregue ao cliente",
+      time: formatDateTime(isNotDelivered ? order.deliveryInfo?.failedAt : order.deliveredAt),
+      icon: isNotDelivered ? AlertTriangle : Home,
+      failed: isNotDelivered,
     },
   ];
   const currentStepId = order.status === "pendente" ? "recebido" : order.status;
@@ -169,7 +198,7 @@ export function OrderTrackingScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { marketId, orders, isLoggedIn, tenantPath } = useApp();
+  const { marketId, currentMarket, orders, isLoggedIn, tenantPath } = useApp();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isRefreshingOrder, setIsRefreshingOrder] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -353,6 +382,10 @@ export function OrderTrackingScreen() {
   const assignedDriver = selectedOrder.type === "delivery" ? selectedOrder.deliveryInfo?.driver : null;
   const assignedVehicle = selectedOrder.type === "delivery" ? formatVehicle(selectedOrder) : null;
   const deliveryFailureReason = selectedOrder.deliveryInfo?.failureReason || "";
+  const marketWhatsappUrl = buildWhatsappUrl(
+    currentMarket.whatsappSupport || currentMarket.phone,
+    `Olá, ${currentMarket.name}! Preciso de ajuda com o pedido ${formatOrderCode(selectedOrder)}, que consta como não entregue.`,
+  );
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -438,6 +471,11 @@ export function OrderTrackingScreen() {
           <div className="flex flex-col">
             {steps.map((step, index) => {
               const Icon = step.icon;
+              const isFailedStep = Boolean(step.failed);
+              const nextStepFailed = Boolean(steps[index + 1]?.failed);
+              const stepDoneColor = isFailedStep ? "#dc2626" : "#122a4c";
+              const stepActiveBg = isFailedStep ? "#fef2f2" : "#eef4fb";
+              const stepActiveColor = isFailedStep ? "#b91c1c" : "#122a4c";
 
               return (
                 <div key={step.id} className="flex gap-4">
@@ -447,18 +485,18 @@ export function OrderTrackingScreen() {
                       style={{
                         width: "36px",
                         height: "36px",
-                        backgroundColor: step.done ? "#122a4c" : step.active ? "#eef4fb" : "#f1f5f9",
-                        border: step.active ? "2px solid #122a4c" : "none",
+                        backgroundColor: step.done || isFailedStep ? stepDoneColor : step.active ? stepActiveBg : "#f1f5f9",
+                        border: step.active ? `2px solid ${stepDoneColor}` : "none",
                       }}
                     >
-                      <Icon size={16} color={step.done ? "white" : step.active ? "#122a4c" : "#94a3b8"} />
+                      <Icon size={16} color={step.done || isFailedStep ? "white" : step.active ? stepActiveColor : "#94a3b8"} />
                     </div>
 
                     {index < steps.length - 1 && (
                       <div
                         className="w-0.5 flex-1 my-1"
                         style={{
-                          backgroundColor: step.done ? "#122a4c" : "#e2e8f0",
+                          backgroundColor: step.done ? (nextStepFailed ? "#dc2626" : stepDoneColor) : "#e2e8f0",
                           minHeight: "24px",
                         }}
                       />
@@ -471,7 +509,7 @@ export function OrderTrackingScreen() {
                         style={{
                           fontSize: "13px",
                           fontWeight: step.active || step.done ? 700 : 500,
-                          color: step.active || step.done ? "#334155" : "#94a3b8",
+                          color: isFailedStep ? "#991b1b" : step.active || step.done ? "#334155" : "#94a3b8",
                         }}
                       >
                         {step.label}
@@ -484,7 +522,7 @@ export function OrderTrackingScreen() {
                     <p
                       style={{
                         fontSize: "11px",
-                        color: step.active ? "#1b3d6d" : step.done ? "#64748b" : "#cbd5e1",
+                        color: isFailedStep ? "#b91c1c" : step.active ? "#1b3d6d" : step.done ? "#64748b" : "#cbd5e1",
                         lineHeight: 1.4,
                       }}
                     >
@@ -492,9 +530,9 @@ export function OrderTrackingScreen() {
                     </p>
 
                     {step.active && (
-                      <div className="mt-1.5 flex items-center gap-1.5 rounded-lg px-2 py-1" style={{ backgroundColor: "#eef4fb" }}>
-                        <div className="rounded-full animate-pulse" style={{ width: "6px", height: "6px", backgroundColor: "#122a4c" }} />
-                        <span style={{ fontSize: "10px", color: "#122a4c", fontWeight: 600 }}>
+                      <div className="mt-1.5 flex items-center gap-1.5 rounded-lg px-2 py-1" style={{ backgroundColor: stepActiveBg }}>
+                        <div className="rounded-full animate-pulse" style={{ width: "6px", height: "6px", backgroundColor: stepActiveColor }} />
+                        <span style={{ fontSize: "10px", color: stepActiveColor, fontWeight: 600 }}>
                           Status atual
                         </span>
                       </div>
@@ -510,7 +548,7 @@ export function OrderTrackingScreen() {
           <div className="rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #fecaca", backgroundColor: "#fef2f2" }}>
             <div className="flex items-start gap-3">
               <AlertTriangle size={20} color="#b91c1c" className="mt-0.5 flex-shrink-0" />
-              <div>
+              <div className="flex-1">
                 <p style={{ fontSize: "14px", fontWeight: 800, color: "#991b1b" }}>
                   Houve um problema na entrega
                 </p>
@@ -520,6 +558,22 @@ export function OrderTrackingScreen() {
                     : ""}
                   Entre em contato com o mercado para combinar os próximos passos.
                 </p>
+                {marketWhatsappUrl ? (
+                  <a
+                    href={marketWhatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white"
+                    style={{ backgroundColor: "#16a34a", fontSize: "13px", fontWeight: 800 }}
+                  >
+                    <MessageCircle size={16} />
+                    Falar com o mercado no WhatsApp
+                  </a>
+                ) : (
+                  <div className="mt-3 rounded-xl border border-red-200 bg-white/70 px-3 py-2" style={{ fontSize: "12px", color: "#991b1b", fontWeight: 700 }}>
+                    WhatsApp do mercado não configurado.
+                  </div>
+                )}
               </div>
             </div>
           </div>

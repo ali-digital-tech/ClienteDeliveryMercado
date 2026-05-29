@@ -11,4 +11,6 @@ export interface Market {
   logo: string;
   primaryColor: string;
   secondaryColor: string;
+  phone?: string | null;
+  whatsappSupport?: string | null;
 }
