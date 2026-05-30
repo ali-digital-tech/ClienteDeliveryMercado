@@ -60,6 +60,7 @@ interface PendingCheckoutOrder {
   numero_pedido?: string | null;
   total?: string | number | null;
   agendado_para?: string | null;
+  chave_recebimento?: string | null;
 }
 
 function formatPixCountdown(seconds: number) {
@@ -327,6 +328,7 @@ export function CheckoutPage() {
       number: order.numero_pedido,
       total: order.total,
       scheduledFor: order.agendado_para,
+      receiptKey: order.chave_recebimento,
       payment_id: result.payment.id,
       mp_payment_id: result.mp_payment_id,
     }));

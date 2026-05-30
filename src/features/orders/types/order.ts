@@ -15,6 +15,7 @@ export interface Order {
   outForDeliveryAt?: string | null;
   canceledAt?: string | null;
   deliveredAt?: string | null;
+  receiptKey?: string | null;
   items: { product: Product; qty: number }[];
   itemCount?: number;
   subtotal?: number;

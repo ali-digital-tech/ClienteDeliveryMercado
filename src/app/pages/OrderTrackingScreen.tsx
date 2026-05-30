@@ -8,6 +8,7 @@ import {
   CreditCard,
   Home,
   Loader2,
+  KeyRound,
   MessageCircle,
   Package,
   ReceiptText,
@@ -460,6 +461,23 @@ export function OrderTrackingScreen() {
             <div className="flex items-center justify-center rounded-full bg-white shadow-sm" style={{ width: "30px", height: "30px", border: "1px solid #d9e4f2" }}>
               <RefreshCw className={isRefreshingOrder ? "animate-spin" : ""} size={15} color="#122a4c" />
             </div>
+          </div>
+        )}
+
+        {selectedOrder.type === "delivery" && selectedOrder.receiptKey && !isFinished && (
+          <div className="rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #bfd3ee", backgroundColor: "#eef4fb" }}>
+            <div className="flex items-center gap-2">
+              <KeyRound size={18} color="#122a4c" />
+              <p style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }}>
+                Chave de recebimento
+              </p>
+            </div>
+            <p className="mt-2" style={{ fontSize: "28px", fontWeight: 800, letterSpacing: "0.3em", color: "#122a4c" }}>
+              {selectedOrder.receiptKey}
+            </p>
+            <p className="mt-1" style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.45 }}>
+              Informe esta chave somente ao entregador no momento da entrega.
+            </p>
           </div>
         )}
 

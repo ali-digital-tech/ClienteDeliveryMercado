@@ -33,6 +33,7 @@ interface ApiOrder {
   saiu_para_entrega_em?: string | null;
   cancelado_em?: string | null;
   entregue_em?: string | null;
+  chave_recebimento?: string | null;
   status_tempos?: Record<string, string | null> | null;
   status_times?: Record<string, string | null> | null;
   endereco_cliente?: {
@@ -297,6 +298,7 @@ function mapOrder(order: ApiOrder): Order {
     outForDeliveryAt: order.saiu_para_entrega_em || order.entrega?.saiu_para_entrega_em || getStatusTime(order, 'saiu_para_entrega', 'saiu_entrega', 'em_entrega'),
     canceledAt: order.cancelado_em || null,
     deliveredAt: order.entregue_em || order.entrega?.entregue_em || null,
+    receiptKey: order.chave_recebimento || null,
     items: [],
     itemCount: toNumber(order.carrinho_quantidade_produtos),
     subtotal,

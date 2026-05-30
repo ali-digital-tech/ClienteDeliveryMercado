@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { CheckCircle2, Home, Eye } from "lucide-react";
+import { CheckCircle2, Home, Eye, KeyRound } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
@@ -24,6 +24,7 @@ export function OrderConfirmedScreen() {
   const [show, setShow] = useState(false);
   const [savedTotal, setSavedTotal] = useState(0);
   const [savedScheduledFor, setSavedScheduledFor] = useState<string | null>(null);
+  const [savedReceiptKey, setSavedReceiptKey] = useState<string | null>(null);
   const normalizedOrderId = (rawOrderId || orderId).replace(/^#/, "");
   const apiOrder = orders.find((order) => (
     [order.rawId, order.id, order.number]
@@ -32,13 +33,14 @@ export function OrderConfirmedScreen() {
   ));
   const displayedTotal = apiOrder?.total ?? savedTotal;
   const displayedScheduledFor = apiOrder?.scheduledFor ?? savedScheduledFor;
+  const displayedReceiptKey = apiOrder?.receiptKey ?? savedReceiptKey;
   const displayedStatus = apiOrder?.type === "pickup" && apiOrder.status === "entregue"
     ? "Retirado"
     : apiOrder ? statusLabels[apiOrder.status] : "Recebido";
 
   useEffect(() => {
     const total = cartTotal - discount;
-    let order: { id?: string; rawId?: string; total?: number | string; scheduledFor?: string | null } | null = null;
+    let order: { id?: string; rawId?: string; total?: number | string; scheduledFor?: string | null; receiptKey?: string | null } | null = null;
 
     try {
       const stored = sessionStorage.getItem('cliente_delivery_last_order');
@@ -49,6 +51,7 @@ export function OrderConfirmedScreen() {
 
     setSavedTotal(Number(order?.total || total || 0));
     setSavedScheduledFor(order?.scheduledFor || null);
+    setSavedReceiptKey(order?.receiptKey || null);
     setOrderId(order?.id || "");
     setRawOrderId(order?.rawId || order?.id || "");
     setTimeout(() => setShow(true), 100);
@@ -151,6 +154,30 @@ export function OrderConfirmedScreen() {
               className="h-px"
               style={{ backgroundColor: "#e2e8f0" }}
             />
+
+            {displayedReceiptKey && (
+              <>
+                <div className="rounded-xl px-3 py-3 text-left" style={{ backgroundColor: "#eef4fb" }}>
+                  <div className="flex items-center gap-2">
+                    <KeyRound size={17} color="#122a4c" />
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#122a4c" }}>
+                      Chave de recebimento
+                    </span>
+                  </div>
+                  <p className="mt-1" style={{ fontSize: "24px", fontWeight: 800, letterSpacing: "0.28em", color: "#122a4c" }}>
+                    {displayedReceiptKey}
+                  </p>
+                  <p className="mt-1" style={{ fontSize: "11px", color: "#64748b" }}>
+                    Informe esta chave somente ao entregador no momento da entrega.
+                  </p>
+                </div>
+
+                <div
+                  className="h-px"
+                  style={{ backgroundColor: "#e2e8f0" }}
+                />
+              </>
+            )}
 
             <div className="flex justify-between items-center">
               <span
