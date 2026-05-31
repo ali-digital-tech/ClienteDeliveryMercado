@@ -8,6 +8,7 @@ import {
   getStoredPayerData,
   getStoredPaymentSelection,
   refreshPaymentById,
+  resolvePixExpiration,
   savePaymentSelection,
   type LocalPayment,
   type MercadoPagoPaymentResult,
@@ -45,7 +46,9 @@ function toOrderPayment(payment: LocalPayment): OrderPayment {
     qrCode: payment.qr_code || null,
     qrCodeBase64: payment.qr_code_base64 || null,
     paymentLink: payment.link_pagamento || null,
-    expiresAt: payment.data_expiracao || null,
+    expiresAt: payment.forma_pagamento === "pix"
+      ? resolvePixExpiration(payment.data_expiracao, payment.criado_em)
+      : payment.data_expiracao || null,
     paidAt: payment.pago_em || null,
     createdAt: payment.criado_em || null,
   };
@@ -61,7 +64,9 @@ function resultToOrderPayment(result: MercadoPagoPaymentResult): OrderPayment {
     qrCode: result.qr_code || null,
     qrCodeBase64: result.qr_code_base64 || null,
     paymentLink: result.ticket_url || null,
-    expiresAt: result.date_of_expiration || null,
+    expiresAt: result.payment.forma_pagamento === "pix"
+      ? resolvePixExpiration(result.date_of_expiration)
+      : result.date_of_expiration || null,
     paidAt: result.payment.status === "aprovado" ? new Date().toISOString() : null,
   };
 }

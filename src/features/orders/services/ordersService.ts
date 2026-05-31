@@ -1,6 +1,7 @@
 import { apiRequest, getAuthToken, unwrapList } from '@/shared/lib/api';
 import { getProductById, mapStoreProduct } from '@/features/products';
 import type { Product } from '@/features/products';
+import { resolvePixExpiration } from '@/features/payments';
 import type { Order } from '../types/order';
 import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
@@ -328,7 +329,9 @@ function mapOrder(order: ApiOrder): Order {
       qrCode: order.pagamento.qr_code || null,
       qrCodeBase64: order.pagamento.qr_code_base64 || null,
       paymentLink: order.pagamento.link_pagamento || null,
-      expiresAt: order.pagamento.data_expiracao || null,
+      expiresAt: order.pagamento.forma_pagamento === 'pix'
+        ? resolvePixExpiration(order.pagamento.data_expiracao, order.pagamento.criado_em)
+        : order.pagamento.data_expiracao || null,
       paidAt: order.pagamento.pago_em || null,
       createdAt: order.pagamento.criado_em || null,
     } : null,

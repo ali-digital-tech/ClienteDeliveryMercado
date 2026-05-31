@@ -35,9 +35,10 @@ import {
   cancelPayment,
   createCardPayment,
   createPixPayment,
-  getPaymentById,
   getStoredPayerData,
   getStoredPaymentSelection,
+  refreshPaymentById,
+  resolvePixExpiration,
   type MercadoPagoPaymentResult,
   type PayerData,
 } from '@/features/payments';
@@ -447,6 +448,11 @@ export function CheckoutPage() {
         setPixStatus('expired');
         setPixFailureMessage('O tempo para pagamento deste PIX expirou. Escolha uma forma de pagamento e tente novamente.');
         showSystemNotice('O tempo para pagamento deste PIX expirou. Escolha uma forma de pagamento e tente novamente.');
+        if (paymentResult.payment.id) {
+          void refreshPaymentById(paymentResult.payment.id).catch((error) => {
+            console.error('Erro ao expirar pagamento PIX:', error);
+          });
+        }
       }
     };
 
@@ -462,7 +468,7 @@ export function CheckoutPage() {
     let cancelled = false;
     const intervalId = window.setInterval(async () => {
       try {
-        const payment = await getPaymentById(paymentResult.payment.id);
+        const payment = await refreshPaymentById(paymentResult.payment.id);
         if (cancelled) return;
 
         if (payment.status === 'aprovado') {
@@ -557,12 +563,7 @@ export function CheckoutPage() {
 
       if (selection.method === 'pix') {
         setPendingOrder(order);
-        const providerExpiration = result.date_of_expiration
-          ? new Date(result.date_of_expiration).getTime()
-          : 0;
-        const expiration = providerExpiration > Date.now()
-          ? providerExpiration
-          : Date.now() + PIX_PAYMENT_WINDOW_SECONDS * 1000;
+        const expiration = new Date(resolvePixExpiration(result.date_of_expiration)).getTime();
         setPixExpiresAt(expiration);
         setPixSecondsRemaining(Math.max(0, Math.ceil((expiration - Date.now()) / 1000)));
         setPixStatus('waiting');
