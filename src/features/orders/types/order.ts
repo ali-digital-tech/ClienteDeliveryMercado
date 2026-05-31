@@ -1,5 +1,19 @@
 import type { Product } from '@/features/products';
 
+export interface OrderPayment {
+  id: string;
+  method: 'pix' | 'cartao_credito' | 'cartao_debito' | string;
+  status: string;
+  value: number;
+  gatewayPaymentId?: string | null;
+  qrCode?: string | null;
+  qrCodeBase64?: string | null;
+  paymentLink?: string | null;
+  expiresAt?: string | null;
+  paidAt?: string | null;
+  createdAt?: string | null;
+}
+
 export interface Order {
   id: string;
   rawId?: string;
@@ -22,6 +36,8 @@ export interface Order {
   discount?: number;
   deliveryFee?: number;
   total: number;
+  isPaid?: boolean;
+  payment?: OrderPayment | null;
   status: 'pendente' | 'recebido' | 'confirmado' | 'separacao' | 'pronto' | 'saiu' | 'entregue' | 'nao_entregue' | 'cancelado';
   backendStatus?: string;
   address: string;

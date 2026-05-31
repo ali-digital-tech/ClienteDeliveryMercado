@@ -65,6 +65,19 @@ interface ApiOrder {
       ano?: number | null;
     } | null;
   } | null;
+  pagamento?: {
+    id: string;
+    forma_pagamento?: string | null;
+    valor?: string | number | null;
+    status?: string | null;
+    gateway_pagamento_id?: string | null;
+    qr_code?: string | null;
+    qr_code_base64?: string | null;
+    link_pagamento?: string | null;
+    data_expiracao?: string | null;
+    pago_em?: string | null;
+    criado_em?: string | null;
+  } | null;
 }
 
 interface ApiCartItem {
@@ -305,6 +318,20 @@ function mapOrder(order: ApiOrder): Order {
     discount,
     deliveryFee,
     total: toNumber(order.total),
+    isPaid: Boolean(order.pagamento?.pago_em || order.pagamento?.status === 'aprovado'),
+    payment: order.pagamento ? {
+      id: order.pagamento.id,
+      method: order.pagamento.forma_pagamento || '',
+      status: order.pagamento.status || '',
+      value: toNumber(order.pagamento.valor),
+      gatewayPaymentId: order.pagamento.gateway_pagamento_id || null,
+      qrCode: order.pagamento.qr_code || null,
+      qrCodeBase64: order.pagamento.qr_code_base64 || null,
+      paymentLink: order.pagamento.link_pagamento || null,
+      expiresAt: order.pagamento.data_expiracao || null,
+      paidAt: order.pagamento.pago_em || null,
+      createdAt: order.pagamento.criado_em || null,
+    } : null,
     status: mapStatus(order.status),
     backendStatus: order.status || undefined,
     address: formatAddress(order.endereco_cliente),

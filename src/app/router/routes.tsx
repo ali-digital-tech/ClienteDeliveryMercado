@@ -18,6 +18,7 @@ import { NotificationsFeedScreen } from '../pages/NotificationsFeedScreen';
 import { OrderConfirmedScreen } from '../pages/OrderConfirmedScreen';
 import { OrderTrackingScreen } from '../pages/OrderTrackingScreen';
 import { PaymentScreen } from '../pages/PaymentScreen';
+import { PaymentRecoveryScreen } from '../pages/PaymentRecoveryScreen';
 import { PrivacyScreen } from '../pages/PrivacyScreen';
 import { ProfileScreen } from '../pages/ProfileScreen';
 import { SplashScreen } from '../pages/SplashScreen';
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
       { path: 'delivery', Component: DeliveryScreen },
       { path: 'checkout', Component: CheckoutPage },
       { path: 'payment', Component: PaymentScreen },
+      { path: 'payment-recovery', Component: PaymentRecoveryScreen },
       { path: 'order-confirmed', Component: OrderConfirmedScreen },
       { path: 'order-tracking', Component: OrderTrackingScreen },
       { path: 'orders', Component: MyOrdersScreen },

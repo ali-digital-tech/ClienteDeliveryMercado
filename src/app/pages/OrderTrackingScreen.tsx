@@ -217,10 +217,12 @@ export function OrderTrackingScreen() {
   const contextSelectedOrder = useMemo(() => {
     if (selectedOrderId) {
       const order = orders.find((item) => matchesOrder(item, selectedOrderId));
-      if (order) return order;
+      return order || null;
     }
 
-    return orders.find((order) => !["entregue", "nao_entregue", "cancelado"].includes(order.status)) || orders[0] || null;
+    return orders.find((order) => order.isPaid && !["entregue", "nao_entregue", "cancelado"].includes(order.status))
+      || orders.find((order) => order.isPaid)
+      || null;
   }, [orders, selectedOrderId]);
 
   const selectedOrder = trackedOrder || contextSelectedOrder;
@@ -248,6 +250,14 @@ export function OrderTrackingScreen() {
   useEffect(() => {
     setTrackedOrder(contextSelectedOrder);
   }, [contextSelectedOrder]);
+
+  useEffect(() => {
+    if (!selectedOrder || selectedOrder.isPaid) return;
+
+    navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(selectedOrder.rawId || selectedOrder.id)}`, {
+      replace: true,
+    });
+  }, [navigate, selectedOrder, tenantPath]);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -368,6 +378,14 @@ export function OrderTrackingScreen() {
             Ver meus pedidos
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (!selectedOrder.isPaid) {
+    return (
+      <div className="flex-1 flex items-center justify-center" style={{ background: "#f8fafc" }}>
+        <Loader2 className="animate-spin" size={28} color="#122a4c" />
       </div>
     );
   }

@@ -345,6 +345,7 @@ export function CheckoutPage() {
   }, [clearCart, navigate, refreshOrders, saveConfirmedOrder, tenantPath]);
 
   const resetPixPayment = () => {
+    const pendingOrderId = pendingOrder?.id;
     setPaymentResult(null);
     setPendingOrder(null);
     setPixExpiresAt(null);
@@ -352,7 +353,11 @@ export function CheckoutPage() {
     setPixStatus('idle');
     setPixCodeCopied(false);
     setPixFailureMessage('');
-    navigate(tenantPath("payment"));
+    navigate(
+      pendingOrderId
+        ? `${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(pendingOrderId)}`
+        : tenantPath("payment")
+    );
   };
 
   const handleCopyPixCode = async () => {
@@ -552,13 +557,22 @@ export function CheckoutPage() {
 
       if (selection.method === 'pix') {
         setPendingOrder(order);
-        setPixExpiresAt(Date.now() + PIX_PAYMENT_WINDOW_SECONDS * 1000);
-        setPixSecondsRemaining(PIX_PAYMENT_WINDOW_SECONDS);
+        const providerExpiration = result.date_of_expiration
+          ? new Date(result.date_of_expiration).getTime()
+          : 0;
+        const expiration = providerExpiration > Date.now()
+          ? providerExpiration
+          : Date.now() + PIX_PAYMENT_WINDOW_SECONDS * 1000;
+        setPixExpiresAt(expiration);
+        setPixSecondsRemaining(Math.max(0, Math.ceil((expiration - Date.now()) / 1000)));
         setPixStatus('waiting');
+        await refreshOrders();
         return;
       }
 
       showSystemNotice('Pagamento ainda não aprovado. Confira a forma de pagamento e tente novamente.');
+      await refreshOrders();
+      navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(order.id)}`);
     } catch (err) {
       showSystemNotice(err || 'Não foi possível finalizar o pedido.');
     } finally {

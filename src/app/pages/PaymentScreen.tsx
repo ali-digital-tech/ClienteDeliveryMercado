@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { ChevronLeft, CreditCard, QrCode, Smartphone } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import {
@@ -112,6 +112,7 @@ function loadMercadoPagoSdk() {
 
 export function PaymentScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { tenantPath, marketId, currentUser, currentMarket } = useApp();
   const storedSelection = useMemo(() => getStoredPaymentSelection(), []);
   const storedPayer = useMemo(() => getStoredPayerData(), []);
@@ -239,7 +240,8 @@ export function PaymentScreen() {
         });
       }
 
-      navigate(tenantPath("checkout"));
+      const state = location.state as { redirectTo?: string } | null;
+      navigate(state?.redirectTo || tenantPath("checkout"));
     } catch (err) {
       showSystemNotice(err || "Não foi possível confirmar o pagamento.");
     } finally {

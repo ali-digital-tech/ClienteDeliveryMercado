@@ -76,6 +76,17 @@ function formatOrderType(order: Order) {
   return order.type === "delivery" ? "Entrega" : "Retirada";
 }
 
+function hasValidPixPayment(order: Order) {
+  const payment = order.payment;
+  return Boolean(
+    payment?.method === "pix"
+      && payment.qrCode
+      && ["pendente", "em_processamento"].includes(payment.status)
+      && payment.expiresAt
+      && new Date(payment.expiresAt).getTime() > Date.now(),
+  );
+}
+
 export function MyOrdersScreen() {
   const navigate = useNavigate();
   const { orders, addToCart, cartCount, isLoggedIn, refreshOrders, tenantPath } = useApp();
@@ -132,6 +143,11 @@ export function MyOrdersScreen() {
 
   const handleOpenOrderDetails = (order: Order) => {
     const orderId = order.rawId || order.id;
+
+    if (!order.isPaid) {
+      navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(orderId)}`);
+      return;
+    }
 
     try {
       sessionStorage.setItem(
@@ -238,6 +254,8 @@ export function MyOrdersScreen() {
               const defaultStatus = statusConfig[order.status] ?? statusConfig.recebido;
               const status = order.type === "pickup" && order.status === "entregue"
                 ? { ...defaultStatus, label: "Retirado" }
+                : !order.isPaid
+                  ? { color: "#92400e", bg: "#fffbeb", label: "Aguardando pagamento" }
                 : defaultStatus;
               const isActive = !["entregue", "nao_entregue", "cancelado"].includes(order.status);
               const itemCount = order.itemCount ?? order.items.reduce((sum, item) => sum + item.qty, 0);
@@ -451,7 +469,9 @@ export function MyOrdersScreen() {
                             fontWeight: 600,
                           }}
                         >
-                          {isActive ? "Acompanhar" : "Ver detalhes"}
+                          {!order.isPaid
+                            ? hasValidPixPayment(order) ? "Pagar PIX" : "Concluir pagamento"
+                            : isActive ? "Acompanhar" : "Ver detalhes"}
                         </span>
                         <ChevronRight size={13} color="#334155" />
                       </button>

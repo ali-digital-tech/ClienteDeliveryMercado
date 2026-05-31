@@ -55,6 +55,11 @@ export interface LocalPayment {
   gateway?: string | null;
   gateway_pagamento_id?: string | null;
   pago_em?: string | null;
+  qr_code?: string | null;
+  qr_code_base64?: string | null;
+  link_pagamento?: string | null;
+  data_expiracao?: string | null;
+  criado_em?: string | null;
   status_detalhado?: string | null;
   status_gateway_raw?: string | null;
 }
@@ -111,6 +116,11 @@ export async function getPaymentById(paymentId: string) {
   const response = await apiRequest<{ data: LocalPayment }>(`/pagamentos/${paymentId}`);
 
   return response.data;
+}
+
+export async function refreshPaymentById(paymentId: string) {
+  await apiRequest(`/mercadopago/payment/${paymentId}/status`);
+  return getPaymentById(paymentId);
 }
 
 export async function cancelPayment(paymentId: string) {
