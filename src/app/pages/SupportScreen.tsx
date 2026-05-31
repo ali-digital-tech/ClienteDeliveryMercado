@@ -10,7 +10,9 @@ import {
   Search,
   ExternalLink,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useApp } from "@/app/providers/AppProvider";
+import { apiRequest, getAuthToken, unwrapList } from "@/shared/lib/api";
 import { normalizeSearchText } from "@/shared/utils/searchText";
 
 const faqs = [
@@ -36,12 +38,77 @@ const faqs = [
   },
 ];
 
-// Número do WhatsApp (substitua pelo número real)
-const WHATSAPP_NUMBER = "5511999990000";
-const WHATSAPP_MESSAGE = encodeURIComponent(
-  "Olá! Preciso de ajuda com o app FrescaMart. 🛒"
-);
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MESSAGE}`;
+interface BusinessHour {
+  dia_semana: number;
+  aberto: boolean;
+  horario_abertura?: string | null;
+  horario_fechamento?: string | null;
+}
+
+interface StoreConfig {
+  whatsapp_suporte?: string | null;
+}
+
+const DAY_NAMES = [
+  "Domingo",
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+];
+
+function getWhatsappPhone(phone: string | null | undefined) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length < 10) return null;
+  return digits.startsWith("55") ? digits : `55${digits}`;
+}
+
+function buildWhatsappUrl(phone: string | null | undefined, message: string) {
+  const normalizedPhone = getWhatsappPhone(phone);
+  if (!normalizedPhone) return null;
+  return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+}
+
+function formatTime(time: string | null | undefined) {
+  const match = String(time || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return minutes === 0 ? `${hours}h` : `${hours}h${String(minutes).padStart(2, "0")}`;
+}
+
+function formatBusinessHours(
+  schedules: BusinessHour[],
+  fallbackOpeningTime: string | null | undefined,
+  fallbackClosingTime: string | null | undefined,
+) {
+  if (schedules.length === 0) {
+    const openingTime = formatTime(fallbackOpeningTime);
+    const closingTime = formatTime(fallbackClosingTime);
+
+    return openingTime && closingTime
+      ? `Horário padrão: ${openingTime} às ${closingTime}`
+      : "Horário não informado pelo mercado.";
+  }
+
+  return [...schedules]
+    .sort((a, b) => Number(a.dia_semana) - Number(b.dia_semana))
+    .map((schedule) => {
+      const dayName = DAY_NAMES[Number(schedule.dia_semana)] || "Dia";
+      const openingTime = formatTime(schedule.horario_abertura);
+      const closingTime = formatTime(schedule.horario_fechamento);
+
+      if (!schedule.aberto || !openingTime || !closingTime) {
+        return `${dayName}: fechado`;
+      }
+
+      return `${dayName}: ${openingTime} às ${closingTime}`;
+    })
+    .join("\n");
+}
 
 // Ícone do WhatsApp em SVG
 function WhatsAppIcon({ size = 20 }: { size?: number }) {
@@ -57,15 +124,57 @@ function WhatsAppIcon({ size = 20 }: { size?: number }) {
 
 export function SupportScreen() {
   const navigate = useNavigate();
+  const { currentMarket, marketId } = useApp();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [businessHours, setBusinessHours] = useState<BusinessHour[]>([]);
+  const [configuredWhatsapp, setConfiguredWhatsapp] = useState(currentMarket.whatsappSupport || null);
   const normalizedSearchQuery = normalizeSearchText(searchQuery);
+  const supportPhone = configuredWhatsapp || currentMarket.whatsappSupport || currentMarket.phone;
+  const supportEmail = currentMarket.email?.trim() || null;
+  const whatsappUrl = buildWhatsappUrl(
+    supportPhone,
+    `Olá, ${currentMarket.name}! Preciso de ajuda com meu pedido.`,
+  );
+  const supportHours = formatBusinessHours(
+    businessHours,
+    currentMarket.openingTime,
+    currentMarket.closingTime,
+  );
 
   const filteredFaqs = faqs.filter(
     (f) =>
       normalizeSearchText(f.q).includes(normalizedSearchQuery) ||
       normalizeSearchText(f.a).includes(normalizedSearchQuery)
   );
+
+  useEffect(() => {
+    let isActive = true;
+    setConfiguredWhatsapp(currentMarket.whatsappSupport || null);
+
+    apiRequest(`/horarios_funcionamento/${marketId}`)
+      .then((payload) => {
+        if (isActive) setBusinessHours(unwrapList<BusinessHour>(payload));
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar horário de atendimento:", error);
+        if (isActive) setBusinessHours([]);
+      });
+
+    if (getAuthToken()) {
+      apiRequest<{ data?: StoreConfig }>(`/lojas/${marketId}/configuracoes`)
+        .then((payload) => {
+          if (isActive) setConfiguredWhatsapp(payload?.data?.whatsapp_suporte || null);
+        })
+        .catch((error) => {
+          console.error("Erro ao carregar WhatsApp de suporte:", error);
+        });
+    }
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentMarket.whatsappSupport, marketId]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#f8fafc" }}>
@@ -100,41 +209,59 @@ export function SupportScreen() {
           <CheckCircle size={20} color="#16a34a" className="flex-shrink-0" />
           <div>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "#15803d" }}>
-              Atendimento disponível
+              Atendimento do mercado
             </p>
             <p style={{ fontSize: "12px", color: "#166534" }}>
-              Tempo médio de resposta: 5 minutos
+              {currentMarket.name}
             </p>
           </div>
         </div>
 
         {/* WhatsApp destaque */}
-        <a
-          href={WHATSAPP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-4 rounded-2xl p-4 transition-all active:opacity-80"
-          style={{
-            background: "linear-gradient(135deg, #25d366 0%, #128c5e 100%)",
-            boxShadow: "0 4px 14px rgba(37,211,102,0.35)",
-          }}
-        >
-          <div
-            className="rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ width: "48px", height: "48px", backgroundColor: "rgba(255,255,255,0.2)" }}
+        {whatsappUrl ? (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 rounded-2xl p-4 transition-all active:opacity-80"
+            style={{
+              background: "linear-gradient(135deg, #25d366 0%, #128c5e 100%)",
+              boxShadow: "0 4px 14px rgba(37,211,102,0.35)",
+            }}
           >
-            <WhatsAppIcon size={26} />
+            <div
+              className="rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ width: "48px", height: "48px", backgroundColor: "rgba(255,255,255,0.2)" }}
+            >
+              <WhatsAppIcon size={26} />
+            </div>
+            <div className="flex-1">
+              <p className="text-white" style={{ fontSize: "15px", fontWeight: 800 }}>
+                Falar no WhatsApp
+              </p>
+              <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.85)" }}>
+                Atendimento rápido e direto
+              </p>
+            </div>
+            <ExternalLink size={18} color="rgba(255,255,255,0.8)" />
+          </a>
+        ) : (
+          <div
+            className="flex items-center gap-4 rounded-2xl p-4"
+            style={{ backgroundColor: "#e2e8f0", color: "#64748b" }}
+          >
+            <div
+              className="rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ width: "48px", height: "48px", backgroundColor: "rgba(255,255,255,0.55)" }}
+            >
+              <WhatsAppIcon size={26} />
+            </div>
+            <div className="flex-1">
+              <p style={{ fontSize: "15px", fontWeight: 800 }}>WhatsApp não configurado</p>
+              <p style={{ fontSize: "12px" }}>Consulte outro canal de atendimento abaixo.</p>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-white" style={{ fontSize: "15px", fontWeight: 800 }}>
-              Falar no WhatsApp
-            </p>
-            <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.85)" }}>
-              Atendimento rápido e direto
-            </p>
-          </div>
-          <ExternalLink size={18} color="rgba(255,255,255,0.8)" />
-        </a>
+        )}
 
         {/* Outros canais */}
         <div>
@@ -155,26 +282,45 @@ export function SupportScreen() {
             style={{ border: "1px solid #d9e4f2" }}
           >
             {/* E-mail */}
-            <a
-              href="mailto:suporte@frescamart.com.br"
-              className="flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50"
-            >
-              <div
-                className="rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}
+            {supportEmail ? (
+              <a
+                href={`mailto:${supportEmail}`}
+                className="flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50"
               >
-                <Mail size={18} color="#122a4c" />
+                <div
+                  className="rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}
+                >
+                  <Mail size={18} color="#122a4c" />
+                </div>
+                <div className="flex-1">
+                  <p style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
+                    Enviar e-mail
+                  </p>
+                  <p style={{ fontSize: "12px", color: "#64748b" }}>
+                    {supportEmail}
+                  </p>
+                </div>
+                <ExternalLink size={16} color="#94a3b8" />
+              </a>
+            ) : (
+              <div className="flex items-center gap-3 px-4 py-3.5">
+                <div
+                  className="rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}
+                >
+                  <Mail size={18} color="#122a4c" />
+                </div>
+                <div className="flex-1">
+                  <p style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
+                    Enviar e-mail
+                  </p>
+                  <p style={{ fontSize: "12px", color: "#64748b" }}>
+                    E-mail não configurado pelo mercado
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <p style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
-                  Enviar e-mail
-                </p>
-                <p style={{ fontSize: "12px", color: "#64748b" }}>
-                  suporte@frescamart.com.br
-                </p>
-              </div>
-              <ExternalLink size={16} color="#94a3b8" />
-            </a>
+            )}
           </div>
         </div>
 
@@ -188,9 +334,8 @@ export function SupportScreen() {
             <p style={{ fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
               Horário de atendimento
             </p>
-            <p style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.7 }}>
-              WhatsApp e telefone: Segunda a sábado, 7h às 22h{"\n"}
-              E-mail: Respondemos em até 24h úteis
+            <p style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.7, whiteSpace: "pre-line" }}>
+              {supportHours}
             </p>
           </div>
         </div>

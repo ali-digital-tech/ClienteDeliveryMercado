@@ -19,6 +19,9 @@ interface ApiStore {
   cor_primaria?: string | null;
   cor_secundaria?: string | null;
   telefone?: string | null;
+  email?: string | null;
+  horario_abertura?: string | null;
+  horario_fechamento?: string | null;
 }
 
 interface ApiStoreConfig {
@@ -59,6 +62,9 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
     secondaryColor: store.cor_secundaria || '#16a34a',
     phone: store.telefone || null,
     whatsappSupport: config.whatsapp_suporte || null,
+    email: store.email || null,
+    openingTime: store.horario_abertura || null,
+    closingTime: store.horario_fechamento || null,
   };
 }
 
@@ -70,7 +76,7 @@ export async function getMarkets(): Promise<Market[]> {
     },
   });
 
-  return unwrapList<ApiStore>(response).map(mapStoreToMarket);
+  return unwrapList<ApiStore>(response).map((store) => mapStoreToMarket(store));
 }
 
 export async function getMarketById(marketId: string): Promise<Market | null> {

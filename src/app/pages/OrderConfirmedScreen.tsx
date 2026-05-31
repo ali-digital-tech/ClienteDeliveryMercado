@@ -57,6 +57,14 @@ export function OrderConfirmedScreen() {
     setTimeout(() => setShow(true), 100);
   }, [cartTotal, discount]);
 
+  const handleTrackOrder = () => {
+    // Keep the orders screen behind tracking so browser back cannot reopen this confirmation.
+    window.history.replaceState(window.history.state, "", tenantPath("orders"));
+    navigate(tenantPath("order-tracking"), {
+      state: { orderId: rawOrderId || orderId },
+    });
+  };
+
   return (
     <div
       className="flex-1 flex flex-col"
@@ -354,9 +362,7 @@ export function OrderConfirmedScreen() {
         }}
       >
         <button
-          onClick={() => navigate(tenantPath("order-tracking"), {
-            state: { orderId: rawOrderId || orderId },
-          })}
+          onClick={handleTrackOrder}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           style={{ backgroundColor: "#122a4c" }}
         >
@@ -367,7 +373,7 @@ export function OrderConfirmedScreen() {
         </button>
 
         <button
-          onClick={() => navigate(tenantPath())}
+          onClick={() => navigate(tenantPath(), { replace: true })}
           className="w-full rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           style={{ backgroundColor: "#eef4fb" }}
         >

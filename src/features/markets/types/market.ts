@@ -13,4 +13,7 @@ export interface Market {
   secondaryColor: string;
   phone?: string | null;
   whatsappSupport?: string | null;
+  email?: string | null;
+  openingTime?: string | null;
+  closingTime?: string | null;
 }

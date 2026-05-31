@@ -44,6 +44,7 @@ interface AppState {
   cartTotal: number;
   login: (credentials: LoginCredentials) => Promise<AuthUser>;
   logout: () => void;
+  updateCurrentUser: (user: AuthUser) => void;
   refreshOrders: () => Promise<Order[]>;
   tenantPath: (path?: string) => string;
 }
@@ -156,6 +157,11 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     setCurrentUser(null);
   }, []);
 
+  const updateCurrentUser = useCallback((user: AuthUser) => {
+    authService.persistUser(user);
+    setCurrentUser(user);
+  }, []);
+
   const isLoggedIn = Boolean(currentUser);
   const tenantPath = useCallback((path = '') => {
     const normalizedPath = path.replace(/^\/+/, '');
@@ -261,7 +267,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
       currentScreen: '',
       addToCart, removeFromCart, updateQty, clearCart,
       toggleFavorite, isFavorite, applyCoupon, placeOrder,
-      cartCount, cartTotal, login, logout, refreshOrders, tenantPath,
+      cartCount, cartTotal, login, logout, updateCurrentUser, refreshOrders, tenantPath,
     }}>
       {children}
     </AppContext.Provider>

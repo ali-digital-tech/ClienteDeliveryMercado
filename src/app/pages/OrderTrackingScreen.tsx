@@ -361,7 +361,7 @@ export function OrderTrackingScreen() {
     return (
       <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#f8fafc" }}>
         <div className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 border-b bg-white" style={{ borderColor: "#d9e4f2" }}>
-          <button onClick={() => navigate(-1)} className="rounded-full p-2" style={{ backgroundColor: "#eef4fb" }}>
+          <button onClick={() => navigate(tenantPath("orders"), { replace: true })} className="rounded-full p-2" style={{ backgroundColor: "#eef4fb" }}>
             <ChevronLeft size={20} color="#122a4c" />
           </button>
         </div>
@@ -417,7 +417,7 @@ export function OrderTrackingScreen() {
       >
         <div className="mb-3 flex items-center justify-between">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(tenantPath("orders"), { replace: true })}
             className="rounded-full p-2"
             style={{ backgroundColor: "rgba(255,255,255,0.14)" }}
           >

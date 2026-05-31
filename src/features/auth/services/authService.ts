@@ -40,6 +40,11 @@ function requireStoreId(storeId: string | undefined) {
   return lojaId;
 }
 
+function persistUser(user: AuthUser) {
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  return user;
+}
+
 export const authService = {
   async login(credentials: LoginCredentials) {
     const lojaId = requireStoreId(credentials.loja_id);
@@ -113,7 +118,7 @@ export const authService = {
       body: payload,
     });
 
-    return response.data;
+    return persistUser(response.data);
   },
 
   persistSession(session: LoginResponse) {
@@ -123,8 +128,11 @@ export const authService = {
     } else {
       localStorage.removeItem('refresh_token');
     }
-    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(session.user));
-    return session.user;
+    return persistUser(session.user);
+  },
+
+  persistUser(user: AuthUser) {
+    return persistUser(user);
   },
 
   getStoredUser(): AuthUser | null {
