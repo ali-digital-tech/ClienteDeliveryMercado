@@ -8,7 +8,13 @@ declare const self: ServiceWorkerGlobalScope & {
 };
 
 const CACHE_NAME = 'cliente-delivery-push-v1';
+const PRODUCT_IMAGE_CACHE_NAME = 'cliente-delivery-product-images-v1';
+const PRODUCT_IMAGE_CACHE_MAX_ENTRIES = 500;
 const PRECACHE_URLS = self.__WB_MANIFEST.map((entry) => entry.url);
+const PRODUCT_IMAGE_PATH_PREFIXES = [
+  '/storage/v1/object/public/product-images/',
+  '/storage/v1/render/image/public/product-images/',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -22,12 +28,64 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME && key !== PRODUCT_IMAGE_CACHE_NAME)
+          .map((key) => caches.delete(key))
+      ))
       .then(() => self.clients.claim())
   );
 });
 
+function isProductImageRequest(request: Request) {
+  if (request.method !== 'GET') return false;
+
+  const url = new URL(request.url);
+  return PRODUCT_IMAGE_PATH_PREFIXES.some((pathPrefix) => url.pathname.startsWith(pathPrefix));
+}
+
+function isCacheableImageResponse(response: Response) {
+  return response.type === 'opaque' || response.ok;
+}
+
+async function trimProductImageCache(cache: Cache) {
+  const requests = await cache.keys();
+  if (requests.length <= PRODUCT_IMAGE_CACHE_MAX_ENTRIES) return;
+
+  const deleteCount = requests.length - PRODUCT_IMAGE_CACHE_MAX_ENTRIES;
+  await Promise.all(requests.slice(0, deleteCount).map((request) => cache.delete(request)));
+}
+
+async function handleProductImageRequest(
+  request: Request,
+  waitUntil: (promise: Promise<unknown>) => void,
+) {
+  const cache = await caches.open(PRODUCT_IMAGE_CACHE_NAME);
+  const cachedResponse = await cache.match(request);
+
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  const networkResponse = await fetch(request);
+
+  if (isCacheableImageResponse(networkResponse)) {
+    waitUntil(
+      cache.put(request, networkResponse.clone())
+        .then(() => trimProductImageCache(cache))
+        .catch(() => undefined)
+    );
+  }
+
+  return networkResponse;
+}
+
 self.addEventListener('fetch', (event) => {
+  if (isProductImageRequest(event.request)) {
+    event.respondWith(handleProductImageRequest(event.request, (promise) => event.waitUntil(promise)));
+    return;
+  }
+
   if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request).then((response) => response || caches.match('/index.html') as Promise<Response>))
