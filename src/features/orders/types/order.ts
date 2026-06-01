@@ -14,6 +14,14 @@ export interface OrderPayment {
   createdAt?: string | null;
 }
 
+export interface OrderCancellationRequest {
+  status: 'pendente' | 'aprovada' | 'recusada';
+  refundValue?: number | null;
+  note?: string | null;
+  requestedAt?: string | null;
+  resolvedAt?: string | null;
+}
+
 export interface Order {
   id: string;
   rawId?: string;
@@ -38,6 +46,7 @@ export interface Order {
   total: number;
   isPaid?: boolean;
   payment?: OrderPayment | null;
+  cancellationRequest?: OrderCancellationRequest | null;
   status: 'pendente' | 'recebido' | 'confirmado' | 'separacao' | 'pronto' | 'saiu' | 'entregue' | 'nao_entregue' | 'cancelado';
   backendStatus?: string;
   address: string;

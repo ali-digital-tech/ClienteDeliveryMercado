@@ -20,10 +20,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
-import { getOrdersByMarketId, loadOrderItems, type Order } from "@/features/orders";
+import { getOrdersByMarketId, loadOrderItems, requestOrderCancellation, type Order } from "@/features/orders";
 import { formatCartQuantity } from "@/features/cart";
 import { ProductImage } from "@/features/products";
+import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
 import { formatBrasiliaDate } from "@/shared/lib/dateTime";
+
+const SEPARATION_CANCELLATION_NOTICE = "Por se tratar de comércio de alimentos e produtos perecíveis, cancelamentos sem custo só serão aceitos até o status 'Pagamento Confirmado'. Após o início da separação (status 'Em Separação'), o estabelecimento reserva-se o direito de reter o valor dos produtos perecíveis manipulados e a taxa de separação, devido à impossibilidade de recondicionamento dos itens.";
 
 const statusConfig: Record<Order["status"], { label: string; color: string; bg: string }> = {
   pendente: { label: "Pendente", color: "#92400e", bg: "#fffbeb" },
@@ -199,13 +202,15 @@ export function OrderTrackingScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { marketId, currentMarket, orders, isLoggedIn, tenantPath } = useApp();
+  const { marketId, currentMarket, orders, isLoggedIn, refreshOrders, tenantPath } = useApp();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [isRefreshingOrder, setIsRefreshingOrder] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<Order["items"]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [isCancellationDialogOpen, setIsCancellationDialogOpen] = useState(false);
+  const [isRequestingCancellation, setIsRequestingCancellation] = useState(false);
   const touchStartYRef = useRef<number | null>(null);
   const refreshingRef = useRef(false);
 
@@ -401,10 +406,34 @@ export function OrderTrackingScreen() {
   const assignedDriver = selectedOrder.type === "delivery" ? selectedOrder.deliveryInfo?.driver : null;
   const assignedVehicle = selectedOrder.type === "delivery" ? formatVehicle(selectedOrder) : null;
   const deliveryFailureReason = selectedOrder.deliveryInfo?.failureReason || "";
+  const cancellationRequest = selectedOrder.cancellationRequest;
+  const canRequestCancellation = !cancellationRequest
+    && ["recebido", "confirmado", "separacao"].includes(selectedOrder.status);
+  const isSeparationCancellation = selectedOrder.status === "separacao";
   const marketWhatsappUrl = buildWhatsappUrl(
     currentMarket.whatsappSupport || currentMarket.phone,
     `Olá, ${currentMarket.name}! Preciso de ajuda com o pedido ${formatOrderCode(selectedOrder)}, que consta como não entregue.`,
   );
+
+  const handleRequestCancellation = async () => {
+    if (!canRequestCancellation || isRequestingCancellation) return;
+
+    setIsRequestingCancellation(true);
+    try {
+      const response = await requestOrderCancellation(selectedOrder.rawId || selectedOrder.id);
+      setIsCancellationDialogOpen(false);
+      await refreshOrders();
+      await refreshOrderInfo(false);
+      showSystemNotice(
+        response.message || "Solicitação de cancelamento enviada.",
+        response.data?.status === "pendente" ? "Solicitação enviada" : "Pedido cancelado",
+      );
+    } catch (error: any) {
+      showSystemNotice(error?.message || "Não foi possível solicitar o cancelamento.");
+    } finally {
+      setIsRequestingCancellation(false);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -579,6 +608,37 @@ export function OrderTrackingScreen() {
             })}
           </div>
         </div>
+
+        {cancellationRequest && (
+          <div
+            className="rounded-2xl p-4 mb-4 shadow-sm"
+            style={{
+              border: cancellationRequest.status === "recusada" ? "1px solid #fecaca" : "1px solid #fcd34d",
+              backgroundColor: cancellationRequest.status === "recusada" ? "#fef2f2" : "#fffbeb",
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle
+                size={20}
+                color={cancellationRequest.status === "recusada" ? "#b91c1c" : "#b45309"}
+                className="mt-0.5 flex-shrink-0"
+              />
+              <div>
+                <p style={{ fontSize: "14px", fontWeight: 800, color: cancellationRequest.status === "recusada" ? "#991b1b" : "#92400e" }}>
+                  {cancellationRequest.status === "pendente" && "Cancelamento em análise"}
+                  {cancellationRequest.status === "aprovada" && "Cancelamento aprovado"}
+                  {cancellationRequest.status === "recusada" && "Cancelamento recusado"}
+                </p>
+                <p className="mt-1" style={{ fontSize: "13px", color: cancellationRequest.status === "recusada" ? "#b91c1c" : "#b45309", lineHeight: 1.45 }}>
+                  {cancellationRequest.status === "pendente" && "A loja recebeu sua solicitação. O pedido não avançará enquanto a análise estiver pendente."}
+                  {cancellationRequest.status === "aprovada" && `Valor reembolsado: ${formatCurrency(cancellationRequest.refundValue || 0)}.`}
+                  {cancellationRequest.status === "recusada" && "A loja recusou a solicitação de cancelamento."}
+                  {cancellationRequest.note ? ` Motivo: ${cancellationRequest.note}` : ""}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {selectedOrder.status === "nao_entregue" && (
           <div className="rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #fecaca", backgroundColor: "#fef2f2" }}>
@@ -819,7 +879,54 @@ export function OrderTrackingScreen() {
             </p>
           </div>
         </div>
+
+        {canRequestCancellation && (
+          <button
+            onClick={() => setIsCancellationDialogOpen(true)}
+            className="mt-4 w-full rounded-2xl border px-4 py-3"
+            style={{ borderColor: "#fecaca", color: "#b91c1c", backgroundColor: "#fff", fontSize: "14px", fontWeight: 800 }}
+          >
+            Cancelar pedido
+          </button>
+        )}
       </div>
+
+      {isCancellationDialogOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-gray-100 px-5 py-4">
+              <h3 className="font-bold text-gray-800">
+                {isSeparationCancellation ? "Solicitar cancelamento" : "Cancelar pedido"}
+              </h3>
+            </div>
+            <div className="p-5">
+              <p className="text-sm leading-relaxed text-gray-700">
+                {isSeparationCancellation
+                  ? SEPARATION_CANCELLATION_NOTICE
+                  : "Deseja cancelar este pedido? O valor pago será estornado integralmente."}
+              </p>
+              <div className="mt-5 flex justify-end gap-3">
+                <button
+                  onClick={() => setIsCancellationDialogOpen(false)}
+                  disabled={isRequestingCancellation}
+                  className="rounded-lg px-4 py-2 text-xs font-semibold text-gray-600"
+                >
+                  Voltar
+                </button>
+                <button
+                  onClick={() => void handleRequestCancellation()}
+                  disabled={isRequestingCancellation}
+                  className="flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                  style={{ backgroundColor: "#b91c1c" }}
+                >
+                  {isRequestingCancellation && <Loader2 className="animate-spin" size={14} />}
+                  {isSeparationCancellation ? "Enviar solicitação" : "Cancelar pedido"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

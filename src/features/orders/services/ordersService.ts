@@ -79,6 +79,13 @@ interface ApiOrder {
     pago_em?: string | null;
     criado_em?: string | null;
   } | null;
+  solicitacao_cancelamento?: {
+    status?: 'pendente' | 'aprovada' | 'recusada' | null;
+    valor_reembolsado?: string | number | null;
+    observacao?: string | null;
+    solicitado_em?: string | null;
+    resolvido_em?: string | null;
+  } | null;
 }
 
 interface ApiCartItem {
@@ -335,6 +342,16 @@ function mapOrder(order: ApiOrder): Order {
       paidAt: order.pagamento.pago_em || null,
       createdAt: order.pagamento.criado_em || null,
     } : null,
+    cancellationRequest: order.solicitacao_cancelamento?.status ? {
+      status: order.solicitacao_cancelamento.status,
+      refundValue: order.solicitacao_cancelamento.valor_reembolsado === null
+        || order.solicitacao_cancelamento.valor_reembolsado === undefined
+        ? null
+        : toNumber(order.solicitacao_cancelamento.valor_reembolsado),
+      note: order.solicitacao_cancelamento.observacao || null,
+      requestedAt: order.solicitacao_cancelamento.solicitado_em || null,
+      resolvedAt: order.solicitacao_cancelamento.resolvido_em || null,
+    } : null,
     status: mapStatus(order.status),
     backendStatus: order.status || undefined,
     address: formatAddress(order.endereco_cliente),
@@ -397,4 +414,13 @@ export async function createCheckoutOrder(input: CreateCheckoutOrderInput) {
   });
 
   return response.data;
+}
+
+export async function requestOrderCancellation(orderId: string) {
+  return apiRequest<{
+    data: ApiOrder['solicitacao_cancelamento'];
+    message?: string;
+  }>(`/pedidos/${orderId}/solicitacao-cancelamento`, {
+    method: 'POST',
+  });
 }
