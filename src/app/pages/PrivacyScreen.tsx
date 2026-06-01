@@ -238,7 +238,10 @@ export function PrivacyScreen() {
               <ChevronRight size={16} color="#94a3b8" />
             </button>
 
-            <button className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50">
+            <button
+              onClick={() => navigate(tenantPath("privacy/policy"))}
+              className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50"
+            >
               <div className="rounded-xl flex items-center justify-center flex-shrink-0" style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}>
                 <Shield size={18} color="#122a4c" />
               </div>

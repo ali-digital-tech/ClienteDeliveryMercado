@@ -24,6 +24,8 @@ export interface RegisterCustomerPayload {
   telefone?: string;
   senha: string;
   loja_id?: string;
+  privacy_policy_accepted?: boolean;
+  accepted_privacy_policy_id?: string;
 }
 
 export interface LoginResponse {

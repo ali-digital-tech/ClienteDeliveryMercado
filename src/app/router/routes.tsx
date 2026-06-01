@@ -13,6 +13,7 @@ import { AddCardScreen } from '../pages/AddCardScreen';
 import { AddressesScreen } from '../pages/AddressesScreen';
 import { DeliveryScreen } from '../pages/DeliveryScreen';
 import { LoginScreen } from '../pages/LoginScreen';
+import { LegalDocumentScreen } from '../pages/LegalDocumentScreen';
 import { MyOrdersScreen } from '../pages/MyOrdersScreen';
 import { NotificationsFeedScreen } from '../pages/NotificationsFeedScreen';
 import { OrderConfirmedScreen } from '../pages/OrderConfirmedScreen';
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
       { path: 'orders', Component: MyOrdersScreen },
       { path: 'profile', Component: ProfileScreen },
       { path: 'privacy', Component: PrivacyScreen },
+      { path: 'privacy/policy', Component: LegalDocumentScreen },
       { path: 'privacy/permissions', Component: PermissionsScreen },
       { path: 'notifications', Component: NotificationsFeedScreen },
       { path: 'notifications-feed', Component: NotificationsFeedScreen },

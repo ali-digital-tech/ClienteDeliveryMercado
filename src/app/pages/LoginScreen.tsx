@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Eye, EyeOff, Mail, Lock, Phone, ShieldCheck, UserRound } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { authService } from '@/features/auth';
+import { fetchPublishedLegalDocument, type LegalDocument } from "@/features/legalDocuments";
 import { getProductById } from '@/features/products';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
@@ -11,7 +12,7 @@ export function LoginScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { addToCart, currentMarket, login, marketId } = useApp();
+  const { addToCart, currentMarket, login, marketId, tenantPath } = useApp();
   const recoveryParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const resetAccessToken = searchParams.get("access_token") || recoveryParams.get("access_token") || "";
   const resetRefreshToken = searchParams.get("refresh_token") || recoveryParams.get("refresh_token") || undefined;
@@ -23,9 +24,31 @@ export function LoginScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
+  const [privacyPolicy, setPrivacyPolicy] = useState<LegalDocument | null>(null);
+  const [privacyPolicyError, setPrivacyPolicyError] = useState("");
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const showMarketLogo = Boolean(currentMarket.logo && !logoFailed);
   const primaryColor = currentMarket.primaryColor || "#122a4c";
+
+  useEffect(() => {
+    let isActive = true;
+
+    fetchPublishedLegalDocument("privacy-policy")
+      .then((document) => {
+        if (!isActive) return;
+        setPrivacyPolicy(document);
+        setPrivacyPolicyError("");
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setPrivacyPolicyError("Política de Privacidade não publicada.");
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -105,6 +128,11 @@ export function LoginScreen() {
       return;
     }
 
+    if (mode === "signup" && privacyPolicy && !privacyAccepted) {
+      showSystemNotice("Você precisa aceitar a Política de Privacidade para criar a conta.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -115,6 +143,8 @@ export function LoginScreen() {
           telefone: phone.trim() || undefined,
           senha: password,
           loja_id: storeId,
+          privacy_policy_accepted: privacyAccepted,
+          accepted_privacy_policy_id: privacyPolicy?.id,
         });
       }
 
@@ -338,6 +368,36 @@ export function LoginScreen() {
               >
                 Esqueceu sua senha?
               </button>
+            )}
+
+            {mode === "signup" && (
+              <div className="rounded-xl p-3" style={{ border: "1px solid #d9e4f2", backgroundColor: "#f8fafc" }}>
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={privacyAccepted}
+                    onChange={(event) => setPrivacyAccepted(event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300"
+                  />
+                  <span className="text-xs leading-5 text-slate-600">
+                    Li e aceito a{" "}
+                    <button
+                      type="button"
+                      onClick={() => navigate(tenantPath("privacy/policy"))}
+                      className="font-bold underline"
+                      style={{ color: primaryColor }}
+                    >
+                      Política de Privacidade
+                    </button>
+                    {privacyPolicy?.version ? ` versão ${privacyPolicy.version}` : ""}.
+                  </span>
+                </label>
+                {privacyPolicyError && (
+                  <p className="mt-2 text-xs font-semibold text-amber-700">
+                    {privacyPolicyError}
+                  </p>
+                )}
+              </div>
             )}
 
             <button
