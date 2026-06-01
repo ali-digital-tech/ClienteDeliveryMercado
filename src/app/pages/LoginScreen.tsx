@@ -12,7 +12,7 @@ export function LoginScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { addToCart, currentMarket, login, marketId, tenantPath } = useApp();
+  const { addToCart, currentMarket, login, marketId, tenantPath, toggleFavorite } = useApp();
   const recoveryParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const resetAccessToken = searchParams.get("access_token") || recoveryParams.get("access_token") || "";
   const resetRefreshToken = searchParams.get("refresh_token") || recoveryParams.get("refresh_token") || undefined;
@@ -153,13 +153,19 @@ export function LoginScreen() {
       const navigationState = location.state as {
         redirectTo?: string;
         pendingCartProductId?: string;
+        pendingCartQuantity?: number;
+        pendingFavoriteProductId?: string;
       } | null;
       const pendingProduct = navigationState?.pendingCartProductId
         ? await getProductById(marketId, navigationState.pendingCartProductId)
         : null;
 
       if (pendingProduct) {
-        await addToCart(pendingProduct);
+        await addToCart(pendingProduct, navigationState?.pendingCartQuantity);
+      }
+
+      if (navigationState?.pendingFavoriteProductId) {
+        toggleFavorite(navigationState.pendingFavoriteProductId);
       }
 
       if (navigationState?.redirectTo) {

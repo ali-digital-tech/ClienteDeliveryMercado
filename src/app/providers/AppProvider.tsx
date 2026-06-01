@@ -94,7 +94,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     removeFromCart: removeFromLocalCart,
     updateQty: updateLocalQty,
     clearCart,
-    applyCoupon,
+    applyCoupon: applyCouponToLocalCart,
   } = useCartStore(marketId, products);
   const { orders, placeOrder: createOrder, refreshOrders } = useOrdersStore(marketId);
   const sessionExpiredHandledRef = useRef(false);
@@ -104,6 +104,22 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
 
   const favorites = favoritesByMarket[marketId] || [];
   const storeId = currentMarket?.id || marketId;
+  const isLoggedIn = Boolean(currentUser);
+  const tenantPath = useCallback((path = '') => {
+    const normalizedPath = path.replace(/^\/+/, '');
+    return normalizedPath ? `/mercado/${marketId}/${normalizedPath}` : `/mercado/${marketId}`;
+  }, [marketId]);
+  const isAuthenticatedForAction = useCallback(() => Boolean(currentUser || getAuthToken()), [currentUser]);
+  const requireCustomerLogin = useCallback((state: Record<string, unknown> = {}) => {
+    showSystemNotice('Entre na sua conta para continuar.');
+    navigate(tenantPath('login'), {
+      state: {
+        redirectTo: `${location.pathname}${location.search}${location.hash}`,
+        ...state,
+      },
+    });
+    return false;
+  }, [location.hash, location.pathname, location.search, navigate, tenantPath]);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -117,6 +133,11 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   }, [currentMarket?.primaryColor]);
 
   const toggleFavorite = useCallback((productId: string) => {
+    if (!isAuthenticatedForAction()) {
+      requireCustomerLogin({ pendingFavoriteProductId: productId });
+      return;
+    }
+
     setFavoritesByMarket(prevByMarket => {
       const prev = prevByMarket[marketId] || [];
       const next = {
@@ -129,7 +150,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
       saveFavoritesToStorage(next);
       return next;
     });
-  }, [marketId]);
+  }, [isAuthenticatedForAction, marketId, requireCustomerLogin]);
 
   const isFavorite = useCallback((productId: string) => {
     return favorites.includes(productId);
@@ -161,12 +182,6 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     authService.persistUser(user);
     setCurrentUser(user);
   }, []);
-
-  const isLoggedIn = Boolean(currentUser);
-  const tenantPath = useCallback((path = '') => {
-    const normalizedPath = path.replace(/^\/+/, '');
-    return normalizedPath ? `/mercado/${marketId}/${normalizedPath}` : `/mercado/${marketId}`;
-  }, [marketId]);
 
   useEffect(() => {
     return onSessionExpired((message) => {
@@ -240,17 +255,44 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   }, [currentUser, navigate, refreshOrders, tenantPath]);
 
   const addToCart = useCallback(async (product: Product, quantity?: number) => {
+    if (!isAuthenticatedForAction()) {
+      requireCustomerLogin({
+        pendingCartProductId: product.id,
+        pendingCartQuantity: quantity,
+      });
+      return;
+    }
+
     if (product.marketId !== marketId) return;
     addToLocalCart(product, quantity);
-  }, [addToLocalCart, marketId]);
+  }, [addToLocalCart, isAuthenticatedForAction, marketId, requireCustomerLogin]);
 
   const removeFromCart = useCallback(async (productId: string) => {
+    if (!isAuthenticatedForAction()) {
+      requireCustomerLogin();
+      return;
+    }
+
     removeFromLocalCart(productId);
-  }, [removeFromLocalCart]);
+  }, [isAuthenticatedForAction, removeFromLocalCart, requireCustomerLogin]);
 
   const updateQty = useCallback(async (productId: string, qty: number) => {
+    if (!isAuthenticatedForAction()) {
+      requireCustomerLogin();
+      return;
+    }
+
     updateLocalQty(productId, qty);
-  }, [updateLocalQty]);
+  }, [isAuthenticatedForAction, requireCustomerLogin, updateLocalQty]);
+
+  const applyCoupon = useCallback(async (code: string) => {
+    if (!isAuthenticatedForAction()) {
+      requireCustomerLogin();
+      throw new Error('Faça login para usar um cupom.');
+    }
+
+    return applyCouponToLocalCart(code);
+  }, [applyCouponToLocalCart, isAuthenticatedForAction, requireCustomerLogin]);
 
   if (isLoading) {
     return null;

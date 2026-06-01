@@ -26,6 +26,23 @@ import { ProfileScreen } from '../pages/ProfileScreen';
 import { SplashScreen } from '../pages/SplashScreen';
 import { SupportScreen } from '../pages/SupportScreen';
 import { WelcomeScreen } from '../pages/WelcomeScreen';
+import { withAuth } from './RequireAuth';
+
+const AuthenticatedCartPage = withAuth(CartPage);
+const AuthenticatedCheckoutPage = withAuth(CheckoutPage);
+const AuthenticatedFavoritesPage = withAuth(FavoritesPage);
+const AuthenticatedAddCardScreen = withAuth(AddCardScreen);
+const AuthenticatedAddressesScreen = withAuth(AddressesScreen);
+const AuthenticatedDeliveryScreen = withAuth(DeliveryScreen);
+const AuthenticatedMyOrdersScreen = withAuth(MyOrdersScreen);
+const AuthenticatedNotificationsFeedScreen = withAuth(NotificationsFeedScreen);
+const AuthenticatedOrderConfirmedScreen = withAuth(OrderConfirmedScreen);
+const AuthenticatedOrderTrackingScreen = withAuth(OrderTrackingScreen);
+const AuthenticatedPaymentScreen = withAuth(PaymentScreen);
+const AuthenticatedPaymentRecoveryScreen = withAuth(PaymentRecoveryScreen);
+const AuthenticatedPermissionsScreen = withAuth(PermissionsScreen);
+const AuthenticatedPrivacyScreen = withAuth(PrivacyScreen);
+const AuthenticatedProfileScreen = withAuth(ProfileScreen);
 
 export const router = createBrowserRouter([
   { path: '/', Component: HomePage },
@@ -43,27 +60,27 @@ export const router = createBrowserRouter([
       { path: 'search', Component: ProductsPage },
       { path: 'colecoes/:collection', Component: ProductCollectionPage },
       { path: 'product/:id', Component: ProductDetailsPage },
-      { path: 'favorites', Component: FavoritesPage },
-      { path: 'cart', Component: CartPage },
-      { path: 'carrinho', Component: CartPage },
+      { path: 'favorites', Component: AuthenticatedFavoritesPage },
+      { path: 'cart', Component: AuthenticatedCartPage },
+      { path: 'carrinho', Component: AuthenticatedCartPage },
       { path: 'login', Component: LoginScreen },
       { path: 'reset-password', Component: LoginScreen },
-      { path: 'addresses', Component: AddressesScreen },
-      { path: 'delivery', Component: DeliveryScreen },
-      { path: 'checkout', Component: CheckoutPage },
-      { path: 'payment', Component: PaymentScreen },
-      { path: 'payment-recovery', Component: PaymentRecoveryScreen },
-      { path: 'order-confirmed', Component: OrderConfirmedScreen },
-      { path: 'order-tracking', Component: OrderTrackingScreen },
-      { path: 'orders', Component: MyOrdersScreen },
-      { path: 'profile', Component: ProfileScreen },
-      { path: 'privacy', Component: PrivacyScreen },
+      { path: 'addresses', Component: AuthenticatedAddressesScreen },
+      { path: 'delivery', Component: AuthenticatedDeliveryScreen },
+      { path: 'checkout', Component: AuthenticatedCheckoutPage },
+      { path: 'payment', Component: AuthenticatedPaymentScreen },
+      { path: 'payment-recovery', Component: AuthenticatedPaymentRecoveryScreen },
+      { path: 'order-confirmed', Component: AuthenticatedOrderConfirmedScreen },
+      { path: 'order-tracking', Component: AuthenticatedOrderTrackingScreen },
+      { path: 'orders', Component: AuthenticatedMyOrdersScreen },
+      { path: 'profile', Component: AuthenticatedProfileScreen },
+      { path: 'privacy', Component: AuthenticatedPrivacyScreen },
       { path: 'privacy/policy', Component: LegalDocumentScreen },
-      { path: 'privacy/permissions', Component: PermissionsScreen },
-      { path: 'notifications', Component: NotificationsFeedScreen },
-      { path: 'notifications-feed', Component: NotificationsFeedScreen },
+      { path: 'privacy/permissions', Component: AuthenticatedPermissionsScreen },
+      { path: 'notifications', Component: AuthenticatedNotificationsFeedScreen },
+      { path: 'notifications-feed', Component: AuthenticatedNotificationsFeedScreen },
       { path: 'support', Component: SupportScreen },
-      { path: 'add-card', Component: AddCardScreen },
+      { path: 'add-card', Component: AuthenticatedAddCardScreen },
       { path: '*', Component: RedirectToMarketHome },
     ],
   },

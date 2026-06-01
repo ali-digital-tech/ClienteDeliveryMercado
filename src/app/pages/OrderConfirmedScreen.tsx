@@ -16,6 +16,16 @@ const statusLabels = {
   cancelado: "Cancelado",
 };
 
+const statusStepIds = ["recebido", "confirmado", "separacao", "saiu", "entregue"];
+
+function getCurrentStepIndex(status: string | undefined) {
+  if (status === "pendente") return 0;
+  if (status === "pronto") return 3;
+
+  const index = statusStepIds.indexOf(status || "recebido");
+  return Math.max(index, 0);
+}
+
 export function OrderConfirmedScreen() {
   const navigate = useNavigate();
   const { cartTotal, discount, orders, tenantPath } = useApp();
@@ -37,6 +47,14 @@ export function OrderConfirmedScreen() {
   const displayedStatus = apiOrder?.type === "pickup" && apiOrder.status === "entregue"
     ? "Retirado"
     : apiOrder ? statusLabels[apiOrder.status] : "Recebido";
+  const currentStepIndex = getCurrentStepIndex(apiOrder?.status);
+  const progressSteps = [
+    "Recebido",
+    "Confirmado",
+    "Separação",
+    apiOrder?.type === "pickup" ? "Retirada" : "Entrega",
+    apiOrder?.type === "pickup" ? "Retirado" : "Entregue",
+  ];
 
   useEffect(() => {
     const total = cartTotal - discount;
@@ -287,13 +305,10 @@ export function OrderConfirmedScreen() {
           </p>
 
           <div className="flex items-center gap-2">
-            {[
-              "Recebido",
-              "Confirmado",
-              "Separação",
-              "Entrega",
-              "Entregue",
-            ].map((step, i) => (
+            {progressSteps.map((step, i) => {
+              const isDone = i <= currentStepIndex;
+
+              return (
               <div
                 key={i}
                 className="flex items-center gap-1 flex-1"
@@ -305,10 +320,10 @@ export function OrderConfirmedScreen() {
                       width: "24px",
                       height: "24px",
                       backgroundColor:
-                        i === 0 ? "#122a4c" : "#e2e8f0",
+                        isDone ? "#122a4c" : "#e2e8f0",
                     }}
                   >
-                    {i === 0 ? (
+                    {isDone ? (
                       <span
                         style={{
                           color: "white",
@@ -332,8 +347,8 @@ export function OrderConfirmedScreen() {
                   <span
                     style={{
                       fontSize: "8px",
-                      color: i === 0 ? "#122a4c" : "#94a3b8",
-                      fontWeight: i === 0 ? 700 : 400,
+                      color: isDone ? "#122a4c" : "#94a3b8",
+                      fontWeight: isDone ? 700 : 400,
                       textAlign: "center",
                     }}
                   >
@@ -344,11 +359,12 @@ export function OrderConfirmedScreen() {
                 {i < 4 && (
                   <div
                     className="h-0.5 flex-1 -mt-4"
-                    style={{ backgroundColor: "#e2e8f0" }}
+                    style={{ backgroundColor: i < currentStepIndex ? "#122a4c" : "#e2e8f0" }}
                   />
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
