@@ -50,7 +50,7 @@ function isValidCpf(value: string) {
 
 export function PrivacyScreen() {
   const navigate = useNavigate();
-  const { currentUser, isLoggedIn, tenantPath, updateCurrentUser } = useApp();
+  const { currentUser, isLoggedIn, tenantPath, updateCurrentUser, logout } = useApp();
   const [cpf, setCpf] = useState(formatCpf(currentUser?.cpf || ""));
   const [cpfAsDefault, setCpfAsDefault] = useState(Boolean(currentUser?.cpf_na_nota_padrao));
   const [isSavingCpf, setIsSavingCpf] = useState(false);
@@ -59,6 +59,12 @@ export function PrivacyScreen() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showDeleteForm, setShowDeleteForm] = useState(false);
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteReason, setDeleteReason] = useState("");
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -130,6 +136,42 @@ export function PrivacyScreen() {
       showSystemNotice(error || "Não foi possível alterar sua senha.");
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!isLoggedIn) {
+      navigate(tenantPath("login"), { state: { redirectTo: tenantPath("privacy") } });
+      return;
+    }
+
+    if (!deletePassword) {
+      showSystemNotice("Informe sua senha atual para excluir a conta.");
+      return;
+    }
+
+    if (deleteConfirmation.trim() !== "EXCLUIR") {
+      showSystemNotice("Digite EXCLUIR para confirmar a exclusão da conta.");
+      return;
+    }
+
+    setIsDeletingAccount(true);
+
+    try {
+      await authService.deleteOwnAccount({
+        password: deletePassword,
+        confirmation: deleteConfirmation.trim(),
+        reason: deleteReason.trim() || undefined,
+      });
+      logout();
+      showSystemNotice("Conta excluída com sucesso. Seus dados pessoais foram removidos.");
+      navigate(tenantPath("login"), { replace: true });
+    } catch (error) {
+      showSystemNotice(error || "Não foi possível excluir sua conta.");
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -326,7 +368,18 @@ export function PrivacyScreen() {
                 </button>
               </form>
             )}
-            <button className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50">
+            <button
+              type="button"
+              onClick={() => {
+                if (!isLoggedIn) {
+                  navigate(tenantPath("login"), { state: { redirectTo: tenantPath("privacy") } });
+                  return;
+                }
+
+                setShowDeleteForm((visible) => !visible);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50"
+            >
               <div className="rounded-xl flex items-center justify-center flex-shrink-0" style={{ width: "38px", height: "38px", backgroundColor: "#fff0f0" }}>
                 <AlertTriangle size={18} color="#dc2626" />
               </div>
@@ -335,6 +388,65 @@ export function PrivacyScreen() {
               </span>
               <ChevronRight size={16} color="#94a3b8" />
             </button>
+            {showDeleteForm && isLoggedIn && (
+              <form
+                onSubmit={handleDeleteAccount}
+                className="space-y-3 px-4 py-4"
+                style={{ backgroundColor: "#fff7f7" }}
+              >
+                <div className="rounded-xl p-3" style={{ backgroundColor: "#fee2e2", border: "1px solid #fecaca" }}>
+                  <p style={{ fontSize: "12px", lineHeight: 1.45, color: "#991b1b", fontWeight: 700 }}>
+                    Esta ação é irreversível. Seus pedidos e pagamentos ficam preservados para histórico da loja, mas seus dados pessoais serão removidos.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 rounded-xl bg-white px-3" style={{ border: "1px solid #fecaca" }}>
+                  <Key size={16} color="#991b1b" />
+                  <input
+                    type={showDeletePassword ? "text" : "password"}
+                    value={deletePassword}
+                    onChange={(event) => setDeletePassword(event.target.value)}
+                    placeholder="Senha atual"
+                    autoComplete="current-password"
+                    className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDeletePassword((visible) => !visible)}
+                    aria-label={showDeletePassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showDeletePassword ? <EyeOff size={16} color="#991b1b" /> : <Eye size={16} color="#991b1b" />}
+                  </button>
+                </div>
+
+                <input
+                  value={deleteConfirmation}
+                  onChange={(event) => setDeleteConfirmation(event.target.value.toUpperCase())}
+                  placeholder="Digite EXCLUIR"
+                  autoComplete="off"
+                  className="w-full rounded-xl border bg-white px-3 py-3 text-sm outline-none"
+                  style={{ borderColor: "#fecaca", color: "#7f1d1d" }}
+                />
+
+                <textarea
+                  value={deleteReason}
+                  onChange={(event) => setDeleteReason(event.target.value)}
+                  placeholder="Motivo (opcional)"
+                  rows={3}
+                  className="w-full resize-none rounded-xl border bg-white px-3 py-3 text-sm outline-none"
+                  style={{ borderColor: "#fecaca", color: "#7f1d1d" }}
+                />
+
+                <button
+                  type="submit"
+                  disabled={isDeletingAccount}
+                  className="w-full rounded-xl px-4 py-3 text-white disabled:opacity-60"
+                  style={{ backgroundColor: "#dc2626", fontSize: "13px", fontWeight: 800 }}
+                >
+                  {isDeletingAccount ? "Excluindo..." : "Confirmar exclusão da conta"}
+                </button>
+              </form>
+            )}
           </div>
         </div>
 

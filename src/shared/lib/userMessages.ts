@@ -22,6 +22,14 @@ const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> =
     message: "Informe e-mail e senha.",
   },
   {
+    test: /senha atual inválida|current password/i,
+    message: "Senha atual incorreta. Verifique e tente novamente.",
+  },
+  {
+    test: /digite excluir para confirmar/i,
+    message: "Digite EXCLUIR para confirmar a exclusão da conta.",
+  },
+  {
     test: /cpf already registered/i,
     message: "Este CPF já está cadastrado.",
   },

@@ -107,6 +107,13 @@ export const authService = {
     });
   },
 
+  async deleteOwnAccount(payload: { password: string; confirmation: string; reason?: string }) {
+    return apiRequest<{ message: string; data?: unknown }>('/clientes/me', {
+      method: 'DELETE',
+      body: payload as any,
+    });
+  },
+
   async getCurrentCustomer() {
     const response = await apiRequest<{ data: AuthUser }>('/clientes/me');
     return response.data;
