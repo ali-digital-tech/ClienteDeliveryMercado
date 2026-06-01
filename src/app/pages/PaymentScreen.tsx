@@ -83,6 +83,13 @@ const SECURE_FIELD_IDS = {
   securityCode: 'mp-secure-security-code',
 };
 
+const SECURE_FIELD_STYLE = {
+  fontSize: "14px",
+  fontFamily: "Arial, sans-serif",
+  color: "#1e293b",
+  placeholderColor: "#64748b",
+};
+
 const methodOptions: Array<{
   id: PaymentMethod;
   label: string;
@@ -121,6 +128,44 @@ function splitName(name?: string) {
     firstName: parts[0] || "",
     lastName: parts.length > 1 ? parts.slice(1).join(" ") : "",
   };
+}
+
+function getCardBrand(paymentMethodId: string) {
+  const id = paymentMethodId.toLowerCase();
+  if (id.includes("visa")) return "visa";
+  if (id.includes("master")) return "mastercard";
+  if (id.includes("amex")) return "amex";
+  if (id.includes("elo")) return "elo";
+  if (id.includes("hipercard")) return "hipercard";
+  return "";
+}
+
+function CardBrandLogo({ paymentMethodId }: { paymentMethodId: string }) {
+  const brand = getCardBrand(paymentMethodId);
+
+  if (brand === "mastercard") {
+    return (
+      <div className="relative h-7 w-11" aria-label="Mastercard">
+        <span className="absolute left-1 top-1 h-5 w-5 rounded-full" style={{ backgroundColor: "#eb001b" }} />
+        <span className="absolute left-4 top-1 h-5 w-5 rounded-full" style={{ backgroundColor: "#f79e1b", opacity: 0.92 }} />
+      </div>
+    );
+  }
+
+  if (brand) {
+    const label = brand === "amex" ? "AMEX" : brand === "hipercard" ? "HIPER" : brand.toUpperCase();
+    return (
+      <span
+        className="rounded-md bg-white/95 px-2.5 py-1"
+        style={{ color: "#122a4c", fontSize: brand === "hipercard" ? "11px" : "13px", fontWeight: 900, letterSpacing: "0.04em" }}
+        aria-label={label}
+      >
+        {label}
+      </span>
+    );
+  }
+
+  return <CreditCard size={24} color="rgba(255,255,255,0.82)" />;
 }
 
 function loadMercadoPagoSdk() {
@@ -446,13 +491,13 @@ export function PaymentScreen() {
 
         const mp = new window.MercadoPago(publicKey, { locale: "pt-BR" });
         const cardNumber = mp.fields
-          .create("cardNumber", { placeholder: "Número do cartão" })
+          .create("cardNumber", { placeholder: "Número do cartão", style: SECURE_FIELD_STYLE })
           .mount(SECURE_FIELD_IDS.cardNumber);
         const expirationDate = mp.fields
-          .create("expirationDate", { placeholder: "MM/AA" })
+          .create("expirationDate", { placeholder: "MM/AA", style: SECURE_FIELD_STYLE })
           .mount(SECURE_FIELD_IDS.expirationDate);
         const securityCode = mp.fields
-          .create("securityCode", { placeholder: "CVV" })
+          .create("securityCode", { placeholder: "CVV", style: SECURE_FIELD_STYLE })
           .mount(SECURE_FIELD_IDS.securityCode);
 
         if (cancelled) {
@@ -700,7 +745,7 @@ export function PaymentScreen() {
                       background: "linear-gradient(135deg, #d4a843 0%, #f0c060 50%, #c89a30 100%)",
                     }}
                   />
-                  <CreditCard size={24} color="rgba(255,255,255,0.82)" />
+                  <CardBrandLogo paymentMethodId={paymentMethodId} />
                 </div>
 
                 <div>
@@ -749,8 +794,8 @@ export function PaymentScreen() {
                 </label>
                 <div
                   id={SECURE_FIELD_IDS.cardNumber}
-                  className="rounded-xl border bg-white px-3 py-1.5"
-                  style={{ minHeight: "42px", borderColor: "#d9e4f2" }}
+                  className="mp-secure-field rounded-xl border bg-white px-3"
+                  style={{ borderColor: "#d9e4f2" }}
                 />
               </div>
 
@@ -760,8 +805,8 @@ export function PaymentScreen() {
                 </label>
                 <div
                   id={SECURE_FIELD_IDS.expirationDate}
-                  className="rounded-xl border bg-white px-3 py-1.5"
-                  style={{ minHeight: "42px", borderColor: "#d9e4f2" }}
+                  className="mp-secure-field rounded-xl border bg-white px-3"
+                  style={{ borderColor: "#d9e4f2" }}
                 />
               </div>
 
@@ -771,8 +816,8 @@ export function PaymentScreen() {
                 </label>
                 <div
                   id={SECURE_FIELD_IDS.securityCode}
-                  className="rounded-xl border bg-white px-3 py-1.5"
-                  style={{ minHeight: "42px", borderColor: "#d9e4f2" }}
+                  className="mp-secure-field rounded-xl border bg-white px-3"
+                  style={{ borderColor: "#d9e4f2" }}
                 />
               </div>
 

@@ -30,6 +30,25 @@
   animation: productFadeIn 240ms ease-out both;
 }
 
+.mp-secure-field {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  max-height: 44px;
+  min-height: 44px;
+  overflow: hidden;
+}
+
+.mp-secure-field iframe {
+  display: block !important;
+  width: 100% !important;
+  height: 42px !important;
+  max-height: 42px !important;
+  min-height: 42px !important;
+  border: 0 !important;
+}
+
 @keyframes productFadeIn {
   from {
     opacity: 0;
