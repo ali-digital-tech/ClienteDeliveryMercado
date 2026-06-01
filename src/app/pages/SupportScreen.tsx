@@ -17,24 +17,40 @@ import { normalizeSearchText } from "@/shared/utils/searchText";
 
 const faqs = [
   {
-    q: "Como cancelar um pedido?",
-    a: "Você pode cancelar um pedido em até 5 minutos após a confirmação. Acesse Meus Pedidos, selecione o pedido e toque em Cancelar.",
+    q: "Como acompanho o andamento do meu pedido?",
+    a: "Acesse Meu Perfil, entre em Meus pedidos e abra o pedido desejado. Você verá o progresso da compra, o tipo de atendimento escolhido e, quando houver entrega, a chave de recebimento que deve ser informada somente ao entregador.",
   },
   {
-    q: "Qual o prazo de entrega?",
-    a: "O prazo padrão é de 30 a 60 minutos, dependendo da sua localização e da disponibilidade dos entregadores.",
+    q: "Como funcionam a entrega e a retirada no mercado?",
+    a: "Na finalização da compra, escolha uma das opções disponíveis para o mercado. As entregas são feitas por ordem de pedido. Se a compra for realizada fora do horário de funcionamento, o atendimento ficará para o próximo dia em que o mercado estiver aberto.",
   },
   {
-    q: "Como solicitar reembolso?",
-    a: "Reembolsos são processados em até 5 dias úteis. Entre em contato com nosso suporte informando o número do pedido.",
+    q: "Como cancelo um pedido?",
+    a: "Abra Meus pedidos, selecione a compra e toque em Cancelar pedido. Antes do início da separação, o cancelamento é processado com estorno integral. Se a separação já começou, a solicitação será analisada pelo mercado e poderá ter retenção de valores. Quando o botão não estiver disponível, fale com o mercado pelo suporte.",
   },
   {
-    q: "Posso mudar meu endereço de entrega?",
-    a: "Sim, mas apenas antes de o pedido ser aceito pelo estabelecimento. Após essa etapa, não é possível alterar.",
+    q: "Como altero meu endereço de entrega?",
+    a: "Antes de finalizar a compra, acesse Meu Perfil e Meus endereços para cadastrar, remover ou escolher o endereço principal. Depois que o pedido for enviado, a alteração não pode ser feita pelo app; entre em contato com o mercado.",
   },
   {
-    q: "O app aceita vale-refeição?",
-    a: "Sim! Aceitamos VR, VA, Sodexo e Ticket. Adicione seu cartão na seção Métodos de Pagamento.",
+    q: "Quais formas de pagamento posso usar?",
+    a: "As formas liberadas pelo mercado aparecem na etapa de pagamento. O app pode oferecer PIX, cartão de crédito e cartão de débito. A disponibilidade depende da configuração do mercado.",
+  },
+  {
+    q: "O que faço quando o PIX expira?",
+    a: "O PIX possui tempo limitado para pagamento. Se expirar, acesse Meus pedidos, abra a compra pendente e escolha gerar um novo PIX ou alterar a forma de pagamento.",
+  },
+  {
+    q: "Como uso um cupom de desconto?",
+    a: "No carrinho, informe o código no campo de cupom antes de continuar para a entrega. É necessário entrar na conta e adicionar produtos ao carrinho para aplicar o desconto.",
+  },
+  {
+    q: "Como recebo avisos sobre meu pedido?",
+    a: "Acesse Meu Perfil, Privacidade e segurança e Gerenciar permissões. Ative as notificações push e mantenha ligada a opção Atualizações de pedidos. O histórico de notificações continua disponível no app mesmo com o push desligado.",
+  },
+  {
+    q: "Como coloco CPF na nota?",
+    a: "Na finalização da compra, escolha informar CPF na nota e digite um CPF válido. Para usar o mesmo CPF nas próximas compras, marque a opção de salvar como padrão ou configure essa preferência em Privacidade e segurança.",
   },
 ];
 
@@ -125,7 +141,7 @@ function WhatsAppIcon({ size = 20 }: { size?: number }) {
 export function SupportScreen() {
   const navigate = useNavigate();
   const { currentMarket, marketId } = useApp();
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [openFaq, setOpenFaq] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [businessHours, setBusinessHours] = useState<BusinessHour[]>([]);
   const [configuredWhatsapp, setConfiguredWhatsapp] = useState(currentMarket.whatsappSupport || null);
@@ -385,14 +401,14 @@ export function SupportScreen() {
             ) : (
               filteredFaqs.map((faq, i) => (
                 <div
-                  key={i}
+                  key={faq.q}
                   style={{
                     borderBottom:
                       i < filteredFaqs.length - 1 ? "1px solid #eef2f7" : "none",
                   }}
                 >
                   <button
-                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                    onClick={() => setOpenFaq(openFaq === faq.q ? null : faq.q)}
                     className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50 text-left"
                   >
                     <div
@@ -411,12 +427,12 @@ export function SupportScreen() {
                       size={16}
                       color="#94a3b8"
                       style={{
-                        transform: openFaq === i ? "rotate(90deg)" : "rotate(0deg)",
+                        transform: openFaq === faq.q ? "rotate(90deg)" : "rotate(0deg)",
                         transition: "transform 0.2s",
                       }}
                     />
                   </button>
-                  {openFaq === i && (
+                  {openFaq === faq.q && (
                     <div className="px-4 pb-4 -mt-1">
                       <p style={{ fontSize: "13px", color: "#475569", lineHeight: 1.6 }}>
                         {faq.a}
