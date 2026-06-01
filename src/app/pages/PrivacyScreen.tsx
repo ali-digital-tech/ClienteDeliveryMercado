@@ -224,7 +224,11 @@ export function PrivacyScreen() {
             Privacidade de dados
           </p>
           <div className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #d9e4f2" }}>
-            <button className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50" style={{ borderBottom: "1px solid #eef2f7" }}>
+            <button
+              onClick={() => navigate(tenantPath("privacy/permissions"))}
+              className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50"
+              style={{ borderBottom: "1px solid #eef2f7" }}
+            >
               <div className="rounded-xl flex items-center justify-center flex-shrink-0" style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}>
                 <AlertTriangle size={18} color="#122a4c" />
               </div>

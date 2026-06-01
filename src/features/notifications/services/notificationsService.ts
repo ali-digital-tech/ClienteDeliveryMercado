@@ -149,7 +149,7 @@ export async function refreshCustomerPushIfGranted() {
   return null;
 }
 
-export async function disableCustomerPush() {
+export async function disableCustomerPush({ clearLocalOnError = true }: { clearLocalOnError?: boolean } = {}) {
   const token = localStorage.getItem(DEVICE_TOKEN_STORAGE_KEY);
   if (!token) return;
   try {
@@ -157,8 +157,12 @@ export async function disableCustomerPush() {
       method: 'POST',
       body: { fcm_token: token },
     });
-  } finally {
     localStorage.removeItem(DEVICE_TOKEN_STORAGE_KEY);
+  } catch (error) {
+    if (clearLocalOnError) {
+      localStorage.removeItem(DEVICE_TOKEN_STORAGE_KEY);
+    }
+    throw error;
   }
 }
 

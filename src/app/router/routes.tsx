@@ -20,6 +20,7 @@ import { OrderTrackingScreen } from '../pages/OrderTrackingScreen';
 import { PaymentScreen } from '../pages/PaymentScreen';
 import { PaymentRecoveryScreen } from '../pages/PaymentRecoveryScreen';
 import { PrivacyScreen } from '../pages/PrivacyScreen';
+import { PermissionsScreen } from '../pages/PermissionsScreen';
 import { ProfileScreen } from '../pages/ProfileScreen';
 import { SplashScreen } from '../pages/SplashScreen';
 import { SupportScreen } from '../pages/SupportScreen';
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
       { path: 'orders', Component: MyOrdersScreen },
       { path: 'profile', Component: ProfileScreen },
       { path: 'privacy', Component: PrivacyScreen },
+      { path: 'privacy/permissions', Component: PermissionsScreen },
       { path: 'notifications', Component: NotificationsFeedScreen },
       { path: 'notifications-feed', Component: NotificationsFeedScreen },
       { path: 'support', Component: SupportScreen },
