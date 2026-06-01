@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { ChevronLeft, CreditCard, Loader2, Lock, QrCode, ShieldCheck, Smartphone } from "lucide-react";
+import { ChevronLeft, CreditCard, Loader2, Lock, QrCode, Smartphone } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { getStoredCheckoutMode } from '@/features/orders/services/checkoutModeService';
 import {
@@ -150,10 +150,6 @@ function getCardPaymentTypeId(method: PaymentMethod): CardPaymentTypeId {
   return method === "cartao_debito" ? "debit_card" : "credit_card";
 }
 
-function getCardPaymentTypeLabel(method: PaymentMethod) {
-  return method === "cartao_debito" ? "débito" : "crédito";
-}
-
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string" && error) return error;
@@ -224,7 +220,6 @@ export function PaymentScreen() {
   const [installmentOptions, setInstallmentOptions] = useState<MercadoPagoInstallment[]>([
     { installments: storedSelection.installments || 1, recommended_message: getDefaultInstallmentMessage(storedSelection.method || "pix") },
   ]);
-  const [cardPaymentMethod, setCardPaymentMethod] = useState<MercadoPagoPaymentMethod | null>(null);
   const [secureFieldsReady, setSecureFieldsReady] = useState(false);
   const [secureFieldsError, setSecureFieldsError] = useState("");
   const [cardMetadataMessage, setCardMetadataMessage] = useState("");
@@ -232,12 +227,8 @@ export function PaymentScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const primaryColor = currentMarket?.primaryColor || "#122a4c";
-  const secondaryColor = currentMarket?.secondaryColor || "#1b3d6d";
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
   const isCardPayment = selected !== "pix";
-  const cardTypeLabel = getCardPaymentTypeLabel(selected);
-  const cardBrandLabel = cardPaymentMethod?.name || (paymentMethodId ? paymentMethodId.toUpperCase() : "Cartão");
-  const issuerLabel = issuerOptions.find((issuer) => String(issuer.id) === String(issuerId))?.name;
   const confirmDisabled = isSubmitting || (isCardPayment && (!secureFieldsReady || Boolean(secureFieldsError)));
 
   useEffect(() => {
@@ -309,7 +300,6 @@ export function PaymentScreen() {
     setPaymentMethodId("");
     setIssuerId(null);
     setIssuerOptions([]);
-    setCardPaymentMethod(null);
     setInstallments(1);
     setInstallmentOptions([
       { installments: 1, recommended_message: getDefaultInstallmentMessage(selectedRef.current) },
@@ -359,7 +349,6 @@ export function PaymentScreen() {
       if (cardNumberSettings) fields.cardNumber.update?.({ settings: cardNumberSettings });
       if (securityCodeSettings) fields.securityCode.update?.({ settings: securityCodeSettings });
 
-      setCardPaymentMethod(paymentMethod);
       setPaymentMethodId(paymentMethod.id);
 
       const needsIssuer = paymentMethod.additional_info_needed?.includes("issuer_id");
@@ -651,72 +640,97 @@ export function PaymentScreen() {
         </div>
 
         {isCardPayment && (
-          <div ref={cardFormRef} className="bg-white rounded-2xl p-4 shadow-sm mb-4" style={{ border: `1px solid ${primarySoftColor}` }}>
-            <div className="mb-4 flex items-start justify-between gap-3">
+          <div ref={cardFormRef} className="bg-white rounded-2xl p-4 shadow-sm mb-4" style={{ border: "1px solid #d9e4f2" }}>
+            <div className="mb-3 flex items-start justify-between gap-3">
               <div>
                 <h2 style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }}>
-                  Dados do cartão
+                  Informe os dados do cartão
                 </h2>
                 <p style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.45 }}>
-                  Número, validade e CVV são preenchidos nos campos seguros do Mercado Pago.
+                  Preencha os campos abaixo para continuar.
                 </p>
               </div>
-              <span
-                className="rounded-full px-3 py-1"
-                style={{ fontSize: "11px", fontWeight: 700, color: primaryColor, backgroundColor: primarySoftColor }}
-              >
-                Secure Fields
-              </span>
             </div>
 
             <div
-              className="mb-4 rounded-2xl p-4 text-white shadow-sm"
-              style={{
-                minHeight: "176px",
-                background: `linear-gradient(135deg, ${secondaryColor} 0%, ${primaryColor} 100%)`,
-              }}
-            >
-              <div className="mb-8 flex items-center justify-between">
-                <span style={{ fontSize: "12px", fontWeight: 700, letterSpacing: "0.08em" }}>
-                  {selected === "cartao_debito" ? "DÉBITO" : "CRÉDITO"}
-                </span>
-                <span style={{ fontSize: "15px", fontWeight: 800 }}>
-                  {cardBrandLabel}
-                </span>
-              </div>
-              <p style={{ fontSize: "20px", fontWeight: 700, letterSpacing: "0.08em" }}>
-                Dados protegidos
-              </p>
-              <div className="mt-5 flex items-end justify-between gap-4">
-                <div className="min-w-0">
-                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.68)", fontWeight: 700 }}>
-                    TITULAR
-                  </p>
-                  <p className="truncate" style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase" }}>
-                    {cardholderName.trim() || "Nome impresso"}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.68)", fontWeight: 700 }}>
-                    MODALIDADE
-                  </p>
-                  <p style={{ fontSize: "12px", fontWeight: 700 }}>{cardTypeLabel}</p>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className="mb-4 flex items-start gap-2 rounded-2xl px-3 py-3"
+              className="mb-4 flex items-center gap-2 rounded-xl px-3 py-2.5"
               style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}
             >
-              <Lock size={15} color="#15803d" className="mt-0.5 flex-shrink-0" />
-              <p style={{ fontSize: "12px", color: "#15803d", lineHeight: 1.45, fontWeight: 600 }}>
-                O aplicativo recebe apenas o token do Mercado Pago. Número do cartão e CVV não passam pelo nosso frontend.
+              <Lock size={14} color="#15803d" className="flex-shrink-0" />
+              <p style={{ fontSize: "12px", color: "#15803d", lineHeight: 1.4, fontWeight: 700 }}>
+                Pagamento criptografado pelo Mercado Pago.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="md:col-span-2">
+            <div
+              className="relative mx-auto mb-4 overflow-hidden rounded-2xl p-4 text-white shadow-sm"
+              style={{
+                maxWidth: "360px",
+                minHeight: "174px",
+                background: `linear-gradient(135deg, ${primaryColor} 0%, #122a4c 100%)`,
+              }}
+            >
+              <div
+                className="absolute rounded-full"
+                style={{
+                  width: "150px",
+                  height: "150px",
+                  background: "rgba(255,255,255,0.07)",
+                  top: "-48px",
+                  right: "-36px",
+                }}
+              />
+              <div
+                className="absolute rounded-full"
+                style={{
+                  width: "96px",
+                  height: "96px",
+                  background: "rgba(255,255,255,0.05)",
+                  bottom: "-30px",
+                  left: "-24px",
+                }}
+              />
+              <div className="relative flex min-h-[142px] flex-col justify-between">
+                <div className="flex items-start justify-between">
+                  <div
+                    className="rounded-md"
+                    style={{
+                      width: "36px",
+                      height: "28px",
+                      background: "linear-gradient(135deg, #d4a843 0%, #f0c060 50%, #c89a30 100%)",
+                    }}
+                  />
+                  <CreditCard size={24} color="rgba(255,255,255,0.82)" />
+                </div>
+
+                <div>
+                  <p style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "0.1em" }}>
+                    •••• •••• •••• ••••
+                  </p>
+                  <div className="mt-4 flex items-end justify-between gap-4">
+                    <div className="min-w-0">
+                      <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.65)", fontWeight: 800 }}>
+                        TITULAR
+                      </p>
+                      <p className="truncate" style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>
+                        {cardholderName.trim() || "Nome impresso"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.65)", fontWeight: 800 }}>
+                        TIPO
+                      </p>
+                      <p style={{ fontSize: "12px", fontWeight: 800 }}>
+                        {selected === "cartao_debito" ? "Débito" : "Crédito"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid max-w-md grid-cols-2 gap-3">
+              <div className="col-span-2">
                 <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
                   Nome impresso no cartão
                 </label>
@@ -729,14 +743,14 @@ export function PaymentScreen() {
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div className="col-span-2">
                 <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
                   Número do cartão
                 </label>
                 <div
                   id={SECURE_FIELD_IDS.cardNumber}
-                  className="rounded-xl border bg-white px-3 py-2"
-                  style={{ minHeight: "48px", borderColor: "#d9e4f2" }}
+                  className="rounded-xl border bg-white px-3 py-1.5"
+                  style={{ minHeight: "42px", borderColor: "#d9e4f2" }}
                 />
               </div>
 
@@ -746,8 +760,8 @@ export function PaymentScreen() {
                 </label>
                 <div
                   id={SECURE_FIELD_IDS.expirationDate}
-                  className="rounded-xl border bg-white px-3 py-2"
-                  style={{ minHeight: "48px", borderColor: "#d9e4f2" }}
+                  className="rounded-xl border bg-white px-3 py-1.5"
+                  style={{ minHeight: "42px", borderColor: "#d9e4f2" }}
                 />
               </div>
 
@@ -757,57 +771,61 @@ export function PaymentScreen() {
                 </label>
                 <div
                   id={SECURE_FIELD_IDS.securityCode}
-                  className="rounded-xl border bg-white px-3 py-2"
-                  style={{ minHeight: "48px", borderColor: "#d9e4f2" }}
+                  className="rounded-xl border bg-white px-3 py-1.5"
+                  style={{ minHeight: "42px", borderColor: "#d9e4f2" }}
                 />
               </div>
 
-              <div className="rounded-xl border px-3 py-3 text-sm" style={{ borderColor: "#d9e4f2", color: paymentMethodId ? "#334155" : "#94a3b8" }}>
-                {isLoadingCardInfo ? (
-                  <span className="inline-flex items-center gap-2">
+              {isLoadingCardInfo && (
+                <div className="col-span-2 rounded-xl px-3 py-2 text-sm" style={{ backgroundColor: "#f8fafc", color: "#64748b" }}>
+                  <span className="inline-flex items-center gap-2 font-semibold">
                     <Loader2 size={15} className="animate-spin" />
-                    Identificando cartão
+                    Conferindo cartão...
                   </span>
-                ) : paymentMethodId ? (
-                  `${cardBrandLabel}${issuerLabel ? ` · ${issuerLabel}` : ""}`
-                ) : (
-                  "Bandeira identificada automaticamente"
-                )}
-              </div>
-
-              {issuerOptions.length > 1 ? (
-                <select
-                  className="rounded-xl border px-3 py-3 text-sm"
-                  value={issuerId ?? ""}
-                  onChange={(e) => setIssuerId(e.target.value)}
-                >
-                  {issuerOptions.map((issuer) => (
-                    <option key={issuer.id} value={issuer.id}>
-                      {issuer.name || `Banco ${issuer.id}`}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="rounded-xl border px-3 py-3 text-sm" style={{ borderColor: "#d9e4f2", color: issuerLabel ? "#334155" : "#94a3b8" }}>
-                  {issuerLabel || "Banco emissor automático"}
                 </div>
               )}
 
-              <select
-                className="rounded-xl border px-3 py-3 text-sm md:col-span-2"
-                value={installments}
-                disabled={selected === "cartao_debito" || installmentOptions.length <= 1}
-                onChange={(e) => setInstallments(Number(e.target.value))}
-              >
-                {installmentOptions.map((option) => (
-                  <option key={option.installments} value={option.installments}>
-                    {option.recommended_message || `${option.installments}x`}
-                  </option>
-                ))}
-              </select>
+              {issuerOptions.length > 1 ? (
+                <div className="col-span-2">
+                  <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+                    Banco do cartão
+                  </label>
+                  <select
+                    className="w-full rounded-xl border px-3 py-3 text-sm"
+                    value={issuerId ?? ""}
+                    onChange={(e) => setIssuerId(e.target.value)}
+                  >
+                    {issuerOptions.map((issuer) => (
+                      <option key={issuer.id} value={issuer.id}>
+                        {issuer.name || `Banco ${issuer.id}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+
+              {selected === "cartao_credito" && paymentMethodId && (
+                <div className="col-span-2">
+                  <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+                    Parcelamento
+                  </label>
+                  <select
+                    className="w-full rounded-xl border px-3 py-3 text-sm"
+                    value={installments}
+                    disabled={installmentOptions.length <= 1}
+                    onChange={(e) => setInstallments(Number(e.target.value))}
+                  >
+                    {installmentOptions.map((option) => (
+                      <option key={option.installments} value={option.installments}>
+                        {option.recommended_message || `${option.installments}x`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
-            {paymentAmount > 0 && (
+            {selected === "cartao_credito" && paymentMethodId && paymentAmount > 0 && (
               <p className="mt-3" style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}>
                 Parcelamento calculado sobre {formatCurrency(paymentAmount)}.
               </p>
@@ -822,16 +840,9 @@ export function PaymentScreen() {
             {!secureFieldsReady && !secureFieldsError && (
               <p className="mt-3 inline-flex items-center gap-2" style={{ fontSize: "12px", color: "#64748b", fontWeight: 700 }}>
                 <Loader2 size={15} className="animate-spin" />
-                Carregando campos seguros do Mercado Pago...
+                Carregando pagamento seguro...
               </p>
             )}
-
-            <div className="mt-4 flex items-center gap-2 rounded-2xl px-3 py-3" style={{ backgroundColor: primarySoftColor }}>
-              <ShieldCheck size={16} color={primaryColor} className="flex-shrink-0" />
-              <p style={{ fontSize: "12px", color: primaryColor, fontWeight: 800 }}>
-                Formulário preparado para PCI Compliance via Mercado Pago Secure Fields.
-              </p>
-            </div>
           </div>
         )}
       </div>

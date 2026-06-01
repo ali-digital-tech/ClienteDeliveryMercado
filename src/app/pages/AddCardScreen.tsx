@@ -64,13 +64,13 @@ export function AddCardScreen() {
 
             <div>
               <p style={{ fontSize: "13px", fontWeight: 800, letterSpacing: "0.08em" }}>
-                MERCADO PAGO SECURE FIELDS
+                CARTÃO SEGURO
               </p>
               <p className="mt-2" style={{ fontSize: "20px", fontWeight: 900 }}>
                 Dados protegidos
               </p>
               <p className="mt-1" style={{ fontSize: "12px", color: "rgba(255,255,255,0.72)" }}>
-                Número, validade e CVV são digitados apenas nos campos seguros do provedor.
+                Seus dados são protegidos durante o pagamento.
               </p>
             </div>
           </div>
@@ -92,7 +92,7 @@ export function AddCardScreen() {
                 Cadastro de cartão pelo checkout seguro
               </h2>
               <p className="mt-1" style={{ fontSize: "13px", color: "#64748b", lineHeight: 1.5 }}>
-                Para manter PCI Compliance, o app não coleta número do cartão nem CVV em inputs próprios. Use a tela de pagamento para abrir os campos seguros do Mercado Pago.
+                Cadastre o cartão na tela de pagamento. A criptografia é feita pelo Mercado Pago para proteger suas informações.
               </p>
             </div>
           </div>
