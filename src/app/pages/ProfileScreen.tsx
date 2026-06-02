@@ -19,7 +19,7 @@ import { BottomNav } from "@/shared/components/BottomNav";
 const menuItems = [
   { icon: MapPin, label: "Meus endereços", path: "addresses" },
   { icon: Heart, label: "Favoritos", path: "favorites" },
-  { icon: CreditCard, label: "Métodos de pagamento", path: "payment" },
+  { icon: CreditCard, label: "Métodos de pagamento", path: "add-card" },
   { icon: ShoppingBag, label: "Meus pedidos", path: "orders" },
   { icon: Bell, label: "Notificações", path: "notifications-feed" },
   { icon: Shield, label: "Privacidade e segurança", path: "privacy" },

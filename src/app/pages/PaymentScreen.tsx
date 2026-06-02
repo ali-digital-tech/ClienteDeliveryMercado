@@ -16,6 +16,15 @@ import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
 type CardPaymentTypeId = 'credit_card' | 'debit_card';
 
+interface MercadoPagoCardToken {
+  id?: string;
+  first_six_digits?: string;
+  last_four_digits?: string;
+  cardholder?: {
+    name?: string;
+  };
+}
+
 interface MercadoPagoSecureField {
   mount: (containerId: string) => MercadoPagoSecureField;
   unmount?: () => void;
@@ -55,7 +64,7 @@ interface MercadoPagoInstance {
       cardholderName: string;
       identificationType: string;
       identificationNumber: string;
-    }) => Promise<{ id?: string }>;
+    }) => Promise<MercadoPagoCardToken>;
   };
   getPaymentMethods: (options: { bin: string }) => Promise<{ results?: MercadoPagoPaymentMethod[] }>;
   getIssuers: (options: { paymentMethodId: string; bin: string }) => Promise<MercadoPagoIssuer[]>;
@@ -117,6 +126,18 @@ const methodOptions: Array<{
     Icon: Smartphone,
   },
 ];
+
+type PaymentScreenMode = "checkout" | "profilePaymentMethods";
+
+type PaymentLocationState = {
+  mode?: PaymentScreenMode;
+  redirectTo?: string;
+  initialMethod?: PaymentMethod;
+};
+
+function isPaymentMethod(value: unknown): value is PaymentMethod {
+  return value === "pix" || value === "cartao_credito" || value === "cartao_debito";
+}
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
@@ -228,12 +249,24 @@ export function PaymentScreen() {
     tenantPath,
   } = useApp();
   const storedSelection = useMemo(() => getStoredPaymentSelection(), []);
+  const locationState = location.state as PaymentLocationState | null;
+  const isProfilePaymentMethods = locationState?.mode === "profilePaymentMethods";
+  const initialMethod = isPaymentMethod(locationState?.initialMethod)
+    ? locationState.initialMethod
+    : isProfilePaymentMethods && storedSelection.method === "pix"
+      ? "cartao_credito"
+      : storedSelection.method || "pix";
+  const initialInstallments = initialMethod === storedSelection.method
+    ? storedSelection.installments || 1
+    : 1;
   const storedPayer = useMemo(() => getStoredPayerData(), []);
   const nameParts = splitName(currentUser?.nome);
   const orderType = getStoredCheckoutMode(marketId);
   const isPickup = orderType === 'pickup';
   const deliveryFee = isPickup ? 0 : Math.max(0, currentMarket.deliveryFee || 0);
-  const paymentAmount = Math.max(cartTotal - discount + deliveryFee, 0);
+  const paymentAmount = isProfilePaymentMethods
+    ? 0
+    : Math.max(cartTotal - discount + deliveryFee, 0);
 
   const mpRef = useRef<MercadoPagoInstance | null>(null);
   const fieldsRef = useRef<{
@@ -245,9 +278,9 @@ export function PaymentScreen() {
   const metadataRequestRef = useRef(0);
   const refreshCardMetadataRef = useRef<(bin: string) => void>(() => {});
   const cardFormRef = useRef<HTMLDivElement | null>(null);
-  const selectedRef = useRef<PaymentMethod>(storedSelection.method || "pix");
+  const selectedRef = useRef<PaymentMethod>(initialMethod);
 
-  const [selected, setSelected] = useState<PaymentMethod>(storedSelection.method || "pix");
+  const [selected, setSelected] = useState<PaymentMethod>(initialMethod);
   const [payer, setPayer] = useState<PayerData>({
     payer_email: storedPayer.payer_email || currentUser?.email || "",
     payer_first_name: storedPayer.payer_first_name || nameParts.firstName,
@@ -261,9 +294,9 @@ export function PaymentScreen() {
   const [paymentMethodId, setPaymentMethodId] = useState(storedSelection.payment_method_id || "");
   const [issuerId, setIssuerId] = useState<string | number | null>(storedSelection.issuer_id ?? null);
   const [issuerOptions, setIssuerOptions] = useState<MercadoPagoIssuer[]>([]);
-  const [installments, setInstallments] = useState(storedSelection.installments || 1);
+  const [installments, setInstallments] = useState(initialInstallments);
   const [installmentOptions, setInstallmentOptions] = useState<MercadoPagoInstallment[]>([
-    { installments: storedSelection.installments || 1, recommended_message: getDefaultInstallmentMessage(storedSelection.method || "pix") },
+    { installments: initialInstallments, recommended_message: getDefaultInstallmentMessage(initialMethod) },
   ]);
   const [secureFieldsReady, setSecureFieldsReady] = useState(false);
   const [secureFieldsError, setSecureFieldsError] = useState("");
@@ -274,6 +307,12 @@ export function PaymentScreen() {
   const primaryColor = currentMarket?.primaryColor || "#122a4c";
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
   const isCardPayment = selected !== "pix";
+  const availableMethodOptions = useMemo(
+    () => isProfilePaymentMethods
+      ? methodOptions.filter((option) => option.id !== "pix")
+      : methodOptions,
+    [isProfilePaymentMethods],
+  );
   const confirmDisabled = isSubmitting || (isCardPayment && (!secureFieldsReady || Boolean(secureFieldsError)));
 
   useEffect(() => {
@@ -557,7 +596,7 @@ export function PaymentScreen() {
       throw new Error("Não foi possível validar os dados do cartão.");
     }
 
-    return token.id;
+    return token;
   };
 
   const handleConfirm = async () => {
@@ -573,15 +612,22 @@ export function PaymentScreen() {
         const cardToken = await createSecureCardToken(normalizedPayer);
         savePaymentSelection({
           method: selected,
-          card_token: cardToken,
+          card_token: cardToken.id,
           payment_method_id: paymentMethodId,
           issuer_id: issuerId,
           installments,
+          cardholder_name: cardholderName.trim(),
+          last_four_digits: cardToken.last_four_digits,
         });
       }
 
-      const state = location.state as { redirectTo?: string } | null;
-      navigate(state?.redirectTo || tenantPath("checkout"));
+      if (isProfilePaymentMethods) {
+        showSystemNotice("Cartão salvo nos métodos de pagamento.", "Cartão salvo");
+        navigate(locationState?.redirectTo || tenantPath("add-card"), { replace: true });
+        return;
+      }
+
+      navigate(locationState?.redirectTo || tenantPath("checkout"));
     } catch (err) {
       showSystemNotice(err || "Não foi possível confirmar o pagamento.");
     } finally {
@@ -606,14 +652,14 @@ export function PaymentScreen() {
           </button>
 
           <h1 style={{ fontSize: "18px", fontWeight: 800, color: "#122a4c" }}>
-            Forma de pagamento
+            {isProfilePaymentMethods ? "Adicionar cartão" : "Forma de pagamento"}
           </h1>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-4" style={{ background: "#f8fafc" }}>
         <div className="mb-4 flex flex-col gap-3">
-          {methodOptions.map(({ id, label, desc, badge, Icon }) => (
+          {availableMethodOptions.map(({ id, label, desc, badge, Icon }) => (
             <button
               key={id}
               type="button"
@@ -692,7 +738,9 @@ export function PaymentScreen() {
                   Informe os dados do cartão
                 </h2>
                 <p style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.45 }}>
-                  Preencha os campos abaixo para continuar.
+                  {isProfilePaymentMethods
+                    ? "Preencha os campos abaixo para salvar este cartão."
+                    : "Preencha os campos abaixo para continuar."}
                 </p>
               </div>
             </div>
@@ -849,7 +897,7 @@ export function PaymentScreen() {
                 </div>
               ) : null}
 
-              {selected === "cartao_credito" && paymentMethodId && (
+              {selected === "cartao_credito" && paymentMethodId && !isProfilePaymentMethods && (
                 <div className="col-span-2">
                   <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
                     Parcelamento
@@ -901,10 +949,10 @@ export function PaymentScreen() {
           style={{ backgroundColor: primaryColor, fontSize: "15px", fontWeight: 700 }}
         >
           {isSubmitting
-            ? "Validando..."
+            ? isProfilePaymentMethods ? "Salvando..." : "Validando..."
             : isCardPayment && !secureFieldsReady
               ? "Carregando cartão seguro..."
-              : "Usar esta forma de pagamento"}
+              : isProfilePaymentMethods ? "Salvar cartão" : "Usar esta forma de pagamento"}
         </button>
       </div>
     </div>

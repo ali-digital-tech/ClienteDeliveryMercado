@@ -15,7 +15,6 @@ export interface CustomerNotification {
 }
 
 export interface CustomerNotificationPreferences {
-  id?: string;
   orders_enabled: boolean;
   campaigns_enabled: boolean;
 }

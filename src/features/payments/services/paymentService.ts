@@ -20,6 +20,8 @@ export interface StoredPaymentSelection {
   payment_method_id?: string;
   issuer_id?: string | number | null;
   installments?: number;
+  cardholder_name?: string;
+  last_four_digits?: string;
 }
 
 export interface MercadoPagoCheckoutConfig {
