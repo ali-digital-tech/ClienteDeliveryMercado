@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { CheckCircle2, ChevronLeft, CreditCard, Lock, Plus, QrCode, ShieldCheck, Trash2 } from "lucide-react";
 import { useApp } from "@/app/providers/AppProvider";
 import {
   getStoredPaymentSelection,
+  getSavedPaymentCards,
+  removeCustomerPaymentCard,
   savePaymentSelection,
+  selectionFromSavedCard,
   type PaymentMethod,
+  type SavedPaymentCard,
   type StoredPaymentSelection,
 } from "@/features/payments";
 import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
@@ -26,18 +30,55 @@ function getBrandLabel(paymentMethodId?: string) {
   return "Cartão";
 }
 
-function hasSavedCard(selection: StoredPaymentSelection) {
-  return selection.method !== "pix" && Boolean(selection.payment_method_id);
-}
-
 export function AddCardScreen() {
   const navigate = useNavigate();
-  const { tenantPath } = useApp();
+  const { marketId, tenantPath } = useApp();
   const [selection, setSelection] = useState<StoredPaymentSelection>(() => getStoredPaymentSelection());
-  const savedCard = hasSavedCard(selection) ? selection : null;
+  const [savedCards, setSavedCards] = useState<SavedPaymentCard[]>([]);
+  const [isLoadingCards, setIsLoadingCards] = useState(true);
+  const [isRemovingCard, setIsRemovingCard] = useState(false);
+  const savedCard = savedCards.find((card) => card.principal) || savedCards[0] || null;
+  const savedCardLastFour = savedCard?.ultimos_quatro || "";
+  const savedCardHolder = savedCard?.nome_impresso || "Cartão cadastrado";
+  const savedCardPaymentMethodId = savedCard?.payment_method_id;
+  const savedCardMethod = savedCard?.forma_pagamento;
+
+  useEffect(() => {
+    let active = true;
+    setIsLoadingCards(true);
+
+    getSavedPaymentCards(marketId)
+      .then((cards) => {
+        if (!active) return;
+        setSavedCards(cards);
+        const defaultCard = cards.find((card) => card.principal) || cards[0] || null;
+        if (defaultCard) {
+          const nextSelection = selectionFromSavedCard(defaultCard);
+          setSelection(nextSelection);
+          savePaymentSelection(nextSelection);
+          return;
+        }
+
+        if (selection.saved_card_id) {
+          const nextSelection: StoredPaymentSelection = { method: "pix" };
+          setSelection(nextSelection);
+          savePaymentSelection(nextSelection);
+        }
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar cartões salvos:", error);
+      })
+      .finally(() => {
+        if (active) setIsLoadingCards(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [marketId, selection.saved_card_id]);
 
   const openCardForm = () => {
-    const initialMethod = selection.method === "cartao_debito" ? "cartao_debito" : "cartao_credito";
+    const initialMethod = savedCard?.forma_pagamento === "cartao_debito" ? "cartao_debito" : "cartao_credito";
 
     navigate(tenantPath("payment"), {
       state: {
@@ -48,11 +89,22 @@ export function AddCardScreen() {
     });
   };
 
-  const removeCard = () => {
-    const nextSelection: StoredPaymentSelection = { method: "pix" };
-    savePaymentSelection(nextSelection);
-    setSelection(nextSelection);
-    showSystemNotice("Cartão removido dos métodos de pagamento.", "Cartão removido");
+  const removeCard = async () => {
+    if (!savedCard) return;
+
+    setIsRemovingCard(true);
+    try {
+      await removeCustomerPaymentCard(savedCard.id);
+      const nextSelection: StoredPaymentSelection = { method: "pix" };
+      savePaymentSelection(nextSelection);
+      setSelection(nextSelection);
+      setSavedCards([]);
+      showSystemNotice("Cartão removido dos métodos de pagamento.", "Cartão removido");
+    } catch (error) {
+      showSystemNotice(error || "Não foi possível remover o cartão.");
+    } finally {
+      setIsRemovingCard(false);
+    }
   };
 
   return (
@@ -124,7 +176,7 @@ export function AddCardScreen() {
               </div>
 
               <p style={{ fontSize: "18px", fontWeight: 900, letterSpacing: "0.08em" }}>
-                {savedCard.last_four_digits ? `•••• •••• •••• ${savedCard.last_four_digits}` : "•••• •••• •••• ••••"}
+                {savedCardLastFour ? `•••• •••• •••• ${savedCardLastFour}` : "•••• •••• •••• ••••"}
               </p>
 
               <div className="mt-5 flex items-end justify-between gap-4">
@@ -133,7 +185,7 @@ export function AddCardScreen() {
                     TITULAR
                   </p>
                   <p className="truncate" style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>
-                    {savedCard.cardholder_name || "Cartão cadastrado"}
+                    {savedCardHolder}
                   </p>
                 </div>
                 <div className="text-right">
@@ -141,7 +193,7 @@ export function AddCardScreen() {
                     BANDEIRA
                   </p>
                   <p style={{ fontSize: "12px", fontWeight: 800 }}>
-                    {getBrandLabel(savedCard.payment_method_id)} · {getCardTypeLabel(savedCard.method)}
+                    {getBrandLabel(savedCardPaymentMethodId)} · {getCardTypeLabel(savedCardMethod)}
                   </p>
                 </div>
               </div>
@@ -169,18 +221,19 @@ export function AddCardScreen() {
               style={{ backgroundColor: "#122a4c", fontSize: "15px", fontWeight: 800 }}
             >
               <Plus size={18} />
-              {savedCard ? "Atualizar cartão" : "Adicionar cartão"}
+              {isLoadingCards ? "Carregando..." : savedCard ? "Atualizar cartão" : "Adicionar cartão"}
             </button>
 
             {savedCard && (
               <button
                 type="button"
                 onClick={removeCard}
+                disabled={isRemovingCard}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl py-3 transition-all active:scale-[0.98]"
                 style={{ backgroundColor: "#fef2f2", color: "#dc2626", fontSize: "14px", fontWeight: 800 }}
               >
                 <Trash2 size={17} />
-                Remover cartão
+                {isRemovingCard ? "Removendo..." : "Remover cartão"}
               </button>
             )}
           </div>

@@ -35,13 +35,18 @@ import {
   cancelPayment,
   createCardPayment,
   createPixPayment,
+  getSavedPaymentCards,
   getStoredPayerData,
   getStoredPaymentSelection,
+  hasFreshCardToken,
   refreshPaymentById,
   resolvePixExpiration,
+  savePaymentSelection,
+  selectionFromSavedCard,
   validatePayerData,
   type MercadoPagoPaymentResult,
   type PayerData,
+  type StoredPaymentSelection,
 } from '@/features/payments';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
@@ -187,6 +192,7 @@ export function CheckoutPage() {
   const [saveCpfAsDefault, setSaveCpfAsDefault] = useState(false);
   const [businessHours, setBusinessHours] = useState<BusinessHour[]>([]);
   const [loadingBusinessHours, setLoadingBusinessHours] = useState(false);
+  const [paymentSelection, setPaymentSelection] = useState<StoredPaymentSelection>(() => getStoredPaymentSelection());
 
   const orderType = getStoredCheckoutMode(marketId);
   const isPickup = orderType === 'pickup';
@@ -198,7 +204,6 @@ export function CheckoutPage() {
   const meetsMinimumOrder = minimumOrder <= 0 || missingMinimumOrder <= 0;
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
-  const paymentSelection = getStoredPaymentSelection();
   const storedPayerData = getStoredPayerData();
   const payerValidation = validatePayerData(storedPayerData);
   const hasPayerData = payerValidation.isValid;
@@ -278,6 +283,29 @@ export function CheckoutPage() {
       isActive = false;
     };
   }, [marketId]);
+
+  useEffect(() => {
+    if (!marketId || paymentSelection.saved_card_id || hasFreshCardToken(paymentSelection)) return;
+
+    let isActive = true;
+    getSavedPaymentCards(marketId)
+      .then((cards) => {
+        if (!isActive) return;
+        const savedCard = cards.find((card) => card.principal) || cards[0] || null;
+        if (!savedCard) return;
+
+        const nextSelection = selectionFromSavedCard(savedCard);
+        setPaymentSelection(nextSelection);
+        savePaymentSelection(nextSelection);
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar cartão salvo:', error);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [marketId, paymentSelection]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -542,6 +570,17 @@ export function CheckoutPage() {
 
     if (!hasPayerData) {
       showSystemNotice('Complete os dados do pagador para continuar.');
+      openPaymentScreen();
+      return;
+    }
+
+    const currentPaymentSelection = getStoredPaymentSelection();
+    if (currentPaymentSelection.method !== 'pix' && !hasFreshCardToken(currentPaymentSelection)) {
+      showSystemNotice(
+        currentPaymentSelection.saved_card_id
+          ? 'Informe o CVV do cartão salvo para concluir este pagamento.'
+          : 'Confirme os dados do cartão para concluir este pagamento.'
+      );
       openPaymentScreen();
       return;
     }

@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { ChevronLeft, CreditCard, Loader2, Lock, QrCode, Smartphone } from "lucide-react";
+import { ChevronLeft, CreditCard, Loader2, Lock, QrCode, ShieldCheck, Smartphone } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { getStoredCheckoutMode } from '@/features/orders/services/checkoutModeService';
 import {
   getMercadoPagoCheckoutConfig,
+  getSavedPaymentCards,
   getStoredPayerData,
   getStoredPaymentSelection,
+  hasFreshCardToken,
   PayerDataForm,
   savePayerData,
+  saveCustomerPaymentCard,
   savePaymentSelection,
+  selectionFromSavedCard,
   validatePayerData,
   type PaymentMethod,
   type PayerData,
+  type SavedPaymentCard,
 } from '@/features/payments';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
@@ -63,9 +68,10 @@ interface MercadoPagoInstance {
       options: Record<string, unknown>,
     ) => MercadoPagoSecureField;
     createCardToken: (options: {
-      cardholderName: string;
-      identificationType: string;
-      identificationNumber: string;
+      cardholderName?: string;
+      identificationType?: string;
+      identificationNumber?: string;
+      cardId?: string;
     }) => Promise<MercadoPagoCardToken>;
   };
   getPaymentMethods: (options: { bin: string }) => Promise<{ results?: MercadoPagoPaymentMethod[] }>;
@@ -92,6 +98,7 @@ const SECURE_FIELD_IDS = {
   cardNumber: 'mp-secure-card-number',
   expirationDate: 'mp-secure-expiration-date',
   securityCode: 'mp-secure-security-code',
+  savedSecurityCode: 'mp-secure-saved-security-code',
 };
 
 const SECURE_FIELD_STYLE = {
@@ -314,8 +321,8 @@ export function PaymentScreen() {
 
   const mpRef = useRef<MercadoPagoInstance | null>(null);
   const fieldsRef = useRef<{
-    cardNumber: MercadoPagoSecureField;
-    expirationDate: MercadoPagoSecureField;
+    cardNumber?: MercadoPagoSecureField;
+    expirationDate?: MercadoPagoSecureField;
     securityCode: MercadoPagoSecureField;
   } | null>(null);
   const currentBinRef = useRef("");
@@ -342,6 +349,9 @@ export function PaymentScreen() {
   const [installmentOptions, setInstallmentOptions] = useState<MercadoPagoInstallment[]>([
     { installments: initialInstallments, recommended_message: getDefaultInstallmentMessage(initialMethod) },
   ]);
+  const [savedCards, setSavedCards] = useState<SavedPaymentCard[]>([]);
+  const [selectedSavedCardId, setSelectedSavedCardId] = useState("");
+  const [saveCardForNextPurchases, setSaveCardForNextPurchases] = useState(false);
   const [secureFieldsReady, setSecureFieldsReady] = useState(false);
   const [secureFieldsError, setSecureFieldsError] = useState("");
   const [cardMetadataMessage, setCardMetadataMessage] = useState("");
@@ -351,6 +361,8 @@ export function PaymentScreen() {
   const primaryColor = currentMarket?.primaryColor || "#122a4c";
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
   const isCardPayment = selected !== "pix";
+  const selectedSavedCard = savedCards.find((card) => card.id === selectedSavedCardId) || null;
+  const isUsingSavedCard = Boolean(isCardPayment && !isProfilePaymentMethods && selectedSavedCard);
   const availableMethodOptions = useMemo(
     () => isProfilePaymentMethods
       ? methodOptions.filter((option) => option.id !== "pix")
@@ -385,6 +397,56 @@ export function PaymentScreen() {
       isActive = false;
     };
   }, [marketId]);
+
+  useEffect(() => {
+    if (isProfilePaymentMethods) return;
+
+    let isActive = true;
+    getSavedPaymentCards(marketId)
+      .then((cards) => {
+        if (!isActive) return;
+        setSavedCards(cards);
+
+        const defaultCard = cards.find((card) => card.principal) || cards[0] || null;
+        if (!defaultCard) return;
+
+        const hasFreshStoredToken = hasFreshCardToken(storedSelection);
+        const storedSavedCard = storedSelection.saved_card_id
+          ? cards.find((card) => card.id === storedSelection.saved_card_id)
+          : null;
+        const cardToUse = storedSavedCard || (!hasFreshStoredToken ? defaultCard : null);
+
+        if (cardToUse) {
+          setSelected(cardToUse.forma_pagamento);
+          setSelectedSavedCardId(cardToUse.id);
+          setPaymentMethodId(cardToUse.payment_method_id);
+          setIssuerId(cardToUse.issuer_id ?? null);
+          setInstallments(cardToUse.forma_pagamento === "cartao_debito" ? 1 : storedSelection.installments || 1);
+          setInstallmentOptions([
+            { installments: cardToUse.forma_pagamento === "cartao_debito" ? 1 : storedSelection.installments || 1, recommended_message: getDefaultInstallmentMessage(cardToUse.forma_pagamento) },
+          ]);
+        }
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar cartões salvos:", error);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isProfilePaymentMethods, marketId, storedSelection.installments, storedSelection.method, storedSelection.saved_card_id]);
+
+  useEffect(() => {
+    if (!isCardPayment) {
+      setSelectedSavedCardId("");
+      setSaveCardForNextPurchases(false);
+      return;
+    }
+
+    if (selectedSavedCard && selectedSavedCard.forma_pagamento !== selected) {
+      setSelectedSavedCardId("");
+    }
+  }, [isCardPayment, selected, selectedSavedCard]);
 
   useEffect(() => {
     if (!isCardPayment) return;
@@ -440,7 +502,7 @@ export function PaymentScreen() {
 
     currentBinRef.current = normalizedBin;
 
-    if (!mp || !fields || !normalizedBin) {
+    if (!mp || !fields?.cardNumber || !normalizedBin) {
       resetCardMetadata();
       return;
     }
@@ -542,7 +604,7 @@ export function PaymentScreen() {
   }, [refreshCardMetadata]);
 
   useEffect(() => {
-    if (!isCardPayment) return;
+    if (!isCardPayment || isUsingSavedCard) return;
 
     if (selected === "cartao_debito") {
       setInstallments(1);
@@ -552,7 +614,7 @@ export function PaymentScreen() {
     if (currentBinRef.current) {
       void refreshCardMetadata(currentBinRef.current);
     }
-  }, [isCardPayment, refreshCardMetadata, selected]);
+  }, [isCardPayment, isUsingSavedCard, refreshCardMetadata, selected]);
 
   useEffect(() => {
     if (!isCardPayment || !publicKey) return;
@@ -570,6 +632,23 @@ export function PaymentScreen() {
         if (cancelled || !window.MercadoPago) return;
 
         const mp = new window.MercadoPago(publicKey, { locale: "pt-BR" });
+        if (isUsingSavedCard) {
+          const securityCode = mp.fields
+            .create("securityCode", { placeholder: "CVV", style: SECURE_FIELD_STYLE })
+            .mount(SECURE_FIELD_IDS.savedSecurityCode);
+
+          if (cancelled) {
+            securityCode.unmount?.();
+            clearSecureFieldContainers();
+            return;
+          }
+
+          mpRef.current = mp;
+          fieldsRef.current = { securityCode };
+          setSecureFieldsReady(true);
+          return;
+        }
+
         const cardNumber = mp.fields
           .create("cardNumber", { placeholder: "Número do cartão", style: SECURE_FIELD_STYLE })
           .mount(SECURE_FIELD_IDS.cardNumber);
@@ -608,8 +687,8 @@ export function PaymentScreen() {
     return () => {
       cancelled = true;
       metadataRequestRef.current += 1;
-      fieldsRef.current?.cardNumber.unmount?.();
-      fieldsRef.current?.expirationDate.unmount?.();
+      fieldsRef.current?.cardNumber?.unmount?.();
+      fieldsRef.current?.expirationDate?.unmount?.();
       fieldsRef.current?.securityCode.unmount?.();
       fieldsRef.current = null;
       mpRef.current = null;
@@ -618,11 +697,24 @@ export function PaymentScreen() {
       setIsLoadingCardInfo(false);
       clearSecureFieldContainers();
     };
-  }, [isCardPayment, publicKey, resetCardMetadata]);
+  }, [isCardPayment, isUsingSavedCard, publicKey, resetCardMetadata]);
 
   const createSecureCardToken = async (normalizedPayer: PayerData) => {
     if (!publicKey) throw new Error("Pagamento online não configurado para esta loja.");
     if (!secureFieldsReady || !mpRef.current) throw new Error("Aguarde os campos seguros do cartão carregarem.");
+
+    if (isUsingSavedCard && selectedSavedCard) {
+      const token = await mpRef.current.fields.createCardToken({
+        cardId: selectedSavedCard.gateway_card_id,
+      });
+
+      if (!token?.id) {
+        throw new Error("Não foi possível validar o CVV do cartão salvo.");
+      }
+
+      return token;
+    }
+
     if (!cardholderName.trim()) throw new Error("Informe o nome impresso no cartão.");
     if (!paymentMethodId) throw new Error("Digite o número do cartão para identificar a bandeira.");
     if (issuerOptions.length > 0 && !issuerId) throw new Error("Selecione o banco emissor do cartão.");
@@ -651,15 +743,49 @@ export function PaymentScreen() {
         savePaymentSelection({ method: "pix" });
       } else {
         const cardToken = await createSecureCardToken(normalizedPayer);
-        savePaymentSelection({
-          method: selected,
-          card_token: cardToken.id,
-          payment_method_id: paymentMethodId,
-          issuer_id: issuerId,
-          installments,
-          cardholder_name: cardholderName.trim(),
-          last_four_digits: cardToken.last_four_digits,
-        });
+        const baseSelection = selectedSavedCard
+          ? {
+              ...selectionFromSavedCard(selectedSavedCard),
+              card_token: cardToken.id,
+              card_token_created_at: Date.now(),
+              installments,
+            }
+          : {
+              method: selected,
+              card_token: cardToken.id,
+              card_token_created_at: Date.now(),
+              payment_method_id: paymentMethodId,
+              issuer_id: issuerId,
+              installments,
+              cardholder_name: cardholderName.trim(),
+              last_four_digits: cardToken.last_four_digits,
+            };
+
+        if (!selectedSavedCard && (isProfilePaymentMethods || saveCardForNextPurchases)) {
+          const savedCard = await saveCustomerPaymentCard(marketId, normalizedPayer, baseSelection);
+          const savedSelection = selectionFromSavedCard(savedCard);
+
+          if (isProfilePaymentMethods) {
+            savePaymentSelection(savedSelection);
+          } else {
+            const savedCardToken = await mpRef.current!.fields.createCardToken({
+              cardId: savedCard.gateway_card_id,
+            });
+
+            if (!savedCardToken?.id) {
+              throw new Error("Cartão salvo, mas não foi possível validar o CVV para esta compra.");
+            }
+
+            savePaymentSelection({
+              ...savedSelection,
+              card_token: savedCardToken.id,
+              card_token_created_at: Date.now(),
+              installments,
+            });
+          }
+        } else {
+          savePaymentSelection(baseSelection);
+        }
       }
 
       if (isProfilePaymentMethods) {
@@ -764,16 +890,18 @@ export function PaymentScreen() {
         </div>
 
         {isCardPayment && (
-          <div ref={cardFormRef} className="bg-white rounded-2xl p-4 shadow-sm mb-4" style={{ border: "1px solid #d9e4f2" }}>
+          <div ref={cardFormRef} className="mb-4 rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
                 <h2 style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }}>
-                  Informe os dados do cartão
+                  {isUsingSavedCard ? "Cartão salvo" : "Informe os dados do cartão"}
                 </h2>
                 <p style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.45 }}>
-                  {isProfilePaymentMethods
-                    ? "Preencha os campos abaixo para salvar este cartão."
-                    : "Preencha os campos abaixo para continuar."}
+                  {isUsingSavedCard
+                    ? "Digite apenas o CVV para validar este pagamento."
+                    : isProfilePaymentMethods
+                      ? "Preencha os campos abaixo para salvar este cartão."
+                      : "Preencha os campos abaixo para continuar."}
                 </p>
               </div>
             </div>
@@ -784,172 +912,238 @@ export function PaymentScreen() {
             >
               <Lock size={14} color="#15803d" className="flex-shrink-0" />
               <p style={{ fontSize: "12px", color: "#15803d", lineHeight: 1.4, fontWeight: 700 }}>
-                Pagamento criptografado pelo Mercado Pago.
+                O app não armazena número completo do cartão nem CVV.
               </p>
             </div>
 
-            <div
-              className="relative mx-auto mb-4 overflow-hidden rounded-2xl p-4 text-white shadow-sm"
-              style={{
-                maxWidth: "360px",
-                minHeight: "174px",
-                background: `linear-gradient(135deg, ${primaryColor} 0%, #122a4c 100%)`,
-              }}
-            >
-              <div
-                className="absolute rounded-full"
-                style={{
-                  width: "150px",
-                  height: "150px",
-                  background: "rgba(255,255,255,0.07)",
-                  top: "-48px",
-                  right: "-36px",
-                }}
-              />
-              <div
-                className="absolute rounded-full"
-                style={{
-                  width: "96px",
-                  height: "96px",
-                  background: "rgba(255,255,255,0.05)",
-                  bottom: "-30px",
-                  left: "-24px",
-                }}
-              />
-              <div className="relative flex min-h-[142px] flex-col justify-between">
-                <div className="flex items-start justify-between">
-                  <div
-                    className="rounded-md"
-                    style={{
-                      width: "36px",
-                      height: "28px",
-                      background: "linear-gradient(135deg, #d4a843 0%, #f0c060 50%, #c89a30 100%)",
-                    }}
-                  />
-                  <CardBrandLogo paymentMethodId={paymentMethodId} />
-                </div>
-
-                <div>
-                  <p style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "0.1em" }}>
-                    •••• •••• •••• ••••
-                  </p>
-                  <div className="mt-4 flex items-end justify-between gap-4">
-                    <div className="min-w-0">
-                      <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.65)", fontWeight: 800 }}>
-                        TITULAR
-                      </p>
-                      <p className="truncate" style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>
-                        {cardholderName.trim() || "Nome impresso"}
-                      </p>
+            {isUsingSavedCard && selectedSavedCard ? (
+              <>
+                <div
+                  className="relative mx-auto mb-4 overflow-hidden rounded-2xl p-4 text-white shadow-sm"
+                  style={{
+                    maxWidth: "360px",
+                    minHeight: "174px",
+                    background: `linear-gradient(135deg, ${primaryColor} 0%, #122a4c 100%)`,
+                  }}
+                >
+                  <div className="relative flex min-h-[142px] flex-col justify-between">
+                    <div className="flex items-start justify-between">
+                      <ShieldCheck size={25} color="white" />
+                      <CardBrandLogo paymentMethodId={selectedSavedCard.payment_method_id} />
                     </div>
-                    <div className="text-right">
-                      <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.65)", fontWeight: 800 }}>
-                        TIPO
+                    <div>
+                      <p style={{ fontSize: "18px", fontWeight: 900, letterSpacing: "0.08em" }}>
+                        •••• •••• •••• {selectedSavedCard.ultimos_quatro}
                       </p>
-                      <p style={{ fontSize: "12px", fontWeight: 800 }}>
-                        {selected === "cartao_debito" ? "Débito" : "Crédito"}
-                      </p>
+                      <div className="mt-4 flex items-end justify-between gap-4">
+                        <div className="min-w-0">
+                          <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.65)", fontWeight: 800 }}>
+                            TITULAR
+                          </p>
+                          <p className="truncate" style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>
+                            {selectedSavedCard.nome_impresso || "Cartão cadastrado"}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.65)", fontWeight: 800 }}>
+                            TIPO
+                          </p>
+                          <p style={{ fontSize: "12px", fontWeight: 800 }}>
+                            {selectedSavedCard.forma_pagamento === "cartao_debito" ? "Débito" : "Crédito"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="grid max-w-md grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
-                  Nome impresso no cartão
-                </label>
-                <input
-                  className="w-full rounded-xl border px-3 py-3 text-sm outline-none"
-                  placeholder="Nome impresso no cartão"
-                  autoComplete="cc-name"
-                  value={cardholderName}
-                  onChange={(e) => setCardholderName(e.target.value)}
-                />
-              </div>
-
-              <div className="col-span-2">
-                <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
-                  Número do cartão
-                </label>
-                <div
-                  id={SECURE_FIELD_IDS.cardNumber}
-                  className="mp-secure-field rounded-xl border bg-white px-3"
-                  style={{ borderColor: "#d9e4f2" }}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
-                  Validade
-                </label>
-                <div
-                  id={SECURE_FIELD_IDS.expirationDate}
-                  className="mp-secure-field rounded-xl border bg-white px-3"
-                  style={{ borderColor: "#d9e4f2" }}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
-                  CVV
-                </label>
-                <div
-                  id={SECURE_FIELD_IDS.securityCode}
-                  className="mp-secure-field rounded-xl border bg-white px-3"
-                  style={{ borderColor: "#d9e4f2" }}
-                />
-              </div>
-
-              {isLoadingCardInfo && (
-                <div className="col-span-2 rounded-xl px-3 py-2 text-sm" style={{ backgroundColor: "#f8fafc", color: "#64748b" }}>
-                  <span className="inline-flex items-center gap-2 font-semibold">
-                    <Loader2 size={15} className="animate-spin" />
-                    Conferindo cartão...
-                  </span>
-                </div>
-              )}
-
-              {issuerOptions.length > 1 ? (
-                <div className="col-span-2">
-                  <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
-                    Banco do cartão
-                  </label>
-                  <select
-                    className="w-full rounded-xl border px-3 py-3 text-sm"
-                    value={issuerId ?? ""}
-                    onChange={(e) => setIssuerId(e.target.value)}
+                <div className="grid max-w-md grid-cols-1 gap-3">
+                  <div>
+                    <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+                      CVV do cartão salvo
+                    </label>
+                    <div
+                      id={SECURE_FIELD_IDS.savedSecurityCode}
+                      className="mp-secure-field rounded-xl border bg-white px-3"
+                      style={{ borderColor: "#d9e4f2" }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSavedCardId("");
+                      resetCardMetadata();
+                    }}
+                    className="rounded-xl px-3 py-3"
+                    style={{ backgroundColor: "#eef4fb", color: "#122a4c", fontSize: "13px", fontWeight: 800 }}
                   >
-                    {issuerOptions.map((issuer) => (
-                      <option key={issuer.id} value={issuer.id}>
-                        {issuer.name || `Banco ${issuer.id}`}
-                      </option>
-                    ))}
-                  </select>
+                    Usar outro cartão
+                  </button>
                 </div>
-              ) : null}
+              </>
+            ) : (
+              <>
+                <div
+                  className="relative mx-auto mb-4 overflow-hidden rounded-2xl p-4 text-white shadow-sm"
+                  style={{
+                    maxWidth: "360px",
+                    minHeight: "174px",
+                    background: `linear-gradient(135deg, ${primaryColor} 0%, #122a4c 100%)`,
+                  }}
+                >
+                  <div className="relative flex min-h-[142px] flex-col justify-between">
+                    <div className="flex items-start justify-between">
+                      <div
+                        className="rounded-md"
+                        style={{
+                          width: "36px",
+                          height: "28px",
+                          background: "linear-gradient(135deg, #d4a843 0%, #f0c060 50%, #c89a30 100%)",
+                        }}
+                      />
+                      <CardBrandLogo paymentMethodId={paymentMethodId} />
+                    </div>
 
-              {selected === "cartao_credito" && paymentMethodId && !isProfilePaymentMethods && (
-                <div className="col-span-2">
-                  <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
-                    Parcelamento
-                  </label>
-                  <select
-                    className="w-full rounded-xl border px-3 py-3 text-sm"
-                    value={installments}
-                    disabled={installmentOptions.length <= 1}
-                    onChange={(e) => setInstallments(Number(e.target.value))}
-                  >
-                    {installmentOptions.map((option) => (
-                      <option key={option.installments} value={option.installments}>
-                        {option.recommended_message || `${option.installments}x`}
-                      </option>
-                    ))}
-                  </select>
+                    <div>
+                      <p style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "0.1em" }}>
+                        •••• •••• •••• ••••
+                      </p>
+                      <div className="mt-4 flex items-end justify-between gap-4">
+                        <div className="min-w-0">
+                          <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.65)", fontWeight: 800 }}>
+                            TITULAR
+                          </p>
+                          <p className="truncate" style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>
+                            {cardholderName.trim() || "Nome impresso"}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.65)", fontWeight: 800 }}>
+                            TIPO
+                          </p>
+                          <p style={{ fontSize: "12px", fontWeight: 800 }}>
+                            {selected === "cartao_debito" ? "Débito" : "Crédito"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                <div className="grid max-w-md grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+                      Nome impresso no cartão
+                    </label>
+                    <input
+                      className="w-full rounded-xl border px-3 py-3 text-sm outline-none"
+                      placeholder="Nome impresso no cartão"
+                      autoComplete="cc-name"
+                      value={cardholderName}
+                      onChange={(e) => setCardholderName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+                      Número do cartão
+                    </label>
+                    <div
+                      id={SECURE_FIELD_IDS.cardNumber}
+                      className="mp-secure-field rounded-xl border bg-white px-3"
+                      style={{ borderColor: "#d9e4f2" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+                      Validade
+                    </label>
+                    <div
+                      id={SECURE_FIELD_IDS.expirationDate}
+                      className="mp-secure-field rounded-xl border bg-white px-3"
+                      style={{ borderColor: "#d9e4f2" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+                      CVV
+                    </label>
+                    <div
+                      id={SECURE_FIELD_IDS.securityCode}
+                      className="mp-secure-field rounded-xl border bg-white px-3"
+                      style={{ borderColor: "#d9e4f2" }}
+                    />
+                  </div>
+
+                  {isLoadingCardInfo && (
+                    <div className="col-span-2 rounded-xl px-3 py-2 text-sm" style={{ backgroundColor: "#f8fafc", color: "#64748b" }}>
+                      <span className="inline-flex items-center gap-2 font-semibold">
+                        <Loader2 size={15} className="animate-spin" />
+                        Conferindo cartão...
+                      </span>
+                    </div>
+                  )}
+
+                  {issuerOptions.length > 1 ? (
+                    <div className="col-span-2">
+                      <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+                        Banco do cartão
+                      </label>
+                      <select
+                        className="w-full rounded-xl border px-3 py-3 text-sm"
+                        value={issuerId ?? ""}
+                        onChange={(e) => setIssuerId(e.target.value)}
+                      >
+                        {issuerOptions.map((issuer) => (
+                          <option key={issuer.id} value={issuer.id}>
+                            {issuer.name || `Banco ${issuer.id}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
+
+                  {selected === "cartao_credito" && paymentMethodId && !isProfilePaymentMethods && (
+                    <div className="col-span-2">
+                      <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+                        Parcelamento
+                      </label>
+                      <select
+                        className="w-full rounded-xl border px-3 py-3 text-sm"
+                        value={installments}
+                        disabled={installmentOptions.length <= 1}
+                        onChange={(e) => setInstallments(Number(e.target.value))}
+                      >
+                        {installmentOptions.map((option) => (
+                          <option key={option.installments} value={option.installments}>
+                            {option.recommended_message || `${option.installments}x`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {!isProfilePaymentMethods && savedCards.length === 0 && (
+                  <label
+                    className="mt-4 flex items-start gap-3 rounded-xl px-3 py-3"
+                    style={{ backgroundColor: "#f8fafc", border: "1px solid #d9e4f2" }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={saveCardForNextPurchases}
+                      onChange={(event) => setSaveCardForNextPurchases(event.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span style={{ color: "#334155", fontSize: "12px", lineHeight: 1.45, fontWeight: 700 }}>
+                      Salvar este cartão para próximas compras. Será salvo no Mercado Pago; o CVV nunca será armazenado.
+                    </span>
+                  </label>
+                )}
+              </>
+            )}
 
             {selected === "cartao_credito" && paymentMethodId && paymentAmount > 0 && (
               <p className="mt-3" style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}>

@@ -5,18 +5,22 @@ import { useApp } from "@/app/providers/AppProvider";
 import {
   createCardPayment,
   createPixPayment,
+  getSavedPaymentCards,
   getStoredPayerData,
   getStoredPaymentSelection,
+  hasFreshCardToken,
   PayerDataForm,
   refreshPaymentById,
   resolvePixExpiration,
   savePayerData,
   savePaymentSelection,
+  selectionFromSavedCard,
   splitPayerFullName,
   validatePayerData,
   type LocalPayment,
   type MercadoPagoPaymentResult,
   type PayerData,
+  type StoredPaymentSelection,
 } from "@/features/payments";
 import type { Order, OrderPayment } from "@/features/orders";
 import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
@@ -93,7 +97,7 @@ function resolvePayerData(payer: Partial<PayerData>): PayerData {
 export function PaymentRecoveryScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { currentMarket, currentUser, orders, refreshOrders, tenantPath } = useApp();
+  const { currentMarket, currentUser, marketId, orders, refreshOrders, tenantPath } = useApp();
   const orderId = searchParams.get("orderId") || "";
   const storedPayer = useMemo(() => getStoredPayerData(), []);
   const nameParts = splitPayerFullName(currentUser?.nome);
@@ -114,6 +118,7 @@ export function PaymentRecoveryScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(0);
+  const [paymentSelection, setPaymentSelection] = useState<StoredPaymentSelection>(() => getStoredPaymentSelection());
 
   const expiresAt = payment?.expiresAt ? new Date(payment.expiresAt).getTime() : 0;
   const isPaid = Boolean(order?.isPaid || payment?.paidAt || payment?.status === "aprovado");
@@ -129,13 +134,19 @@ export function PaymentRecoveryScreen() {
       && payment.qrCode
       && (!expiresAt || expiresAt <= Date.now() || !isPending),
   );
-  const selectedMethod = getStoredPaymentSelection().method;
+  const selectedMethod = paymentSelection.method;
   const selectedMethodLabel =
     selectedMethod === "pix"
       ? "PIX"
       : selectedMethod === "cartao_debito"
         ? "Cartão de débito"
         : "Cartão de crédito";
+  const needsSavedCardCvv = Boolean(
+    selectedMethod !== "pix" && paymentSelection.saved_card_id && !hasFreshCardToken(paymentSelection)
+  );
+  const needsCardConfirmation = Boolean(
+    selectedMethod !== "pix" && !paymentSelection.saved_card_id && !hasFreshCardToken(paymentSelection)
+  );
   const primaryColor = currentMarket?.primaryColor || "#122a4c";
   const payerValidation = validatePayerData(payer);
   const paymentActionDisabled = isSubmitting || !payerValidation.isValid;
@@ -184,6 +195,28 @@ export function PaymentRecoveryScreen() {
   }, [order?.payment]);
 
   useEffect(() => {
+    if (!marketId) return;
+
+    let active = true;
+    getSavedPaymentCards(marketId)
+      .then((cards) => {
+        if (!active || paymentSelection.saved_card_id || hasFreshCardToken(paymentSelection)) return;
+        const savedCard = cards.find((card) => card.principal) || cards[0] || null;
+        if (!savedCard) return;
+        const selection = selectionFromSavedCard(savedCard);
+        setPaymentSelection(selection);
+        savePaymentSelection(selection);
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar cartão salvo:", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [marketId, paymentSelection]);
+
+  useEffect(() => {
     if (isPaid) {
       openTracking();
     }
@@ -221,12 +254,19 @@ export function PaymentRecoveryScreen() {
     setIsSubmitting(true);
     try {
       const payerData = resolvePayerData(payer);
-      const selection = forcePix ? { method: "pix" as const } : getStoredPaymentSelection();
+      const selection = forcePix ? { method: "pix" as const } : paymentSelection;
       savePayerData(payerData);
       setPayer(payerData);
 
       if (forcePix) {
         savePaymentSelection(selection);
+        setPaymentSelection(selection);
+      }
+
+      if (!forcePix && selection.method !== "pix" && !hasFreshCardToken(selection)) {
+        savePaymentSelection(selection);
+        choosePaymentMethod();
+        return;
       }
 
       const result = selection.method === "pix"
@@ -356,7 +396,11 @@ export function PaymentRecoveryScreen() {
             {selectedMethod !== "pix" && (
               <button onClick={() => void createPayment()} disabled={paymentActionDisabled} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 disabled:opacity-60" style={{ borderColor: "#bfd3ee", color: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
                 <CheckCircle2 size={16} />
-                Tentar com {selectedMethodLabel}
+                {needsSavedCardCvv
+                  ? "Informar CVV do cartão salvo"
+                  : needsCardConfirmation
+                    ? "Confirmar dados do cartão"
+                    : `Tentar com ${selectedMethodLabel}`}
               </button>
             )}
           </div>

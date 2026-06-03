@@ -3,6 +3,7 @@ import { apiRequest } from '@/shared/lib/api';
 const PAYMENT_SELECTION_STORAGE_KEY = 'cliente_delivery_payment_selection';
 const PAYER_STORAGE_KEY = 'cliente_delivery_payer_data';
 export const PIX_PAYMENT_WINDOW_MS = 5 * 60 * 1000;
+const CARD_TOKEN_TTL_MS = 20 * 60 * 1000;
 
 export type PaymentMethod = 'pix' | 'cartao_credito' | 'cartao_debito';
 
@@ -19,11 +20,32 @@ export type PayerValidationErrors = Partial<Record<keyof PayerData | 'full_name'
 export interface StoredPaymentSelection {
   method: PaymentMethod;
   card_token?: string;
+  card_token_created_at?: number;
+  saved_card_id?: string;
+  gateway_card_id?: string;
+  gateway_customer_id?: string;
   payment_method_id?: string;
   issuer_id?: string | number | null;
   installments?: number;
   cardholder_name?: string;
   last_four_digits?: string;
+}
+
+export interface SavedPaymentCard {
+  id: string;
+  loja_id: string;
+  forma_pagamento: Exclude<PaymentMethod, 'pix'>;
+  payment_method_id: string;
+  issuer_id?: string | number | null;
+  bandeira?: string | null;
+  ultimos_quatro: string;
+  nome_impresso?: string | null;
+  mes_expiracao?: number | null;
+  ano_expiracao?: number | null;
+  principal?: boolean;
+  gateway_card_id: string;
+  criado_em?: string | null;
+  atualizado_em?: string | null;
 }
 
 export interface MercadoPagoCheckoutConfig {
@@ -154,6 +176,11 @@ export function savePaymentSelection(selection: StoredPaymentSelection) {
   localStorage.setItem(PAYMENT_SELECTION_STORAGE_KEY, JSON.stringify(selection));
 }
 
+export function hasFreshCardToken(selection: StoredPaymentSelection) {
+  if (!selection.card_token || !selection.card_token_created_at) return false;
+  return Date.now() - selection.card_token_created_at < CARD_TOKEN_TTL_MS;
+}
+
 export function getStoredPayerData(): Partial<PayerData> {
   return readJson<Partial<PayerData>>(PAYER_STORAGE_KEY, {});
 }
@@ -162,9 +189,65 @@ export function savePayerData(data: PayerData) {
   localStorage.setItem(PAYER_STORAGE_KEY, JSON.stringify(data));
 }
 
+export function selectionFromSavedCard(card: SavedPaymentCard): StoredPaymentSelection {
+  return {
+    method: card.forma_pagamento,
+    saved_card_id: card.id,
+    gateway_card_id: card.gateway_card_id,
+    payment_method_id: card.payment_method_id,
+    issuer_id: card.issuer_id ?? null,
+    installments: card.forma_pagamento === 'cartao_debito' ? 1 : 1,
+    cardholder_name: card.nome_impresso || undefined,
+    last_four_digits: card.ultimos_quatro,
+  };
+}
+
 export async function getMercadoPagoCheckoutConfig(marketId: string) {
   const response = await apiRequest<{ data: MercadoPagoCheckoutConfig }>(
     `/mercadopago/checkout-config/${marketId}`
+  );
+
+  return response.data;
+}
+
+export async function getSavedPaymentCards(marketId: string) {
+  const response = await apiRequest<{ data: SavedPaymentCard[] }>(
+    `/mercadopago/customer/cards?loja_id=${encodeURIComponent(marketId)}`
+  );
+
+  return response.data || [];
+}
+
+export async function saveCustomerPaymentCard(
+  marketId: string,
+  payer: PayerData,
+  selection: StoredPaymentSelection
+) {
+  if (!selection.card_token || !selection.payment_method_id) {
+    throw new Error('Confirme os dados do cartão antes de salvar.');
+  }
+
+  const response = await apiRequest<{ data: SavedPaymentCard }>('/mercadopago/customer/cards', {
+    method: 'POST',
+    body: {
+      loja_id: marketId,
+      card_token: selection.card_token,
+      forma_pagamento: selection.method,
+      payment_method_id: selection.payment_method_id,
+      issuer_id: selection.issuer_id ?? null,
+      cardholder_name: selection.cardholder_name,
+      last_four_digits: selection.last_four_digits,
+      ...payer,
+    },
+  });
+
+  return response.data;
+}
+
+export async function removeCustomerPaymentCard(cardId: string) {
+  const response = await apiRequest<{ data: SavedPaymentCard }>(
+    `/mercadopago/customer/cards/${cardId}`,
+    { method: 'DELETE' }
   );
 
   return response.data;
@@ -209,7 +292,29 @@ export async function createCardPayment(
   payer: PayerData,
   selection: StoredPaymentSelection
 ) {
-  if (!selection.card_token || !selection.payment_method_id) {
+  if (selection.saved_card_id) {
+    if (!hasFreshCardToken(selection)) {
+      throw new Error('Informe o CVV do cartão salvo antes de continuar.');
+    }
+
+    const response = await apiRequest<{ data: MercadoPagoPaymentResult }>(
+      '/mercadopago/payment/saved-card',
+      {
+        method: 'POST',
+        body: {
+          pedido_id: pedidoId,
+          saved_card_id: selection.saved_card_id,
+          security_code_token: selection.card_token,
+          installments: selection.installments || 1,
+          ...payer,
+        },
+      }
+    );
+
+    return response.data;
+  }
+
+  if (!hasFreshCardToken(selection) || !selection.payment_method_id) {
     throw new Error('Confirme os dados do cartão antes de continuar.');
   }
 

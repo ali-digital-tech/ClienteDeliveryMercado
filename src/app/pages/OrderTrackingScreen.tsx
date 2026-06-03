@@ -264,14 +264,6 @@ export function OrderTrackingScreen() {
   }, [contextSelectedOrder]);
 
   useEffect(() => {
-    if (!selectedOrder || selectedOrder.isPaid) return;
-
-    navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(selectedOrder.rawId || selectedOrder.id)}`, {
-      replace: true,
-    });
-  }, [navigate, selectedOrder, tenantPath]);
-
-  useEffect(() => {
     if (!isLoggedIn) return;
 
     let isActive = true;
@@ -878,6 +870,16 @@ export function OrderTrackingScreen() {
               {isPaymentPending ? "Pagamento aguardando confirmação." : "Pagamento registrado com segurança."}
             </p>
           </div>
+          {isPaymentPending && (
+            <button
+              onClick={() => navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(selectedOrder.rawId || selectedOrder.id)}`)}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2"
+              style={{ backgroundColor: "#122a4c", color: "#fff", fontSize: "12px", fontWeight: 800 }}
+            >
+              <CreditCard size={14} />
+              Concluir pagamento
+            </button>
+          )}
         </div>
 
         {canRequestCancellation && (
