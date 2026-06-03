@@ -6,6 +6,18 @@ const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> =
     message: "E-mail ou senha incorretos. Verifique os dados e tente novamente.",
   },
   {
+    test: /too many login attempts|muitas tentativas de login/i,
+    message: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
+  },
+  {
+    test: /too many authentication requests|muitas tentativas de autenticação/i,
+    message: "Muitas tentativas de autenticação. Aguarde alguns minutos e tente novamente.",
+  },
+  {
+    test: /too many requests|muitas requisições/i,
+    message: "Muitas requisições. Aguarde um instante e tente novamente.",
+  },
+  {
     test: /missing authorization token|authentication required|not authenticated/i,
     message: "Faça login para continuar.",
   },

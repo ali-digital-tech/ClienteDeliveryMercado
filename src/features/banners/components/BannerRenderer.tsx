@@ -37,15 +37,20 @@ export function BannerRenderer({ banners, placement, page, className = '' }: Ban
     navigate(`${tenantPath('produtos')}?banner=${encodeURIComponent(banner.id)}`);
   };
 
-  const inlineBanners = visible.filter((banner) => banner.display_type !== 'modal');
-  const modalBanner = visible.find((banner) => {
-    if (banner.display_type !== 'modal') return false;
-    const key = `cliente_delivery_banner_modal_${marketId}_${banner.id}`;
-    return !dismissedModals[banner.id] && localStorage.getItem(key) !== 'seen';
-  });
+  const getModalStorageKey = (banner: Banner) => `cliente_delivery_banner_modal_${marketId}_${banner.id}`;
+  const isModalDismissed = (banner: Banner) => (
+    dismissedModals[banner.id] || localStorage.getItem(getModalStorageKey(banner)) === 'seen'
+  );
+
+  const inlineBanners = visible.filter((banner) => (
+    banner.display_type !== 'modal' || isModalDismissed(banner)
+  ));
+  const modalBanner = visible.find((banner) => (
+    banner.display_type === 'modal' && !isModalDismissed(banner)
+  ));
 
   const closeModal = (banner: Banner) => {
-    localStorage.setItem(`cliente_delivery_banner_modal_${marketId}_${banner.id}`, 'seen');
+    localStorage.setItem(getModalStorageKey(banner), 'seen');
     setDismissedModals((current) => ({ ...current, [banner.id]: true }));
   };
 
