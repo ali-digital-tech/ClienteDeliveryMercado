@@ -7,9 +7,13 @@ import {
   createPixPayment,
   getStoredPayerData,
   getStoredPaymentSelection,
+  PayerDataForm,
   refreshPaymentById,
   resolvePixExpiration,
+  savePayerData,
   savePaymentSelection,
+  splitPayerFullName,
+  validatePayerData,
   type LocalPayment,
   type MercadoPagoPaymentResult,
   type PayerData,
@@ -71,31 +75,39 @@ function resultToOrderPayment(result: MercadoPagoPaymentResult): OrderPayment {
   };
 }
 
-function resolvePayerData(): PayerData {
-  const payer = getStoredPayerData();
+function resolvePayerData(payer: Partial<PayerData>): PayerData {
+  const validation = validatePayerData(payer);
 
-  if (!payer.payer_email || !payer.payer_first_name || !payer.payer_last_name || !payer.doc_number) {
-    throw new Error("Confirme os dados do pagador antes de continuar.");
+  if (!validation.isValid) {
+    throw new Error(
+      validation.errors.full_name ||
+      validation.errors.payer_email ||
+      validation.errors.doc_number ||
+      "Revise os dados do pagador."
+    );
   }
 
-  return {
-    payer_email: payer.payer_email,
-    payer_first_name: payer.payer_first_name,
-    payer_last_name: payer.payer_last_name,
-    doc_type: payer.doc_type || "CPF",
-    doc_number: String(payer.doc_number).replace(/\D/g, ""),
-  };
+  return validation.data;
 }
 
 export function PaymentRecoveryScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { orders, refreshOrders, tenantPath } = useApp();
+  const { currentMarket, currentUser, orders, refreshOrders, tenantPath } = useApp();
   const orderId = searchParams.get("orderId") || "";
+  const storedPayer = useMemo(() => getStoredPayerData(), []);
+  const nameParts = splitPayerFullName(currentUser?.nome);
   const order = useMemo(
     () => orders.find((item) => matchesOrder(item, orderId)) || null,
     [orderId, orders],
   );
+  const [payer, setPayer] = useState<PayerData>({
+    payer_email: storedPayer.payer_email || currentUser?.email || "",
+    payer_first_name: storedPayer.payer_first_name || nameParts.firstName,
+    payer_last_name: storedPayer.payer_last_name || nameParts.lastName,
+    doc_type: storedPayer.doc_type || "CPF",
+    doc_number: storedPayer.doc_number || "",
+  });
   const [payment, setPayment] = useState<OrderPayment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,6 +136,9 @@ export function PaymentRecoveryScreen() {
       : selectedMethod === "cartao_debito"
         ? "Cartão de débito"
         : "Cartão de crédito";
+  const primaryColor = currentMarket?.primaryColor || "#122a4c";
+  const payerValidation = validatePayerData(payer);
+  const paymentActionDisabled = isSubmitting || !payerValidation.isValid;
 
   const openTracking = useCallback(() => {
     navigate(`${tenantPath("order-tracking")}?orderId=${encodeURIComponent(orderId)}`, { replace: true });
@@ -205,16 +220,18 @@ export function PaymentRecoveryScreen() {
 
     setIsSubmitting(true);
     try {
-      const payer = resolvePayerData();
+      const payerData = resolvePayerData(payer);
       const selection = forcePix ? { method: "pix" as const } : getStoredPaymentSelection();
+      savePayerData(payerData);
+      setPayer(payerData);
 
       if (forcePix) {
         savePaymentSelection(selection);
       }
 
       const result = selection.method === "pix"
-        ? await createPixPayment(order.rawId || order.id, payer)
-        : await createCardPayment(order.rawId || order.id, payer, selection);
+        ? await createPixPayment(order.rawId || order.id, payerData)
+        : await createCardPayment(order.rawId || order.id, payerData, selection);
 
       setPayment(resultToOrderPayment(result));
       await refreshOrders();
@@ -280,6 +297,15 @@ export function PaymentRecoveryScreen() {
           <p style={{ color: "#122a4c", fontSize: "24px", fontWeight: 900 }}>{formatCurrency(order.total)}</p>
         </div>
 
+        <div className="mb-3">
+          <PayerDataForm
+            value={payer}
+            onChange={setPayer}
+            primaryColor={primaryColor}
+            description={payerValidation.isValid ? "Dados prontos para o pagamento." : "Preencha uma vez para gerar Pix ou pagar com cartão."}
+          />
+        </div>
+
         {hasValidPix ? (
           <div className="rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid #bbf7d0" }}>
             <div className="mb-3 flex items-center gap-2">
@@ -318,9 +344,9 @@ export function PaymentRecoveryScreen() {
               </div>
             </div>
 
-            <button onClick={() => void createPayment(true)} disabled={isSubmitting} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:opacity-60" style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
+            <button onClick={() => void createPayment(true)} disabled={paymentActionDisabled} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:opacity-60" style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
               {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <QrCode size={16} />}
-              Gerar novo PIX
+              {payerValidation.isValid ? "Gerar novo PIX" : "Complete os dados do pagador"}
             </button>
             <button onClick={choosePaymentMethod} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3" style={{ backgroundColor: "#eef4fb", color: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
               <CreditCard size={16} />
@@ -328,13 +354,17 @@ export function PaymentRecoveryScreen() {
             </button>
 
             {selectedMethod !== "pix" && (
-              <button onClick={() => void createPayment()} disabled={isSubmitting} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 disabled:opacity-60" style={{ borderColor: "#bfd3ee", color: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
+              <button onClick={() => void createPayment()} disabled={paymentActionDisabled} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 disabled:opacity-60" style={{ borderColor: "#bfd3ee", color: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
                 <CheckCircle2 size={16} />
                 Tentar com {selectedMethodLabel}
               </button>
             )}
           </div>
         )}
+
+        <button onClick={openTracking} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3" style={{ borderColor: "#fecaca", color: "#b91c1c", backgroundColor: "#fff", fontSize: "13px", fontWeight: 800 }}>
+          Ver detalhes ou cancelar pedido
+        </button>
       </div>
     </div>
   );

@@ -7,8 +7,10 @@ import {
   getMercadoPagoCheckoutConfig,
   getStoredPayerData,
   getStoredPaymentSelection,
+  PayerDataForm,
   savePayerData,
   savePaymentSelection,
+  validatePayerData,
   type PaymentMethod,
   type PayerData,
 } from '@/features/payments';
@@ -216,6 +218,48 @@ function getCardPaymentTypeId(method: PaymentMethod): CardPaymentTypeId {
   return method === "cartao_debito" ? "debit_card" : "credit_card";
 }
 
+const debitPaymentMethodByBrand: Record<string, string> = {
+  visa: "debvisa",
+  mastercard: "debmaster",
+  master: "debmaster",
+  elo: "debelo",
+  cabal: "debcabal",
+};
+
+function getDebitPaymentMethodId(paymentMethod: MercadoPagoPaymentMethod) {
+  const id = paymentMethod.id.toLowerCase();
+  if (id.startsWith("deb") || id === "maestro") return paymentMethod.id;
+
+  const brand = getCardBrand(`${paymentMethod.id} ${paymentMethod.name || ""}`);
+  return brand ? debitPaymentMethodByBrand[brand] || "" : "";
+}
+
+function resolvePaymentMethodForSelection(
+  results: MercadoPagoPaymentMethod[],
+  selectedMethod: PaymentMethod,
+) {
+  const targetType = getCardPaymentTypeId(selectedMethod);
+  const exactMatch = results.find((result) => result.payment_type_id === targetType);
+  if (exactMatch) return { paymentMethod: exactMatch, inferredDebit: false };
+
+  const firstMethod = results[0] || null;
+  if (selectedMethod === "cartao_debito" && firstMethod) {
+    const debitPaymentMethodId = getDebitPaymentMethodId(firstMethod);
+    if (debitPaymentMethodId) {
+      return {
+        paymentMethod: {
+          ...firstMethod,
+          id: debitPaymentMethodId,
+          payment_type_id: "debit_card",
+        },
+        inferredDebit: true,
+      };
+    }
+  }
+
+  return { paymentMethod: firstMethod, inferredDebit: false };
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string" && error) return error;
@@ -313,7 +357,11 @@ export function PaymentScreen() {
       : methodOptions,
     [isProfilePaymentMethods],
   );
-  const confirmDisabled = isSubmitting || (isCardPayment && (!secureFieldsReady || Boolean(secureFieldsError)));
+  const payerValidation = validatePayerData(payer);
+  const confirmDisabled =
+    isSubmitting ||
+    !payerValidation.isValid ||
+    (isCardPayment && (!secureFieldsReady || Boolean(secureFieldsError)));
 
   useEffect(() => {
     let isActive = true;
@@ -356,28 +404,22 @@ export function PaymentScreen() {
     return () => window.clearTimeout(timeoutId);
   }, [isCardPayment, selected]);
 
-  const updatePayer = (field: keyof PayerData, value: string) => {
-    setPayer((prev) => ({ ...prev, [field]: value }));
-  };
-
   useEffect(() => {
     selectedRef.current = selected;
   }, [selected]);
 
   const validatePayer = () => {
-    if (!payer.payer_email || !payer.payer_first_name || !payer.payer_last_name) {
-      throw new Error("Informe nome, sobrenome e e-mail do pagador.");
+    const validation = validatePayerData(payer);
+    if (!validation.isValid) {
+      throw new Error(
+        validation.errors.full_name ||
+        validation.errors.payer_email ||
+        validation.errors.doc_number ||
+        "Revise os dados do pagador."
+      );
     }
 
-    const doc = onlyDigits(payer.doc_number);
-    if (payer.doc_type === "CPF" && doc.length !== 11) {
-      throw new Error("Informe um CPF com 11 dígitos.");
-    }
-    if (payer.doc_type === "CNPJ" && doc.length !== 14) {
-      throw new Error("Informe um CNPJ com 14 dígitos.");
-    }
-
-    return { ...payer, doc_number: doc };
+    return validation.data;
   };
 
   const resetCardMetadata = useCallback((message = "") => {
@@ -413,9 +455,7 @@ export function PaymentScreen() {
       const { results = [] } = await mp.getPaymentMethods({ bin: normalizedBin });
       if (metadataRequestRef.current !== requestId) return;
 
-      const paymentMethod =
-        results.find((result) => result.payment_type_id === targetType) ||
-        results[0];
+      const { paymentMethod, inferredDebit } = resolvePaymentMethodForSelection(results, selected);
 
       if (!paymentMethod?.id) {
         resetCardMetadata("Não foi possível identificar a bandeira do cartão.");
@@ -434,6 +474,7 @@ export function PaymentScreen() {
       if (securityCodeSettings) fields.securityCode.update?.({ settings: securityCodeSettings });
 
       setPaymentMethodId(paymentMethod.id);
+      setCardMetadataMessage(inferredDebit ? "Cartão configurado para débito à vista." : "");
 
       const needsIssuer = paymentMethod.additional_info_needed?.includes("issuer_id");
       const issuers = needsIssuer
@@ -713,21 +754,13 @@ export function PaymentScreen() {
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl p-4 shadow-sm mb-4" style={{ border: "1px solid #d9e4f2" }}>
-          <h2 style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }} className="mb-3">
-            Dados do pagador
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input className="rounded-xl border px-3 py-3 text-sm" placeholder="Nome" autoComplete="given-name" value={payer.payer_first_name} onChange={(e) => updatePayer("payer_first_name", e.target.value)} />
-            <input className="rounded-xl border px-3 py-3 text-sm" placeholder="Sobrenome" autoComplete="family-name" value={payer.payer_last_name} onChange={(e) => updatePayer("payer_last_name", e.target.value)} />
-            <input className="rounded-xl border px-3 py-3 text-sm md:col-span-2" placeholder="E-mail" autoComplete="email" value={payer.payer_email} onChange={(e) => updatePayer("payer_email", e.target.value)} />
-            <select className="rounded-xl border px-3 py-3 text-sm" value={payer.doc_type} onChange={(e) => updatePayer("doc_type", e.target.value as "CPF" | "CNPJ")}>
-              <option value="CPF">CPF</option>
-              <option value="CNPJ">CNPJ</option>
-            </select>
-            <input className="rounded-xl border px-3 py-3 text-sm" placeholder="Documento" inputMode="numeric" autoComplete="off" value={payer.doc_number} onChange={(e) => updatePayer("doc_number", onlyDigits(e.target.value).slice(0, payer.doc_type === "CPF" ? 11 : 14))} />
-          </div>
+        <div className="mb-4">
+          <PayerDataForm
+            value={payer}
+            onChange={setPayer}
+            primaryColor={primaryColor}
+            description={isCardPayment ? "Usado para validar o cartão com segurança." : "Usado para emitir e acompanhar o pagamento."}
+          />
         </div>
 
         {isCardPayment && (
@@ -950,6 +983,8 @@ export function PaymentScreen() {
         >
           {isSubmitting
             ? isProfilePaymentMethods ? "Salvando..." : "Validando..."
+            : !payerValidation.isValid
+              ? "Complete os dados do pagador"
             : isCardPayment && !secureFieldsReady
               ? "Carregando cartão seguro..."
               : isProfilePaymentMethods ? "Salvar cartão" : "Usar esta forma de pagamento"}

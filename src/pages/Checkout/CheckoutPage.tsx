@@ -39,6 +39,7 @@ import {
   getStoredPaymentSelection,
   refreshPaymentById,
   resolvePixExpiration,
+  validatePayerData,
   type MercadoPagoPaymentResult,
   type PayerData,
 } from '@/features/payments';
@@ -199,12 +200,14 @@ export function CheckoutPage() {
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
   const paymentSelection = getStoredPaymentSelection();
   const storedPayerData = getStoredPayerData();
-  const hasPayerData = Boolean(
-    storedPayerData.payer_email &&
-    storedPayerData.payer_first_name &&
-    storedPayerData.payer_last_name &&
-    storedPayerData.doc_number
-  );
+  const payerValidation = validatePayerData(storedPayerData);
+  const hasPayerData = payerValidation.isValid;
+  const payerStatusMessage = hasPayerData
+    ? "Dados do pagador confirmados"
+    : payerValidation.errors.full_name ||
+      payerValidation.errors.payer_email ||
+      payerValidation.errors.doc_number ||
+      "Complete os dados do pagador";
   const paymentLabel =
     paymentSelection.method === 'pix'
       ? 'PIX'
@@ -308,18 +311,18 @@ export function CheckoutPage() {
 
   const resolvePayerData = (): PayerData => {
     const payer = getStoredPayerData();
+    const validation = validatePayerData(payer);
 
-    if (!payer.payer_email || !payer.payer_first_name || !payer.payer_last_name || !payer.doc_number) {
-      throw new Error('Confirme os dados do pagador antes de finalizar.');
+    if (!validation.isValid) {
+      throw new Error(
+        validation.errors.full_name ||
+        validation.errors.payer_email ||
+        validation.errors.doc_number ||
+        'Confirme os dados do pagador antes de finalizar.'
+      );
     }
 
-    return {
-      payer_email: payer.payer_email,
-      payer_first_name: payer.payer_first_name,
-      payer_last_name: payer.payer_last_name,
-      doc_type: payer.doc_type || 'CPF',
-      doc_number: String(payer.doc_number).replace(/\D/g, ''),
-    };
+    return validation.data;
   };
 
   const saveConfirmedOrder = useCallback((order: PendingCheckoutOrder, result: MercadoPagoPaymentResult) => {
@@ -359,6 +362,14 @@ export function CheckoutPage() {
         ? `${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(pendingOrderId)}`
         : tenantPath("payment")
     );
+  };
+
+  const openPaymentScreen = () => {
+    navigate(tenantPath("payment"), {
+      state: {
+        redirectTo: `${location.pathname}${location.search}${location.hash}`,
+      },
+    });
   };
 
   const handleCopyPixCode = async () => {
@@ -529,6 +540,12 @@ export function CheckoutPage() {
       return;
     }
 
+    if (!hasPayerData) {
+      showSystemNotice('Complete os dados do pagador para continuar.');
+      openPaymentScreen();
+      return;
+    }
+
     setIsSubmitting(true);
     setPixStatus('idle');
     setPixCodeCopied(false);
@@ -617,7 +634,7 @@ export function CheckoutPage() {
         {/* Itens */}
         <div
           className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-          style={{ border: `1px solid ${hasPayerData ? "#bbf7d0" : "#fde68a"}` }}
+          style={{ border: "1px solid #d9e4f2" }}
         >
           <h3
             style={{
@@ -846,7 +863,7 @@ export function CheckoutPage() {
         {/* Pagamento */}
         <div
           className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: `1px solid ${hasPayerData ? "#bbf7d0" : "#fde68a"}` }}
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -863,14 +880,14 @@ export function CheckoutPage() {
             </div>
 
             <button
-              onClick={() => navigate(tenantPath("payment"))}
+              onClick={openPaymentScreen}
               style={{
                 fontSize: "12px",
                 color: "#122a4c",
                 fontWeight: 600,
               }}
             >
-              Alterar
+              {hasPayerData ? "Alterar" : "Completar"}
             </button>
           </div>
 
@@ -893,7 +910,7 @@ export function CheckoutPage() {
                   fontWeight: 600,
                 }}
               >
-                {hasPayerData ? "Dados do pagador confirmados" : "Confirme os dados do pagador"}
+                {payerStatusMessage}
               </p>
             </div>
             {hasPayerData ? (

@@ -14,6 +14,8 @@ export interface PayerData {
   doc_number: string;
 }
 
+export type PayerValidationErrors = Partial<Record<keyof PayerData | 'full_name', string>>;
+
 export interface StoredPaymentSelection {
   method: PaymentMethod;
   card_token?: string;
@@ -81,6 +83,58 @@ export function resolvePixExpiration(
     : appExpiration;
 
   return new Date(expiration).toISOString();
+}
+
+export function onlyDigits(value: string | number | null | undefined) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+export function splitPayerFullName(name?: string) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || '',
+    lastName: parts.length > 1 ? parts.slice(1).join(' ') : '',
+  };
+}
+
+export function getPayerFullName(payer: Partial<PayerData>) {
+  return [payer.payer_first_name, payer.payer_last_name].filter(Boolean).join(' ').trim();
+}
+
+export function normalizePayerData(payer: Partial<PayerData>): PayerData {
+  return {
+    payer_email: String(payer.payer_email || '').trim(),
+    payer_first_name: String(payer.payer_first_name || '').trim(),
+    payer_last_name: String(payer.payer_last_name || '').trim(),
+    doc_type: payer.doc_type === 'CNPJ' ? 'CNPJ' : 'CPF',
+    doc_number: onlyDigits(payer.doc_number),
+  };
+}
+
+export function validatePayerData(payer: Partial<PayerData>) {
+  const data = normalizePayerData(payer);
+  const errors: PayerValidationErrors = {};
+  const fullName = getPayerFullName(data);
+  const expectedDocumentLength = data.doc_type === 'CPF' ? 11 : 14;
+
+  if (!data.payer_first_name || !data.payer_last_name) {
+    errors.full_name = 'Informe nome e sobrenome.';
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.payer_email)) {
+    errors.payer_email = 'Informe um e-mail válido.';
+  }
+
+  if (data.doc_number.length !== expectedDocumentLength) {
+    errors.doc_number = `Informe um ${data.doc_type} com ${expectedDocumentLength} dígitos.`;
+  }
+
+  return {
+    data,
+    errors,
+    fullName,
+    isValid: Object.keys(errors).length === 0,
+  };
 }
 
 function readJson<T>(key: string, fallback: T): T {

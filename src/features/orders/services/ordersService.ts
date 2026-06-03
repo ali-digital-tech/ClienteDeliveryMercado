@@ -313,7 +313,7 @@ function mapOrder(order: ApiOrder): Order {
     date: formatDate(order.realizado_em || order.criado_em),
     createdAt: order.realizado_em || order.criado_em || null,
     scheduledFor: order.agendado_para || null,
-    confirmedAt: order.confirmado_em || null,
+    confirmedAt: order.confirmado_em || getStatusTime(order, 'confirmado'),
     separationAt: order.em_separacao_em || order.separacao_em || getStatusTime(order, 'em_separacao', 'preparando'),
     readyAt: order.pronto_em || getStatusTime(order, 'pronto'),
     outForDeliveryAt: order.saiu_para_entrega_em || order.entrega?.saiu_para_entrega_em || getStatusTime(order, 'saiu_para_entrega', 'saiu_entrega', 'em_entrega'),

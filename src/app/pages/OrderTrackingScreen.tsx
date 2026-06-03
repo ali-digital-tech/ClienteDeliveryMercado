@@ -117,30 +117,6 @@ function buildSteps(order: Order): ProgressStep[] {
   const isPickup = order.type === "pickup";
   const isNotDelivered = order.status === "nao_entregue";
 
-  if (order.status === "cancelado") {
-    return [
-      {
-        id: "recebido",
-        label: "Pedido recebido",
-        desc: "Pedido registrado no sistema",
-        time: formatDateTime(order.createdAt),
-        icon: Package,
-        done: true,
-        active: false,
-      },
-      {
-        id: "cancelado",
-        label: "Pedido cancelado",
-        desc: "Pedido cancelado",
-        time: formatDateTime(order.canceledAt),
-        icon: CircleX,
-        done: false,
-        active: true,
-        failed: true,
-      },
-    ];
-  }
-
   const definitions = [
     {
       id: "recebido",
@@ -188,6 +164,35 @@ function buildSteps(order: Order): ProgressStep[] {
       failed: isNotDelivered,
     },
   ];
+
+  if (order.status === "cancelado") {
+    const terminalStepIds = new Set(["entregue", "nao_entregue"]);
+    const lastReachedIndex = definitions.reduce((lastIndex, step, index) => {
+      if (terminalStepIds.has(step.id)) return lastIndex;
+      if (index === 0 || step.time !== "--") return index;
+      return lastIndex;
+    }, 0);
+
+    return [
+      ...definitions.slice(0, lastReachedIndex + 1).map((step) => ({
+        ...step,
+        done: true,
+        active: false,
+        failed: false,
+      })),
+      {
+        id: "cancelado",
+        label: "Pedido cancelado",
+        desc: "Pedido cancelado",
+        time: formatDateTime(order.canceledAt),
+        icon: CircleX,
+        done: false,
+        active: true,
+        failed: true,
+      },
+    ];
+  }
+
   const currentStepId = order.status === "pendente" ? "recebido" : order.status;
   const currentIndex = Math.max(definitions.findIndex((step) => step.id === currentStepId), 0);
 
@@ -387,14 +392,6 @@ export function OrderTrackingScreen() {
     );
   }
 
-  if (!selectedOrder.isPaid) {
-    return (
-      <div className="flex-1 flex items-center justify-center" style={{ background: "#f8fafc" }}>
-        <Loader2 className="animate-spin" size={28} color="#122a4c" />
-      </div>
-    );
-  }
-
   const defaultStatus = statusConfig[selectedOrder.status] ?? statusConfig.recebido;
   const status = selectedOrder.type === "pickup" && selectedOrder.status === "entregue"
     ? { ...defaultStatus, label: "Retirado" }
@@ -407,6 +404,7 @@ export function OrderTrackingScreen() {
   const assignedVehicle = selectedOrder.type === "delivery" ? formatVehicle(selectedOrder) : null;
   const deliveryFailureReason = selectedOrder.deliveryInfo?.failureReason || "";
   const cancellationRequest = selectedOrder.cancellationRequest;
+  const isPaymentPending = !selectedOrder.isPaid;
   const canRequestCancellation = !cancellationRequest
     && ["recebido", "confirmado", "separacao"].includes(selectedOrder.status);
   const isSeparationCancellation = selectedOrder.status === "separacao";
@@ -875,7 +873,7 @@ export function OrderTrackingScreen() {
           <div className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "#eef4fb" }}>
             <CreditCard size={15} color="#122a4c" />
             <p style={{ fontSize: "11px", color: "#1b3d6d", fontWeight: 600 }}>
-              Pagamento registrado com segurança.
+              {isPaymentPending ? "Pagamento aguardando confirmação." : "Pagamento registrado com segurança."}
             </p>
           </div>
         </div>
@@ -903,7 +901,9 @@ export function OrderTrackingScreen() {
               <p className="text-sm leading-relaxed text-gray-700">
                 {isSeparationCancellation
                   ? SEPARATION_CANCELLATION_NOTICE
-                  : "Deseja cancelar este pedido? O valor pago será estornado integralmente."}
+                  : isPaymentPending
+                    ? "Deseja cancelar este pedido? Como o pagamento ainda não foi aprovado, não será necessário processar estorno."
+                    : "Deseja cancelar este pedido? O valor pago será estornado integralmente."}
               </p>
               <div className="mt-5 flex justify-end gap-3">
                 <button
