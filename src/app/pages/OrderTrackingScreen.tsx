@@ -26,7 +26,9 @@ import { ProductImage } from "@/features/products";
 import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
 import { formatBrasiliaDate } from "@/shared/lib/dateTime";
 
-const SEPARATION_CANCELLATION_NOTICE = "Por se tratar de comércio de alimentos e produtos perecíveis, cancelamentos sem custo só serão aceitos até o status 'Pagamento Confirmado'. Após o início da separação (status 'Em Separação'), o estabelecimento reserva-se o direito de reter o valor dos produtos perecíveis manipulados e a taxa de separação, devido à impossibilidade de recondicionamento dos itens.";
+const REVIEW_CANCELLATION_NOTICE = "Por se tratar de comércio de alimentos e produtos perecíveis, cancelamentos sem custo só serão aceitos até o status 'Pagamento Confirmado'. Após o início da separação, o estabelecimento analisará a solicitação e poderá reter o valor dos produtos perecíveis manipulados, taxa de separação ou custos operacionais já realizados.";
+const CUSTOMER_CANCELABLE_STATUSES = new Set<Order["status"]>(["pendente", "recebido", "confirmado", "separacao", "pronto", "saiu"]);
+const REVIEW_CANCELLATION_STATUSES = new Set<Order["status"]>(["separacao", "pronto", "saiu"]);
 
 const statusConfig: Record<Order["status"], { label: string; color: string; bg: string }> = {
   pendente: { label: "Pendente", color: "#92400e", bg: "#fffbeb" },
@@ -406,8 +408,8 @@ export function OrderTrackingScreen() {
   const cancellationRequest = selectedOrder.cancellationRequest;
   const isPaymentPending = !selectedOrder.isPaid;
   const canRequestCancellation = !cancellationRequest
-    && ["recebido", "confirmado", "separacao"].includes(selectedOrder.status);
-  const isSeparationCancellation = selectedOrder.status === "separacao";
+    && CUSTOMER_CANCELABLE_STATUSES.has(selectedOrder.status);
+  const isReviewCancellation = REVIEW_CANCELLATION_STATUSES.has(selectedOrder.status);
   const marketWhatsappUrl = buildWhatsappUrl(
     currentMarket.whatsappSupport || currentMarket.phone,
     `Olá, ${currentMarket.name}! Preciso de ajuda com o pedido ${formatOrderCode(selectedOrder)}, que consta como não entregue.`,
@@ -884,7 +886,7 @@ export function OrderTrackingScreen() {
             className="mt-4 w-full rounded-2xl border px-4 py-3"
             style={{ borderColor: "#fecaca", color: "#b91c1c", backgroundColor: "#fff", fontSize: "14px", fontWeight: 800 }}
           >
-            Cancelar pedido
+            {isReviewCancellation ? "Solicitar cancelamento" : "Cancelar pedido"}
           </button>
         )}
       </div>
@@ -894,13 +896,13 @@ export function OrderTrackingScreen() {
           <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="border-b border-gray-100 px-5 py-4">
               <h3 className="font-bold text-gray-800">
-                {isSeparationCancellation ? "Solicitar cancelamento" : "Cancelar pedido"}
+                {isReviewCancellation ? "Solicitar cancelamento" : "Cancelar pedido"}
               </h3>
             </div>
             <div className="p-5">
               <p className="text-sm leading-relaxed text-gray-700">
-                {isSeparationCancellation
-                  ? SEPARATION_CANCELLATION_NOTICE
+                {isReviewCancellation
+                  ? REVIEW_CANCELLATION_NOTICE
                   : isPaymentPending
                     ? "Deseja cancelar este pedido? Como o pagamento ainda não foi aprovado, não será necessário processar estorno."
                     : "Deseja cancelar este pedido? O valor pago será estornado integralmente."}
@@ -920,7 +922,7 @@ export function OrderTrackingScreen() {
                   style={{ backgroundColor: "#b91c1c" }}
                 >
                   {isRequestingCancellation && <Loader2 className="animate-spin" size={14} />}
-                  {isSeparationCancellation ? "Enviar solicitação" : "Cancelar pedido"}
+                  {isReviewCancellation ? "Enviar solicitação" : "Cancelar pedido"}
                 </button>
               </div>
             </div>

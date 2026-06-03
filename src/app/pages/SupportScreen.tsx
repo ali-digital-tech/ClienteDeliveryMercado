@@ -26,7 +26,7 @@ const faqs = [
   },
   {
     q: "Como cancelo um pedido?",
-    a: "Abra Meus pedidos, selecione a compra e toque em Cancelar pedido. Antes do início da separação, o cancelamento é processado com estorno integral. Se a separação já começou, a solicitação será analisada pelo mercado e poderá ter retenção de valores. Quando o botão não estiver disponível, fale com o mercado pelo suporte.",
+    a: "Abra Meus pedidos, selecione a compra e toque em Cancelar pedido. Até o pedido confirmado, o cancelamento é processado com estorno integral quando houver pagamento aprovado. Depois que a separação começou, a solicitação será analisada pelo mercado e poderá ter retenção de valores. Se o pedido já estiver finalizado ou o botão não aparecer, fale com o mercado pelo suporte.",
   },
   {
     q: "Como altero meu endereço de entrega?",
