@@ -52,7 +52,7 @@ export interface Order {
 export const markets: Market[] = [
   {
     id: '12',
-    name: 'FrescaMart Centro',
+    name: 'Mercado Centro',
     description: 'Supermercado completo com foco em hortifruti e padaria.',
     neighborhood: 'Centro',
     deliveryEstimate: '35-45 min',

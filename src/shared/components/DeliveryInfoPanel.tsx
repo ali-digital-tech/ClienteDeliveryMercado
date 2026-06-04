@@ -1,6 +1,9 @@
 import { Clock, Star, Truck, Shield, Leaf } from 'lucide-react';
+import { useApp } from '@/app/providers/AppProvider';
 
 export function DeliveryInfoPanel() {
+  const { currentMarket } = useApp();
+
   return (
     <div className="w-full flex flex-col gap-4">
       {/* Delivery info card */}
@@ -23,7 +26,9 @@ export function DeliveryInfoPanel() {
 
       {/* Stats */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100">
-        <p className="mb-3" style={{ fontSize: '12px', fontWeight: 700, color: '#374151' }}>Por que escolher a FrescaMart?</p>
+        <p className="mb-3" style={{ fontSize: '12px', fontWeight: 700, color: '#374151' }}>
+          Por que escolher {currentMarket.name}?
+        </p>
         <div className="flex flex-col gap-3">
           {[
             { icon: Star, color: '#f59e0b', text: 'Produtos frescos e selecionados' },

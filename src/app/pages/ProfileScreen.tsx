@@ -28,7 +28,12 @@ const menuItems = [
 
 export function ProfileScreen() {
   const navigate = useNavigate();
-  const { logout, orders, favorites, tenantPath, currentUser, isLoggedIn } = useApp();
+  const { logout, orders, favorites, tenantPath, currentMarket, currentUser, isLoggedIn } = useApp();
+  const appVersion = import.meta.env.VITE_APP_VERSION?.trim();
+  const footerParts = [
+    currentMarket.name,
+    appVersion ? `v${appVersion}` : null,
+  ].filter(Boolean);
 
   const handleLogout = () => {
     logout();
@@ -157,9 +162,28 @@ export function ProfileScreen() {
           </span>
         </button>
 
-        <p className="mt-4 pb-2 text-center" style={{ fontSize: "11px", color: "#94a3b8" }}>
-          FrescaMart v2.1.0 · Termos de uso · Privacidade
-        </p>
+        <div
+          className="mt-4 pb-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center"
+          style={{ fontSize: "11px", color: "#94a3b8" }}
+        >
+          <span>{footerParts.join(" ")}</span>
+          <span aria-hidden="true">·</span>
+          <button
+            type="button"
+            onClick={() => navigate(tenantPath("privacy/terms"))}
+            className="underline-offset-2 active:text-slate-600"
+          >
+            Termos de uso
+          </button>
+          <span aria-hidden="true">·</span>
+          <button
+            type="button"
+            onClick={() => navigate(tenantPath("privacy/policy"))}
+            className="underline-offset-2 active:text-slate-600"
+          >
+            Privacidade
+          </button>
+        </div>
       </div>
 
       <BottomNav />

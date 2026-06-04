@@ -1,8 +1,21 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, FileText } from "lucide-react";
 import { useApp } from "@/app/providers/AppProvider";
 import { fetchPublishedLegalDocument, type LegalDocument } from "@/features/legalDocuments";
+
+const DOCUMENT_CONFIG = {
+  policy: {
+    documentKey: "privacy-policy",
+    title: "Política de Privacidade",
+    unpublishedMessage: "A Política de Privacidade ainda não foi publicada.",
+  },
+  terms: {
+    documentKey: "terms-of-use",
+    title: "Termos de Uso",
+    unpublishedMessage: "Os Termos de Uso ainda não foram publicados.",
+  },
+} as const;
 
 function formatDate(value?: string | null) {
   if (!value) return "";
@@ -88,17 +101,19 @@ function MarkdownBlock({ content }: { content: string }) {
 
 export function LegalDocumentScreen() {
   const navigate = useNavigate();
+  const { documentSlug } = useParams();
   const { currentMarket } = useApp();
   const [document, setDocument] = useState<LegalDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const primaryColor = currentMarket.primaryColor || "#122a4c";
+  const documentConfig = documentSlug === "terms" ? DOCUMENT_CONFIG.terms : DOCUMENT_CONFIG.policy;
 
   useEffect(() => {
     let isActive = true;
     setLoading(true);
 
-    fetchPublishedLegalDocument("privacy-policy")
+    fetchPublishedLegalDocument(documentConfig.documentKey)
       .then((publishedDocument) => {
         if (!isActive) return;
         setDocument(publishedDocument);
@@ -106,7 +121,8 @@ export function LegalDocumentScreen() {
       })
       .catch(() => {
         if (!isActive) return;
-        setError("A Política de Privacidade ainda não foi publicada.");
+        setDocument(null);
+        setError(documentConfig.unpublishedMessage);
       })
       .finally(() => {
         if (isActive) setLoading(false);
@@ -115,7 +131,7 @@ export function LegalDocumentScreen() {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [documentConfig.documentKey, documentConfig.unpublishedMessage]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#f8fafc" }}>
@@ -133,7 +149,7 @@ export function LegalDocumentScreen() {
         <div className="flex items-center gap-2">
           <FileText size={20} color="white" />
           <h1 className="text-white" style={{ fontSize: "18px", fontWeight: 800 }}>
-            Política de Privacidade
+            {documentConfig.title}
           </h1>
         </div>
       </div>
@@ -141,7 +157,7 @@ export function LegalDocumentScreen() {
       <main className="flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto max-w-3xl rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
           {loading ? (
-            <p className="text-sm text-slate-500">Carregando política...</p>
+            <p className="text-sm text-slate-500">Carregando documento...</p>
           ) : error ? (
             <p className="text-sm text-red-600">{error}</p>
           ) : document ? (
