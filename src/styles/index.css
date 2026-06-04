@@ -26,6 +26,16 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+}
+
 .product-fade-in {
   animation: productFadeIn 240ms ease-out both;
 }
