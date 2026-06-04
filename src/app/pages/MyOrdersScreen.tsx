@@ -62,6 +62,13 @@ const statusConfig: Record<Order["status"], { label: string; color: string; bg: 
   },
 };
 
+type CompactTimelineState = "done" | "active" | "upcoming" | "failed";
+
+type CompactTimelineStep = {
+  label: string;
+  state: CompactTimelineState;
+};
+
 function formatCurrency(value: number | undefined) {
   return `R$ ${(value || 0).toFixed(2).replace(".", ",")}`;
 }
@@ -84,6 +91,119 @@ function hasValidPixPayment(order: Order) {
       && ["pendente", "em_processamento"].includes(payment.status)
       && payment.expiresAt
       && new Date(payment.expiresAt).getTime() > Date.now(),
+  );
+}
+
+function getReachedCompactStepIndex(order: Order) {
+  if (!order.isPaid) return 0;
+  if (order.status === "entregue" || order.status === "nao_entregue" || order.deliveredAt || order.deliveryInfo?.failedAt) return 4;
+  if (order.status === "pronto" || order.status === "saiu" || order.readyAt || order.outForDeliveryAt || order.deliveryInfo?.outForDeliveryAt) return 3;
+  if (order.status === "separacao" || order.separationAt) return 2;
+  if (order.status === "confirmado" || order.confirmedAt) return 1;
+  return 0;
+}
+
+function getCompactTimelineSteps(order: Order): CompactTimelineStep[] {
+  const isPickup = order.type === "pickup";
+  const paymentPending = !order.isPaid;
+  const baseLabels = paymentPending
+    ? ["Pagamento", "Recebido", "Separação", isPickup ? "Pronto" : "Envio", isPickup ? "Retirado" : "Entregue"]
+    : ["Recebido", "Confirmado", "Separação", isPickup ? "Pronto" : "Envio", isPickup ? "Retirado" : "Entregue"];
+
+  if (order.status === "nao_entregue") {
+    return baseLabels.map((label, index) => ({
+      label: index === baseLabels.length - 1 ? "Não entregue" : label,
+      state: index === baseLabels.length - 1 ? "failed" : "done",
+    }));
+  }
+
+  if (order.status === "cancelado") {
+    const reachedIndex = getReachedCompactStepIndex(order);
+    const cancelIndex = Math.min(Math.max(reachedIndex + 1, 1), baseLabels.length - 1);
+
+    return baseLabels.slice(0, cancelIndex + 1).map((label, index) => ({
+      label: index === cancelIndex ? "Cancelado" : label,
+      state: index < cancelIndex ? "done" : "failed",
+    }));
+  }
+
+  const currentIndex = getReachedCompactStepIndex(order);
+
+  return baseLabels.map((label, index) => ({
+    label,
+    state: index < currentIndex || order.status === "entregue" ? "done" : index === currentIndex ? "active" : "upcoming",
+  }));
+}
+
+function getTimelineTone(state: CompactTimelineState) {
+  if (state === "done") return { dot: "#122a4c", line: "#c7d7ee", text: "#334155", bg: "#122a4c" };
+  if (state === "active") return { dot: "#2f5b93", line: "#c7d7ee", text: "#1b3d6d", bg: "#eef4fb" };
+  if (state === "failed") return { dot: "#dc2626", line: "#fecaca", text: "#b91c1c", bg: "#fef2f2" };
+  return { dot: "#cbd5e1", line: "#e2e8f0", text: "#94a3b8", bg: "#f8fafc" };
+}
+
+function CompactOrderTimeline({ order }: { order: Order }) {
+  const steps = getCompactTimelineSteps(order);
+  const currentStep = steps.find((step) => step.state === "active" || step.state === "failed")
+    || steps[steps.length - 1];
+
+  return (
+    <div
+      className="mt-3 rounded-xl px-3 py-2.5"
+      style={{ backgroundColor: "#f8fafc", border: "1px solid #eef2f7" }}
+      aria-label={`Progresso do pedido: ${currentStep?.label || "Recebido"}`}
+    >
+      <div className="flex items-start">
+        {steps.map((step, index) => {
+          const tone = getTimelineTone(step.state);
+          const nextTone = steps[index + 1] ? getTimelineTone(steps[index + 1].state) : tone;
+          const isCurrent = step.state === "active" || step.state === "failed";
+
+          return (
+            <div key={`${step.label}-${index}`} className="flex min-w-0 flex-1 flex-col items-center">
+              <div className="flex w-full items-center">
+                <div
+                  className="h-px flex-1"
+                  style={{ backgroundColor: index === 0 ? "transparent" : tone.line }}
+                />
+                <div
+                  className="flex flex-shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    width: isCurrent ? "12px" : "9px",
+                    height: isCurrent ? "12px" : "9px",
+                    backgroundColor: isCurrent ? tone.bg : tone.dot,
+                    border: isCurrent ? `2px solid ${tone.dot}` : "none",
+                    boxShadow: step.state === "active" ? "0 0 0 4px rgba(47,91,147,0.08)" : "none",
+                  }}
+                >
+                  {step.state === "done" && (
+                    <div className="rounded-full bg-white" style={{ width: "3px", height: "3px" }} />
+                  )}
+                </div>
+                <div
+                  className="h-px flex-1"
+                  style={{ backgroundColor: index === steps.length - 1 ? "transparent" : nextTone.line }}
+                />
+              </div>
+              <span
+                className="mt-1 min-w-0 text-center"
+                style={{
+                  maxWidth: "58px",
+                  minHeight: "22px",
+                  fontSize: "10px",
+                  lineHeight: 1.1,
+                  fontWeight: isCurrent ? 700 : 600,
+                  color: tone.text,
+                  overflowWrap: "break-word",
+                }}
+              >
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -417,6 +537,8 @@ export function MyOrdersScreen() {
                         </span>
                       )}
                     </div>
+
+                    <CompactOrderTimeline order={order} />
                   </div>
 
                   <div className="px-4 pb-4 flex items-center justify-between gap-3">
