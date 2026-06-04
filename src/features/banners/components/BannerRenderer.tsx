@@ -14,26 +14,31 @@ interface BannerRendererProps {
 
 const viewed = new Set<string>();
 
+const getBannerPlacements = (banner: Banner) => (
+  banner.placement_keys?.length ? banner.placement_keys : [banner.placement_key]
+);
+
 export function BannerRenderer({ banners, placement, page, className = '' }: BannerRendererProps) {
   const navigate = useNavigate();
   const { marketId, tenantPath } = useApp();
   const [dismissedModals, setDismissedModals] = useState<Record<string, boolean>>({});
 
   const visible = useMemo(
-    () => banners.filter((banner) => banner.placement_key === placement),
+    () => banners.filter((banner) => getBannerPlacements(banner).includes(placement)),
     [banners, placement],
   );
 
   useEffect(() => {
     visible.forEach((banner) => {
-      if (viewed.has(banner.id)) return;
-      viewed.add(banner.id);
-      trackBannerEvent(marketId, banner.id, 'view', page);
+      const viewKey = `${marketId}:${page}:${placement}:${banner.id}`;
+      if (viewed.has(viewKey)) return;
+      viewed.add(viewKey);
+      trackBannerEvent(marketId, banner.id, 'view', page, { placement_key: placement });
     });
-  }, [marketId, page, visible]);
+  }, [marketId, page, placement, visible]);
 
   const openBanner = (banner: Banner) => {
-    trackBannerEvent(marketId, banner.id, 'click', page);
+    trackBannerEvent(marketId, banner.id, 'click', page, { placement_key: placement });
     navigate(`${tenantPath('produtos')}?banner=${encodeURIComponent(banner.id)}`);
   };
 

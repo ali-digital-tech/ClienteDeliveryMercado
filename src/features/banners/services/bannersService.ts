@@ -74,11 +74,17 @@ export async function getBannerProducts(marketId: string, bannerId: string): Pro
   };
 }
 
-export async function trackBannerEvent(marketId: string, bannerId: string, tipo: 'view' | 'click', page_key?: BannerPageKey) {
+export async function trackBannerEvent(
+  marketId: string,
+  bannerId: string,
+  tipo: 'view' | 'click',
+  page_key?: BannerPageKey,
+  metadata: Record<string, unknown> = {},
+) {
   try {
     await apiRequest(`/lojas/${marketId}/banners/${bannerId}/eventos`, {
       method: 'POST',
-      body: { tipo, page_key },
+      body: { tipo, page_key, metadata },
     });
   } catch {
     // Metrics must not block shopping flows.
