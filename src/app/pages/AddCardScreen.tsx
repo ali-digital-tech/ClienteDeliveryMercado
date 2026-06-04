@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { CheckCircle2, ChevronLeft, CreditCard, Lock, Plus, QrCode, ShieldCheck, Trash2 } from "lucide-react";
 import { useApp } from "@/app/providers/AppProvider";
@@ -8,6 +8,7 @@ import {
   removeCustomerPaymentCard,
   savePaymentSelection,
   selectionFromSavedCard,
+  setPrincipalCustomerPaymentCard,
   type PaymentMethod,
   type SavedPaymentCard,
   type StoredPaymentSelection,
@@ -36,49 +37,49 @@ export function AddCardScreen() {
   const [selection, setSelection] = useState<StoredPaymentSelection>(() => getStoredPaymentSelection());
   const [savedCards, setSavedCards] = useState<SavedPaymentCard[]>([]);
   const [isLoadingCards, setIsLoadingCards] = useState(true);
-  const [isRemovingCard, setIsRemovingCard] = useState(false);
-  const savedCard = savedCards.find((card) => card.principal) || savedCards[0] || null;
-  const savedCardLastFour = savedCard?.ultimos_quatro || "";
-  const savedCardHolder = savedCard?.nome_impresso || "Cartão cadastrado";
-  const savedCardPaymentMethodId = savedCard?.payment_method_id;
-  const savedCardMethod = savedCard?.forma_pagamento;
+  const [processingCardId, setProcessingCardId] = useState("");
+  const principalCard = savedCards.find((card) => card.principal) || savedCards[0] || null;
 
-  useEffect(() => {
-    let active = true;
+  const syncStoredSelection = useCallback((cards: SavedPaymentCard[]) => {
+    const hasSelectedCard = selection.saved_card_id
+      ? cards.some((card) => card.id === selection.saved_card_id)
+      : false;
+
+    if (cards.length === 0 && selection.saved_card_id) {
+      const nextSelection: StoredPaymentSelection = { method: "pix" };
+      setSelection(nextSelection);
+      savePaymentSelection(nextSelection);
+      return;
+    }
+
+    if (selection.saved_card_id && !hasSelectedCard) {
+      const fallbackCard = cards.find((card) => card.principal) || cards[0] || null;
+      const nextSelection = fallbackCard ? selectionFromSavedCard(fallbackCard) : { method: "pix" as const };
+      setSelection(nextSelection);
+      savePaymentSelection(nextSelection);
+    }
+  }, [selection.saved_card_id]);
+
+  const loadSavedCards = useCallback(async () => {
     setIsLoadingCards(true);
 
-    getSavedPaymentCards(marketId)
-      .then((cards) => {
-        if (!active) return;
-        setSavedCards(cards);
-        const defaultCard = cards.find((card) => card.principal) || cards[0] || null;
-        if (defaultCard) {
-          const nextSelection = selectionFromSavedCard(defaultCard);
-          setSelection(nextSelection);
-          savePaymentSelection(nextSelection);
-          return;
-        }
+    try {
+      const cards = await getSavedPaymentCards(marketId);
+      setSavedCards(cards);
+      syncStoredSelection(cards);
+    } catch (error) {
+      console.error("Erro ao carregar cartões salvos:", error);
+    } finally {
+      setIsLoadingCards(false);
+    }
+  }, [marketId, syncStoredSelection]);
 
-        if (selection.saved_card_id) {
-          const nextSelection: StoredPaymentSelection = { method: "pix" };
-          setSelection(nextSelection);
-          savePaymentSelection(nextSelection);
-        }
-      })
-      .catch((error) => {
-        console.error("Erro ao carregar cartões salvos:", error);
-      })
-      .finally(() => {
-        if (active) setIsLoadingCards(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [marketId, selection.saved_card_id]);
+  useEffect(() => {
+    void loadSavedCards();
+  }, [loadSavedCards]);
 
   const openCardForm = () => {
-    const initialMethod = savedCard?.forma_pagamento === "cartao_debito" ? "cartao_debito" : "cartao_credito";
+    const initialMethod = principalCard?.forma_pagamento === "cartao_debito" ? "cartao_debito" : "cartao_credito";
 
     navigate(tenantPath("payment"), {
       state: {
@@ -89,21 +90,41 @@ export function AddCardScreen() {
     });
   };
 
-  const removeCard = async () => {
-    if (!savedCard) return;
+  const makePrincipal = async (card: SavedPaymentCard) => {
+    if (card.principal) return;
 
-    setIsRemovingCard(true);
+    setProcessingCardId(card.id);
     try {
-      await removeCustomerPaymentCard(savedCard.id);
-      const nextSelection: StoredPaymentSelection = { method: "pix" };
+      const updatedCard = await setPrincipalCustomerPaymentCard(card.id);
+      const nextSelection = selectionFromSavedCard(updatedCard);
       savePaymentSelection(nextSelection);
       setSelection(nextSelection);
-      setSavedCards([]);
+      await loadSavedCards();
+      showSystemNotice("Cartão principal atualizado.", "Cartão principal");
+    } catch (error) {
+      showSystemNotice(error || "Não foi possível definir o cartão principal.");
+    } finally {
+      setProcessingCardId("");
+    }
+  };
+
+  const removeCard = async (card: SavedPaymentCard) => {
+    setProcessingCardId(card.id);
+
+    try {
+      await removeCustomerPaymentCard(card.id);
+      const remainingCards = await getSavedPaymentCards(marketId);
+      setSavedCards(remainingCards);
+
+      const fallbackCard = remainingCards.find((item) => item.principal) || remainingCards[0] || null;
+      const nextSelection = fallbackCard ? selectionFromSavedCard(fallbackCard) : { method: "pix" as const };
+      savePaymentSelection(nextSelection);
+      setSelection(nextSelection);
       showSystemNotice("Cartão removido dos métodos de pagamento.", "Cartão removido");
     } catch (error) {
       showSystemNotice(error || "Não foi possível remover o cartão.");
     } finally {
-      setIsRemovingCard(false);
+      setProcessingCardId("");
     }
   };
 
@@ -148,55 +169,84 @@ export function AddCardScreen() {
                   Cartões
                 </h2>
                 <p style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.4 }}>
-                  Gerencie o cartão que ficará disponível nas próximas compras.
+                  Gerencie os cartões que ficarão disponíveis nas próximas compras.
                 </p>
               </div>
             </div>
-            {savedCard && <CheckCircle2 size={19} color="#16a34a" className="flex-shrink-0" />}
+            {principalCard && <CheckCircle2 size={19} color="#16a34a" className="flex-shrink-0" />}
           </div>
 
-          {savedCard ? (
-            <div
-              className="overflow-hidden rounded-2xl p-4 text-white"
-              style={{
-                background: "linear-gradient(135deg, #1b3d6d 0%, #122a4c 100%)",
-                boxShadow: "0 14px 32px rgba(18,42,76,0.24)",
-              }}
-            >
-              <div className="mb-7 flex items-start justify-between">
+          {savedCards.length > 0 ? (
+            <div className="space-y-3">
+              {savedCards.map((card) => (
                 <div
-                  className="rounded-md"
+                  key={card.id}
+                  className="overflow-hidden rounded-2xl p-4 text-white"
                   style={{
-                    width: "36px",
-                    height: "28px",
-                    background: "linear-gradient(135deg, #d4a843 0%, #f0c060 50%, #c89a30 100%)",
+                    background: card.principal
+                      ? "linear-gradient(135deg, #1b3d6d 0%, #122a4c 100%)"
+                      : "linear-gradient(135deg, #475569 0%, #334155 100%)",
+                    boxShadow: "0 14px 32px rgba(18,42,76,0.18)",
                   }}
-                />
-                <ShieldCheck size={24} color="white" />
-              </div>
+                >
+                  <div className="mb-7 flex items-start justify-between">
+                    <div
+                      className="rounded-md"
+                      style={{
+                        width: "36px",
+                        height: "28px",
+                        background: "linear-gradient(135deg, #d4a843 0%, #f0c060 50%, #c89a30 100%)",
+                      }}
+                    />
+                    {card.principal ? <ShieldCheck size={24} color="white" /> : <CreditCard size={24} color="rgba(255,255,255,0.82)" />}
+                  </div>
 
-              <p style={{ fontSize: "18px", fontWeight: 900, letterSpacing: "0.08em" }}>
-                {savedCardLastFour ? `•••• •••• •••• ${savedCardLastFour}` : "•••• •••• •••• ••••"}
-              </p>
+                  <p style={{ fontSize: "18px", fontWeight: 900, letterSpacing: "0.08em" }}>
+                    {card.ultimos_quatro ? `•••• •••• •••• ${card.ultimos_quatro}` : "•••• •••• •••• ••••"}
+                  </p>
 
-              <div className="mt-5 flex items-end justify-between gap-4">
-                <div className="min-w-0">
-                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.66)", fontWeight: 800 }}>
-                    TITULAR
-                  </p>
-                  <p className="truncate" style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>
-                    {savedCardHolder}
-                  </p>
+                  <div className="mt-5 flex items-end justify-between gap-4">
+                    <div className="min-w-0">
+                      <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.66)", fontWeight: 800 }}>
+                        TITULAR
+                      </p>
+                      <p className="truncate" style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase" }}>
+                        {card.nome_impresso || "Cartão cadastrado"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.66)", fontWeight: 800 }}>
+                        BANDEIRA
+                      </p>
+                      <p style={{ fontSize: "12px", fontWeight: 800 }}>
+                        {getBrandLabel(card.payment_method_id)} · {getCardTypeLabel(card.forma_pagamento)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void makePrincipal(card)}
+                      disabled={card.principal || processingCardId === card.id}
+                      className="rounded-xl px-3 py-2.5 disabled:opacity-60"
+                      style={{ backgroundColor: "rgba(255,255,255,0.14)", color: "white", fontSize: "12px", fontWeight: 800 }}
+                    >
+                      {card.principal ? "Principal" : "Tornar principal"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void removeCard(card)}
+                      disabled={processingCardId === card.id}
+                      className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 disabled:opacity-60"
+                      style={{ backgroundColor: "rgba(254,242,242,0.96)", color: "#dc2626", fontSize: "12px", fontWeight: 800 }}
+                    >
+                      <Trash2 size={14} />
+                      Remover
+                    </button>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.66)", fontWeight: 800 }}>
-                    BANDEIRA
-                  </p>
-                  <p style={{ fontSize: "12px", fontWeight: 800 }}>
-                    {getBrandLabel(savedCardPaymentMethodId)} · {getCardTypeLabel(savedCardMethod)}
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
           ) : (
             <div
@@ -221,21 +271,8 @@ export function AddCardScreen() {
               style={{ backgroundColor: "#122a4c", fontSize: "15px", fontWeight: 800 }}
             >
               <Plus size={18} />
-              {isLoadingCards ? "Carregando..." : savedCard ? "Atualizar cartão" : "Adicionar cartão"}
+              {isLoadingCards ? "Carregando..." : "Adicionar cartão"}
             </button>
-
-            {savedCard && (
-              <button
-                type="button"
-                onClick={removeCard}
-                disabled={isRemovingCard}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl py-3 transition-all active:scale-[0.98]"
-                style={{ backgroundColor: "#fef2f2", color: "#dc2626", fontSize: "14px", fontWeight: 800 }}
-              >
-                <Trash2 size={17} />
-                {isRemovingCard ? "Removendo..." : "Remover cartão"}
-              </button>
-            )}
           </div>
         </div>
 

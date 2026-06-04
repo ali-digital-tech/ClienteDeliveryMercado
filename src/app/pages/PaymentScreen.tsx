@@ -376,6 +376,7 @@ export function PaymentScreen() {
   const isCardPayment = selected !== "pix";
   const selectedSavedCard = savedCards.find((card) => card.id === selectedSavedCardId) || null;
   const isUsingSavedCard = Boolean(isCardPayment && !isProfilePaymentMethods && selectedSavedCard);
+  const savedCardsForSelectedMethod = savedCards.filter((card) => card.forma_pagamento === selected);
   const availableMethodOptions = useMemo(
     () => isProfilePaymentMethods
       ? methodOptions.filter((option) => option.id !== "pix")
@@ -947,6 +948,66 @@ export function PaymentScreen() {
                 O app não armazena número completo do cartão nem CVV.
               </p>
             </div>
+
+            {!isProfilePaymentMethods && savedCardsForSelectedMethod.length > 0 && (
+              <div className="mb-4">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p style={{ fontSize: "12px", fontWeight: 900, color: "#122a4c" }}>
+                    Cartões salvos
+                  </p>
+                  {selectedSavedCardId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedSavedCardId("");
+                        resetCardMetadata();
+                      }}
+                      className="rounded-lg px-2 py-1"
+                      style={{ backgroundColor: "#eef4fb", color: "#122a4c", fontSize: "11px", fontWeight: 800 }}
+                    >
+                      Usar novo
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  {savedCardsForSelectedMethod.map((card) => {
+                    const isSelectedCard = card.id === selectedSavedCardId;
+
+                    return (
+                      <button
+                        key={card.id}
+                        type="button"
+                        onClick={() => applySavedCardSelection(card)}
+                        className="flex items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left"
+                        style={{
+                          borderColor: isSelectedCard ? primaryColor : "#d9e4f2",
+                          backgroundColor: isSelectedCard ? primarySoftColor : "#fff",
+                        }}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate" style={{ fontSize: "13px", fontWeight: 900, color: "#122a4c" }}>
+                            •••• {card.ultimos_quatro} · {card.nome_impresso || "Cartão cadastrado"}
+                          </p>
+                          <p style={{ fontSize: "11px", color: "#64748b", fontWeight: 700 }}>
+                            {card.principal ? "Principal" : "Salvo"} · {card.forma_pagamento === "cartao_debito" ? "Débito" : "Crédito"}
+                          </p>
+                        </div>
+                        <div
+                          className="rounded-full flex-shrink-0"
+                          style={{
+                            width: "18px",
+                            height: "18px",
+                            border: `2px solid ${isSelectedCard ? primaryColor : "#cbd5e1"}`,
+                            backgroundColor: isSelectedCard ? primaryColor : "white",
+                          }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {isUsingSavedCard && selectedSavedCard ? (
               <>

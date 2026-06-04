@@ -253,6 +253,15 @@ export async function removeCustomerPaymentCard(cardId: string) {
   return response.data;
 }
 
+export async function setPrincipalCustomerPaymentCard(cardId: string) {
+  const response = await apiRequest<{ data: SavedPaymentCard }>(
+    `/mercadopago/customer/cards/${cardId}/principal`,
+    { method: 'PATCH' }
+  );
+
+  return response.data;
+}
+
 export async function createPixPayment(pedidoId: string, payer: PayerData) {
   const response = await apiRequest<{ data: MercadoPagoPaymentResult }>(
     '/mercadopago/payment/pix',
