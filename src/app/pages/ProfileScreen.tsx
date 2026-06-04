@@ -170,18 +170,10 @@ export function ProfileScreen() {
           <span aria-hidden="true">·</span>
           <button
             type="button"
-            onClick={() => navigate(tenantPath("privacy/terms"))}
-            className="underline-offset-2 active:text-slate-600"
-          >
-            Termos de uso
-          </button>
-          <span aria-hidden="true">·</span>
-          <button
-            type="button"
             onClick={() => navigate(tenantPath("privacy/policy"))}
             className="underline-offset-2 active:text-slate-600"
           >
-            Privacidade
+            Termos e privacidade
           </button>
         </div>
       </div>

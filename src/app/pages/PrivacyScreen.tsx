@@ -288,7 +288,7 @@ export function PrivacyScreen() {
                 <Shield size={18} color="#122a4c" />
               </div>
               <span className="flex-1 text-left" style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
-                Política de privacidade
+                Termos e política de privacidade
               </span>
               <ChevronRight size={16} color="#94a3b8" />
             </button>

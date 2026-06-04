@@ -42,7 +42,7 @@ export function LoginScreen() {
       })
       .catch(() => {
         if (!isActive) return;
-        setPrivacyPolicyError("Política de Privacidade não publicada.");
+        setPrivacyPolicyError("Termos e Política de Privacidade não publicados.");
       });
 
     return () => {
@@ -129,7 +129,7 @@ export function LoginScreen() {
     }
 
     if (mode === "signup" && privacyPolicy && !privacyAccepted) {
-      showSystemNotice("Você precisa aceitar a Política de Privacidade para criar a conta.");
+      showSystemNotice("Você precisa aceitar os Termos e a Política de Privacidade para criar a conta.");
       return;
     }
 
@@ -393,7 +393,7 @@ export function LoginScreen() {
                       className="font-bold underline"
                       style={{ color: primaryColor }}
                     >
-                      Política de Privacidade
+                      Termos e Política de Privacidade
                     </button>
                     {privacyPolicy?.version ? ` versão ${privacyPolicy.version}` : ""}.
                   </span>

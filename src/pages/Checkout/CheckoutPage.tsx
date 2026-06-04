@@ -1676,7 +1676,7 @@ export function CheckoutPage() {
           className="text-center mt-2"
           style={{ fontSize: "11px", color: "#94a3b8" }}
         >
-          Ao finalizar, você concorda com nossos termos de uso
+          Ao finalizar, você concorda com nossos termos e política de privacidade
         </p>
       </div>
     </div>

@@ -7,13 +7,13 @@ import { fetchPublishedLegalDocument, type LegalDocument } from "@/features/lega
 const DOCUMENT_CONFIG = {
   policy: {
     documentKey: "privacy-policy",
-    title: "Política de Privacidade",
-    unpublishedMessage: "A Política de Privacidade ainda não foi publicada.",
+    title: "Termos de Uso e Política de Privacidade",
+    unpublishedMessage: "Os Termos de Uso e a Política de Privacidade ainda não foram publicados.",
   },
   terms: {
-    documentKey: "terms-of-use",
-    title: "Termos de Uso",
-    unpublishedMessage: "Os Termos de Uso ainda não foram publicados.",
+    documentKey: "privacy-policy",
+    title: "Termos de Uso e Política de Privacidade",
+    unpublishedMessage: "Os Termos de Uso e a Política de Privacidade ainda não foram publicados.",
   },
 } as const;
 
