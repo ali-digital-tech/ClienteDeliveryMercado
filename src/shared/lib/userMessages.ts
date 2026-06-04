@@ -170,6 +170,14 @@ const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> =
     message: "Não foi possível carregar as formas de pagamento.",
   },
   {
+    test: /security_code_token|token de segurança do cartão|security code token|cvv/i,
+    message: "Informe o CVV do cartão salvo para continuar.",
+  },
+  {
+    test: /token do cartão salvo|saved card.*token|card token.*saved/i,
+    message: "Valide o CVV do cartão salvo antes de concluir o pagamento.",
+  },
+  {
     test: /failed to fetch|networkerror|network request failed|load failed/i,
     message: "Não foi possível conectar. Verifique sua internet e tente novamente.",
   },

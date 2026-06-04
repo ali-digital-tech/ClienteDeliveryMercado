@@ -53,6 +53,12 @@ export interface MercadoPagoCheckoutConfig {
   connected: boolean;
   onboarding_status?: string | null;
   status?: string | null;
+  platform_split?: {
+    regra_split_id?: string | null;
+    tipo_valor?: 'percentual' | 'fixo' | 'restante' | string | null;
+    valor?: number | string | null;
+    percentual?: number | string | null;
+  } | null;
 }
 
 export interface MercadoPagoPaymentResult {

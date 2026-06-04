@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   ChevronLeft,
@@ -12,7 +12,9 @@ import {
   Copy,
   Info,
   Loader2,
+  Lock,
   ReceiptText,
+  X,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { Checkbox } from '@/app/components/ui/checkbox';
@@ -35,6 +37,7 @@ import {
   cancelPayment,
   createCardPayment,
   createPixPayment,
+  getMercadoPagoCheckoutConfig,
   getSavedPaymentCards,
   getStoredPayerData,
   getStoredPaymentSelection,
@@ -44,8 +47,10 @@ import {
   savePaymentSelection,
   selectionFromSavedCard,
   validatePayerData,
+  type MercadoPagoCheckoutConfig,
   type MercadoPagoPaymentResult,
   type PayerData,
+  type SavedPaymentCard,
   type StoredPaymentSelection,
 } from '@/features/payments';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
@@ -70,6 +75,67 @@ interface PendingCheckoutOrder {
   chave_recebimento?: string | null;
 }
 
+interface MercadoPagoCardToken {
+  id?: string;
+  last_four_digits?: string;
+}
+
+interface MercadoPagoSecureField {
+  mount: (containerId: string) => MercadoPagoSecureField;
+  unmount?: () => void;
+}
+
+interface MercadoPagoInstance {
+  fields: {
+    create: (
+      fieldType: 'securityCode',
+      options: Record<string, unknown>,
+    ) => MercadoPagoSecureField;
+    createCardToken: (options: { cardId?: string }) => Promise<MercadoPagoCardToken>;
+  };
+}
+
+type MercadoPagoConstructor = new (
+  publicKey: string,
+  options?: Record<string, unknown>,
+) => MercadoPagoInstance;
+
+function getMercadoPagoConstructor() {
+  return (window as Window & { MercadoPago?: MercadoPagoConstructor }).MercadoPago;
+}
+
+const CHECKOUT_SAVED_CARD_CVV_FIELD_ID = 'checkout-mp-secure-saved-card-cvv';
+
+const SECURE_FIELD_STYLE = {
+  fontSize: "14px",
+  fontFamily: "Arial, sans-serif",
+  color: "#1e293b",
+  placeholderColor: "#64748b",
+};
+
+function loadMercadoPagoSdk() {
+  if (getMercadoPagoConstructor()) return Promise.resolve();
+
+  return new Promise<void>((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src="https://sdk.mercadopago.com/js/v2"]'
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(), { once: true });
+      existingScript.addEventListener("error", () => reject(new Error("Não foi possível carregar o pagamento online.")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://sdk.mercadopago.com/js/v2";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Não foi possível carregar o pagamento online."));
+    document.head.appendChild(script);
+  });
+}
+
 function formatPixCountdown(seconds: number) {
   const safeSeconds = Math.max(0, seconds);
   const minutes = Math.floor(safeSeconds / 60);
@@ -80,6 +146,11 @@ function formatPixCountdown(seconds: number) {
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function formatPercentage(value: number) {
+  const rounded = Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  return `${rounded.replace('.', ',')}%`;
 }
 
 function unwrapBusinessHours(payload: any): BusinessHour[] {
@@ -160,6 +231,190 @@ function isValidCpf(value: string) {
   return calculateDigit(9) === Number(digits[9]) && calculateDigit(10) === Number(digits[10]);
 }
 
+function SavedCardCvvModal({
+  card,
+  publicKey,
+  primaryColor,
+  onClose,
+  onToken,
+}: {
+  card: Pick<SavedPaymentCard, 'gateway_card_id' | 'forma_pagamento' | 'payment_method_id' | 'ultimos_quatro' | 'nome_impresso'>;
+  publicKey: string;
+  primaryColor: string;
+  onClose: () => void;
+  onToken: (token: MercadoPagoCardToken) => void;
+}) {
+  const mpRef = useRef<MercadoPagoInstance | null>(null);
+  const securityCodeRef = useRef<MercadoPagoSecureField | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const container = document.getElementById(CHECKOUT_SAVED_CARD_CVV_FIELD_ID);
+    if (container) container.innerHTML = "";
+
+    const mountField = async () => {
+      setIsReady(false);
+      setErrorMessage("");
+
+      if (!publicKey) {
+        setErrorMessage("Pagamento online não configurado para este mercado.");
+        return;
+      }
+
+      try {
+        await loadMercadoPagoSdk();
+        const MercadoPago = getMercadoPagoConstructor();
+        if (cancelled || !MercadoPago) return;
+
+        const mp = new MercadoPago(publicKey, { locale: "pt-BR" });
+        const securityCode = mp.fields
+          .create("securityCode", { placeholder: "CVV", style: SECURE_FIELD_STYLE })
+          .mount(CHECKOUT_SAVED_CARD_CVV_FIELD_ID);
+
+        if (cancelled) {
+          securityCode.unmount?.();
+          return;
+        }
+
+        mpRef.current = mp;
+        securityCodeRef.current = securityCode;
+        setIsReady(true);
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(error instanceof Error ? error.message : "Não foi possível carregar o campo seguro do CVV.");
+        }
+      }
+    };
+
+    void mountField();
+
+    return () => {
+      cancelled = true;
+      securityCodeRef.current?.unmount?.();
+      securityCodeRef.current = null;
+      mpRef.current = null;
+      setIsReady(false);
+      const currentContainer = document.getElementById(CHECKOUT_SAVED_CARD_CVV_FIELD_ID);
+      if (currentContainer) currentContainer.innerHTML = "";
+    };
+  }, [publicKey]);
+
+  const handleConfirm = async () => {
+    if (!isReady || !mpRef.current) {
+      setErrorMessage("Aguarde o campo seguro do CVV carregar.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      const token = await mpRef.current.fields.createCardToken({
+        cardId: card.gateway_card_id,
+      });
+
+      if (!token?.id) {
+        throw new Error("Informe o CVV do cartão salvo para continuar.");
+      }
+
+      onToken(token);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível validar o CVV do cartão salvo.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 px-3 pb-3 pt-8 sm:items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="saved-card-cvv-title"
+    >
+      <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-2xl" style={{ border: "1px solid #d9e4f2" }}>
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 id="saved-card-cvv-title" style={{ fontSize: "16px", fontWeight: 900, color: "#122a4c" }}>
+              Confirmar cartão
+            </h3>
+            <p className="mt-1" style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.45 }}>
+              Digite o CVV para validar este pagamento.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2"
+            style={{ backgroundColor: "#eef4fb" }}
+            aria-label="Fechar"
+          >
+            <X size={16} color="#122a4c" />
+          </button>
+        </div>
+
+        <div className="mb-4 rounded-2xl p-4 text-white" style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, #122a4c 100%)` }}>
+          <div className="mb-6 flex items-center justify-between">
+            <CreditCard size={24} color="white" />
+            <span style={{ fontSize: "12px", fontWeight: 900 }}>
+              {card.forma_pagamento === "cartao_debito" ? "DÉBITO" : "CRÉDITO"}
+            </span>
+          </div>
+          <p style={{ fontSize: "18px", fontWeight: 900, letterSpacing: "0.08em" }}>
+            •••• •••• •••• {card.ultimos_quatro}
+          </p>
+          <p className="mt-2 truncate" style={{ fontSize: "12px", fontWeight: 800, textTransform: "uppercase", color: "rgba(255,255,255,0.78)" }}>
+            {card.nome_impresso || "Cartão cadastrado"}
+          </p>
+        </div>
+
+        <div className="mb-3 flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+          <Lock size={14} color="#15803d" className="flex-shrink-0" />
+          <p style={{ fontSize: "12px", color: "#15803d", lineHeight: 1.4, fontWeight: 700 }}>
+            O CVV é validado em campo seguro e não é armazenado.
+          </p>
+        </div>
+
+        <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+          CVV do cartão final {card.ultimos_quatro}
+        </label>
+        <div
+          id={CHECKOUT_SAVED_CARD_CVV_FIELD_ID}
+          className="mp-secure-field rounded-xl border bg-white px-3"
+          style={{ borderColor: "#d9e4f2" }}
+        />
+
+        {errorMessage && (
+          <p className="mt-3 rounded-xl px-3 py-2" style={{ backgroundColor: "#fef2f2", color: "#dc2626", fontSize: "12px", fontWeight: 700 }}>
+            {errorMessage}
+          </p>
+        )}
+
+        {!isReady && !errorMessage && (
+          <p className="mt-3 inline-flex items-center gap-2" style={{ fontSize: "12px", color: "#64748b", fontWeight: 700 }}>
+            <Loader2 size={15} className="animate-spin" />
+            Carregando campo seguro...
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={!isReady || isSubmitting}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:opacity-60"
+          style={{ backgroundColor: primaryColor, fontSize: "13px", fontWeight: 900 }}
+        >
+          {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+          {isSubmitting ? "Validando..." : "Validar CVV e finalizar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -193,6 +448,9 @@ export function CheckoutPage() {
   const [businessHours, setBusinessHours] = useState<BusinessHour[]>([]);
   const [loadingBusinessHours, setLoadingBusinessHours] = useState(false);
   const [paymentSelection, setPaymentSelection] = useState<StoredPaymentSelection>(() => getStoredPaymentSelection());
+  const [checkoutConfig, setCheckoutConfig] = useState<MercadoPagoCheckoutConfig | null>(null);
+  const [savedPaymentCards, setSavedPaymentCards] = useState<SavedPaymentCard[]>([]);
+  const [pendingCvvSelection, setPendingCvvSelection] = useState<StoredPaymentSelection | null>(null);
 
   const orderType = getStoredCheckoutMode(marketId);
   const isPickup = orderType === 'pickup';
@@ -204,6 +462,7 @@ export function CheckoutPage() {
   const meetsMinimumOrder = minimumOrder <= 0 || missingMinimumOrder <= 0;
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
+  const primaryColor = currentMarket?.primaryColor || "#122a4c";
   const storedPayerData = getStoredPayerData();
   const payerValidation = validatePayerData(storedPayerData);
   const hasPayerData = payerValidation.isValid;
@@ -225,6 +484,31 @@ export function CheckoutPage() {
     ? Math.max(0, Math.min(100, (pixSecondsRemaining / PIX_PAYMENT_WINDOW_SECONDS) * 100))
     : 0;
   const effectiveCustomerProfile = customerProfile || currentUser;
+  const splitPercent = Number(checkoutConfig?.platform_split?.percentual);
+  const splitDisclosure = Number.isFinite(splitPercent) && splitPercent > 0
+    ? `Valor do serviço: ${formatPercentage(splitPercent)}`
+    : "";
+  const selectedSavedCardForCvv = useMemo(() => {
+    if (!pendingCvvSelection?.saved_card_id) return null;
+
+    const savedCard = savedPaymentCards.find((card) => card.id === pendingCvvSelection.saved_card_id);
+    if (savedCard) return savedCard;
+
+    if (!pendingCvvSelection.gateway_card_id || !pendingCvvSelection.last_four_digits) return null;
+
+    return {
+      id: pendingCvvSelection.saved_card_id,
+      loja_id: marketId,
+      forma_pagamento: pendingCvvSelection.method === 'cartao_debito' ? 'cartao_debito' : 'cartao_credito',
+      payment_method_id: pendingCvvSelection.payment_method_id || '',
+      issuer_id: pendingCvvSelection.issuer_id ?? null,
+      bandeira: pendingCvvSelection.payment_method_id || null,
+      ultimos_quatro: pendingCvvSelection.last_four_digits,
+      nome_impresso: pendingCvvSelection.cardholder_name || null,
+      principal: false,
+      gateway_card_id: pendingCvvSelection.gateway_card_id,
+    } satisfies SavedPaymentCard;
+  }, [marketId, pendingCvvSelection, savedPaymentCards]);
   const savedCpfInvoiceDefault = Boolean(
     effectiveCustomerProfile?.cpf &&
     effectiveCustomerProfile?.cpf_na_nota_padrao
@@ -285,6 +569,25 @@ export function CheckoutPage() {
   }, [marketId]);
 
   useEffect(() => {
+    if (!marketId) return;
+
+    let isActive = true;
+
+    getMercadoPagoCheckoutConfig(marketId)
+      .then((config) => {
+        if (isActive) setCheckoutConfig(config);
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar configuração de pagamento:', error);
+        if (isActive) setCheckoutConfig(null);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [marketId]);
+
+  useEffect(() => {
     if (
       !marketId ||
       paymentSelection.method === 'pix' ||
@@ -296,6 +599,7 @@ export function CheckoutPage() {
     getSavedPaymentCards(marketId)
       .then((cards) => {
         if (!isActive) return;
+        setSavedPaymentCards(cards);
         const savedCard = cards.find((card) => card.principal) || cards[0] || null;
         if (!savedCard) return;
 
@@ -311,6 +615,24 @@ export function CheckoutPage() {
       isActive = false;
     };
   }, [marketId, paymentSelection]);
+
+  useEffect(() => {
+    if (!marketId || paymentSelection.method === 'pix') return;
+
+    let isActive = true;
+
+    getSavedPaymentCards(marketId)
+      .then((cards) => {
+        if (isActive) setSavedPaymentCards(cards);
+      })
+      .catch((error) => {
+        console.error('Erro ao atualizar cartões salvos:', error);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [marketId, paymentSelection.method, paymentSelection.saved_card_id]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -581,11 +903,21 @@ export function CheckoutPage() {
 
     const currentPaymentSelection = getStoredPaymentSelection();
     if (currentPaymentSelection.method !== 'pix' && !hasFreshCardToken(currentPaymentSelection)) {
-      showSystemNotice(
-        currentPaymentSelection.saved_card_id
-          ? 'Informe o CVV do cartão salvo para concluir este pagamento.'
-          : 'Confirme os dados do cartão para concluir este pagamento.'
-      );
+      if (currentPaymentSelection.saved_card_id) {
+        const savedCard = savedPaymentCards.find((card) => card.id === currentPaymentSelection.saved_card_id);
+        const selectionHasGatewayCard = Boolean(currentPaymentSelection.gateway_card_id);
+
+        if (savedCard || selectionHasGatewayCard) {
+          setPendingCvvSelection(currentPaymentSelection);
+          return;
+        }
+
+        showSystemNotice('Confirme o cartão salvo antes de finalizar este pagamento.');
+        openPaymentScreen();
+        return;
+      }
+
+      showSystemNotice('Confirme os dados do cartão para concluir este pagamento.');
       openPaymentScreen();
       return;
     }
@@ -640,6 +972,22 @@ export function CheckoutPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleSavedCardCvvToken = (token: MercadoPagoCardToken) => {
+    if (!pendingCvvSelection || !token.id) return;
+
+    const nextSelection: StoredPaymentSelection = {
+      ...pendingCvvSelection,
+      card_token: token.id,
+      card_token_created_at: Date.now(),
+      last_four_digits: token.last_four_digits || pendingCvvSelection.last_four_digits,
+    };
+
+    savePaymentSelection(nextSelection);
+    setPaymentSelection(nextSelection);
+    setPendingCvvSelection(null);
+    void handleFinalize();
   };
 
   return (
@@ -1176,10 +1524,26 @@ export function CheckoutPage() {
                 R$ {total.toFixed(2).replace('.', ',')}
               </span>
             </div>
+
+            {splitDisclosure && (
+              <p className="pt-1" style={{ fontSize: "11px", color: "#94a3b8", lineHeight: 1.45 }}>
+                {splitDisclosure}
+              </p>
+            )}
           </div>
         </div>
 
       </div>
+
+      {selectedSavedCardForCvv && (
+        <SavedCardCvvModal
+          card={selectedSavedCardForCvv}
+          publicKey={checkoutConfig?.public_key || ""}
+          primaryColor={primaryColor}
+          onClose={() => setPendingCvvSelection(null)}
+          onToken={handleSavedCardCvvToken}
+        />
+      )}
 
       {paymentResult?.qr_code && (
         <div
