@@ -107,7 +107,7 @@ function getMercadoPagoConstructor() {
 const CHECKOUT_SAVED_CARD_CVV_FIELD_ID = 'checkout-mp-secure-saved-card-cvv';
 
 const SECURE_FIELD_STYLE = {
-  fontSize: "14px",
+  fontSize: "16px",
   fontFamily: "Arial, sans-serif",
   color: "#1e293b",
   placeholderColor: "#64748b",

@@ -108,6 +108,11 @@ const SECURE_FIELD_STYLE = {
   placeholderColor: "#64748b",
 };
 
+const SECURE_FIELD_CVV_STYLE = {
+  ...SECURE_FIELD_STYLE,
+  fontSize: "16px",
+};
+
 const methodOptions: Array<{
   id: PaymentMethod;
   label: string;
@@ -667,7 +672,7 @@ export function PaymentScreen() {
         const mp = new window.MercadoPago(publicKey, { locale: "pt-BR" });
         if (isUsingSavedCard) {
           const securityCode = mp.fields
-            .create("securityCode", { placeholder: "CVV", style: SECURE_FIELD_STYLE })
+            .create("securityCode", { placeholder: "CVV", style: SECURE_FIELD_CVV_STYLE })
             .mount(SECURE_FIELD_IDS.savedSecurityCode);
 
           if (cancelled) {
@@ -689,7 +694,7 @@ export function PaymentScreen() {
           .create("expirationDate", { placeholder: "MM/AA", style: SECURE_FIELD_STYLE })
           .mount(SECURE_FIELD_IDS.expirationDate);
         const securityCode = mp.fields
-          .create("securityCode", { placeholder: "CVV", style: SECURE_FIELD_STYLE })
+          .create("securityCode", { placeholder: "CVV", style: SECURE_FIELD_CVV_STYLE })
           .mount(SECURE_FIELD_IDS.securityCode);
 
         if (cancelled) {
