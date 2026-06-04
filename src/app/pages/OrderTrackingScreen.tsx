@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { getOrdersByMarketId, loadOrderItems, requestOrderCancellation, type Order } from "@/features/orders";
+import { PostPaymentPushPrompt } from "@/features/notifications";
 import { formatCartQuantity } from "@/features/cart";
 import { ProductImage } from "@/features/products";
 import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
@@ -400,7 +401,13 @@ export function OrderTrackingScreen() {
   const deliveryFailureReason = selectedOrder.deliveryInfo?.failureReason || "";
   const cancellationRequest = selectedOrder.cancellationRequest;
   const refunds = selectedOrder.refunds || [];
-  const isPaymentPending = !selectedOrder.isPaid;
+  const isCanceledWithoutPayment = selectedOrder.status === "cancelado" && !selectedOrder.isPaid;
+  const isPaymentPending = !selectedOrder.isPaid && selectedOrder.status !== "cancelado";
+  const paymentStatusMessage = isCanceledWithoutPayment
+    ? "Pedido cancelado sem pagamento concluído."
+    : isPaymentPending
+      ? "Pagamento aguardando confirmação."
+      : "Pagamento registrado com segurança.";
   const canRequestCancellation = !cancellationRequest
     && CUSTOMER_CANCELABLE_STATUSES.has(selectedOrder.status);
   const isReviewCancellation = REVIEW_CANCELLATION_STATUSES.has(selectedOrder.status);
@@ -907,7 +914,7 @@ export function OrderTrackingScreen() {
           <div className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "#eef4fb" }}>
             <CreditCard size={15} color="#122a4c" />
             <p style={{ fontSize: "11px", color: "#1b3d6d", fontWeight: 600 }}>
-              {isPaymentPending ? "Pagamento aguardando confirmação." : "Pagamento registrado com segurança."}
+              {paymentStatusMessage}
             </p>
           </div>
           {isPaymentPending && (
@@ -932,6 +939,13 @@ export function OrderTrackingScreen() {
           </button>
         )}
       </div>
+
+      <PostPaymentPushPrompt
+        isLoggedIn={isLoggedIn}
+        primaryColor={currentMarket.primaryColor || "#122a4c"}
+        delayMs={500}
+        requireRecoverySignal
+      />
 
       {isCancellationDialogOpen && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 px-4">

@@ -279,7 +279,7 @@ export function MyOrdersScreen() {
   const handleOpenOrderDetails = (order: Order) => {
     const orderId = order.rawId || order.id;
 
-    if (!order.isPaid) {
+    if (!order.isPaid && order.status !== "cancelado") {
       navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(orderId)}`);
       return;
     }
@@ -387,12 +387,15 @@ export function MyOrdersScreen() {
           <div className="flex flex-col gap-3">
             {orders.map((order) => {
               const defaultStatus = statusConfig[order.status] ?? statusConfig.recebido;
-              const status = order.type === "pickup" && order.status === "entregue"
+              const status = order.status === "cancelado"
+                ? defaultStatus
+                : order.type === "pickup" && order.status === "entregue"
                 ? { ...defaultStatus, label: "Retirado" }
                 : !order.isPaid
                   ? { color: "#92400e", bg: "#fffbeb", label: "Aguardando pagamento" }
-                : defaultStatus;
+                  : defaultStatus;
               const isActive = !["entregue", "nao_entregue", "cancelado"].includes(order.status);
+              const canRecoverPayment = !order.isPaid && order.status !== "cancelado";
               const itemCount = order.itemCount ?? order.items.reduce((sum, item) => sum + item.qty, 0);
               const hasItems = order.items.length > 0;
               const canRepeat = Boolean(order.cartId) || itemCount > 0 || hasItems;
@@ -606,7 +609,7 @@ export function MyOrdersScreen() {
                             fontWeight: 600,
                           }}
                         >
-                          {!order.isPaid
+                          {canRecoverPayment
                             ? hasValidPixPayment(order) ? "Pagar PIX" : "Concluir pagamento"
                             : isActive ? "Acompanhar" : "Ver detalhes"}
                         </span>

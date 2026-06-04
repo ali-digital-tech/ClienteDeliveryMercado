@@ -22,6 +22,7 @@ import {
   type PayerData,
   type StoredPaymentSelection,
 } from "@/features/payments";
+import { markPostPaymentPushPromptFromRecovery } from "@/features/notifications";
 import type { Order, OrderPayment } from "@/features/orders";
 import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
 
@@ -121,6 +122,7 @@ export function PaymentRecoveryScreen() {
   const [paymentSelection, setPaymentSelection] = useState<StoredPaymentSelection>(() => getStoredPaymentSelection());
 
   const expiresAt = payment?.expiresAt ? new Date(payment.expiresAt).getTime() : 0;
+  const isCanceled = order?.status === "cancelado";
   const isPaid = Boolean(order?.isPaid || payment?.paidAt || payment?.status === "aprovado");
   const isPending = Boolean(payment && PENDING_STATUSES.has(payment.status));
   const hasValidPix = Boolean(
@@ -164,6 +166,7 @@ export function PaymentRecoveryScreen() {
       setPayment(toOrderPayment(updated));
 
       if (updated.status === "aprovado") {
+        markPostPaymentPushPromptFromRecovery();
         await refreshOrders();
         openTracking();
       }
@@ -217,10 +220,11 @@ export function PaymentRecoveryScreen() {
   }, [marketId, paymentSelection]);
 
   useEffect(() => {
-    if (isPaid) {
+    if (isPaid || isCanceled) {
+      if (isPaid && !isCanceled) markPostPaymentPushPromptFromRecovery();
       openTracking();
     }
-  }, [isPaid, openTracking]);
+  }, [isCanceled, isPaid, openTracking]);
 
   useEffect(() => {
     if (!hasValidPix) {
@@ -235,12 +239,17 @@ export function PaymentRecoveryScreen() {
   }, [expiresAt, hasValidPix]);
 
   useEffect(() => {
-    if (!payment?.id || !isPending) return;
+    if (!payment?.id || !isPending || isCanceled) return;
     const intervalId = window.setInterval(() => void updatePaymentStatus(), PAYMENT_POLL_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [isPending, payment?.id, updatePaymentStatus]);
+  }, [isCanceled, isPending, payment?.id, updatePaymentStatus]);
 
   const choosePaymentMethod = () => {
+    if (isCanceled) {
+      openTracking();
+      return;
+    }
+
     navigate(tenantPath("payment"), {
       state: {
         redirectTo: `${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(orderId)}`,
@@ -250,6 +259,10 @@ export function PaymentRecoveryScreen() {
 
   const createPayment = async (forcePix = false) => {
     if (!order) return;
+    if (isCanceled) {
+      openTracking();
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -277,6 +290,7 @@ export function PaymentRecoveryScreen() {
       await refreshOrders();
 
       if (result.payment.status === "aprovado") {
+        markPostPaymentPushPromptFromRecovery();
         openTracking();
       }
     } catch (error) {
@@ -314,6 +328,21 @@ export function PaymentRecoveryScreen() {
         <p style={{ color: "#334155", fontSize: "16px", fontWeight: 800 }}>Pedido não encontrado</p>
         <button onClick={() => navigate(tenantPath("orders"))} className="rounded-xl px-5 py-3 text-white" style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
           Ver meus pedidos
+        </button>
+      </div>
+    );
+  }
+
+  if (isCanceled) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center" style={{ background: "#f8fafc" }}>
+        <CreditCard size={42} color="#94a3b8" />
+        <p style={{ color: "#334155", fontSize: "16px", fontWeight: 800 }}>Pedido cancelado</p>
+        <p style={{ color: "#64748b", fontSize: "13px", lineHeight: 1.45 }}>
+          Este pedido foi cancelado e não pode receber pagamento.
+        </p>
+        <button onClick={openTracking} className="rounded-xl px-5 py-3 text-white" style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
+          Ver detalhes
         </button>
       </div>
     );

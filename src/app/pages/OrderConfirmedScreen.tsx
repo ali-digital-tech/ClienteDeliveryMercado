@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { CheckCircle2, Home, Eye, KeyRound } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
+import { PostPaymentPushPrompt } from "@/features/notifications";
 import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
 const statusLabels = {
@@ -28,7 +29,7 @@ function getCurrentStepIndex(status: string | undefined) {
 
 export function OrderConfirmedScreen() {
   const navigate = useNavigate();
-  const { cartTotal, discount, orders, tenantPath } = useApp();
+  const { cartTotal, currentMarket, discount, isLoggedIn, orders, tenantPath } = useApp();
   const [orderId, setOrderId] = useState("");
   const [rawOrderId, setRawOrderId] = useState("");
   const [show, setShow] = useState(false);
@@ -405,6 +406,11 @@ export function OrderConfirmedScreen() {
           </span>
         </button>
       </div>
+      <PostPaymentPushPrompt
+        isLoggedIn={isLoggedIn}
+        primaryColor={currentMarket.primaryColor || "#122a4c"}
+        delayMs={900}
+      />
     </div>
   );
 }
