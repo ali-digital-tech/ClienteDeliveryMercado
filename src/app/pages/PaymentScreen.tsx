@@ -358,6 +358,19 @@ export function PaymentScreen() {
   const [isLoadingCardInfo, setIsLoadingCardInfo] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const applySavedCardSelection = useCallback((card: SavedPaymentCard, preferredInstallments = storedSelection.installments || 1) => {
+    const nextInstallments = card.forma_pagamento === "cartao_debito" ? 1 : preferredInstallments;
+
+    setSelected(card.forma_pagamento);
+    setSelectedSavedCardId(card.id);
+    setPaymentMethodId(card.payment_method_id);
+    setIssuerId(card.issuer_id ?? null);
+    setInstallments(nextInstallments);
+    setInstallmentOptions([
+      { installments: nextInstallments, recommended_message: getDefaultInstallmentMessage(card.forma_pagamento) },
+    ]);
+  }, [storedSelection.installments]);
+
   const primaryColor = currentMarket?.primaryColor || "#122a4c";
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
   const isCardPayment = selected !== "pix";
@@ -410,22 +423,16 @@ export function PaymentScreen() {
         const defaultCard = cards.find((card) => card.principal) || cards[0] || null;
         if (!defaultCard) return;
 
+        const shouldUseSavedCard = storedSelection.method !== "pix";
         const hasFreshStoredToken = hasFreshCardToken(storedSelection);
-        const storedSavedCard = storedSelection.saved_card_id
+        const storedSavedCard = shouldUseSavedCard && storedSelection.saved_card_id
           ? cards.find((card) => card.id === storedSelection.saved_card_id)
           : null;
-        const cardToUse = storedSavedCard || (!hasFreshStoredToken ? defaultCard : null);
+        const cardToUse = shouldUseSavedCard
+          ? storedSavedCard || (!hasFreshStoredToken ? defaultCard : null)
+          : null;
 
-        if (cardToUse) {
-          setSelected(cardToUse.forma_pagamento);
-          setSelectedSavedCardId(cardToUse.id);
-          setPaymentMethodId(cardToUse.payment_method_id);
-          setIssuerId(cardToUse.issuer_id ?? null);
-          setInstallments(cardToUse.forma_pagamento === "cartao_debito" ? 1 : storedSelection.installments || 1);
-          setInstallmentOptions([
-            { installments: cardToUse.forma_pagamento === "cartao_debito" ? 1 : storedSelection.installments || 1, recommended_message: getDefaultInstallmentMessage(cardToUse.forma_pagamento) },
-          ]);
-        }
+        if (cardToUse) applySavedCardSelection(cardToUse);
       })
       .catch((error) => {
         console.error("Erro ao carregar cartões salvos:", error);
@@ -434,7 +441,7 @@ export function PaymentScreen() {
     return () => {
       isActive = false;
     };
-  }, [isProfilePaymentMethods, marketId, storedSelection.installments, storedSelection.method, storedSelection.saved_card_id]);
+  }, [applySavedCardSelection, isProfilePaymentMethods, marketId, storedSelection.method, storedSelection.saved_card_id]);
 
   useEffect(() => {
     if (!isCardPayment) {
@@ -494,6 +501,31 @@ export function PaymentScreen() {
     ]);
     setCardMetadataMessage(message);
   }, []);
+
+  const findSavedCardForMethod = useCallback((method: PaymentMethod) => (
+    savedCards.find((card) => card.forma_pagamento === method && card.principal) ||
+    savedCards.find((card) => card.forma_pagamento === method) ||
+    null
+  ), [savedCards]);
+
+  const handleSelectMethod = useCallback((method: PaymentMethod) => {
+    setSelected(method);
+
+    if (method === "pix") {
+      setSelectedSavedCardId("");
+      return;
+    }
+
+    if (isProfilePaymentMethods) return;
+
+    const savedCard = findSavedCardForMethod(method);
+    if (savedCard) {
+      applySavedCardSelection(savedCard);
+      return;
+    }
+
+    setSelectedSavedCardId("");
+  }, [applySavedCardSelection, findSavedCardForMethod, isProfilePaymentMethods]);
 
   const refreshCardMetadata = useCallback(async (bin: string) => {
     const mp = mpRef.current;
@@ -830,7 +862,7 @@ export function PaymentScreen() {
             <button
               key={id}
               type="button"
-              onClick={() => setSelected(id)}
+              onClick={() => handleSelectMethod(id)}
               className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 border-2 text-left transition-all"
               style={{ borderColor: selected === id ? primaryColor : "#d9e4f2" }}
             >

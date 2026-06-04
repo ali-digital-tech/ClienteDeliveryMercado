@@ -285,7 +285,12 @@ export function CheckoutPage() {
   }, [marketId]);
 
   useEffect(() => {
-    if (!marketId || paymentSelection.saved_card_id || hasFreshCardToken(paymentSelection)) return;
+    if (
+      !marketId ||
+      paymentSelection.method === 'pix' ||
+      paymentSelection.saved_card_id ||
+      hasFreshCardToken(paymentSelection)
+    ) return;
 
     let isActive = true;
     getSavedPaymentCards(marketId)

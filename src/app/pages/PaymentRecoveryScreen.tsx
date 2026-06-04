@@ -195,7 +195,7 @@ export function PaymentRecoveryScreen() {
   }, [order?.payment]);
 
   useEffect(() => {
-    if (!marketId) return;
+    if (!marketId || paymentSelection.method === "pix") return;
 
     let active = true;
     getSavedPaymentCards(marketId)
