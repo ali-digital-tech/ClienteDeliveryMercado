@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Bell, ChevronLeft, ChevronRight, Package, ShieldCheck, Tag, Truck } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, Package, RotateCcw, ShieldCheck, Tag, Truck } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
 import {
   fetchCustomerNotifications,
@@ -12,6 +12,7 @@ import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
 function iconFor(notification: CustomerNotification) {
   if (notification.type === 'TENANT_CAMPAIGN') return { icon: Tag, bg: '#fef3c7', color: '#d97706' };
+  if (notification.type === 'REFUND_APPROVED') return { icon: RotateCcw, bg: '#dbeafe', color: '#1d4ed8' };
   if (notification.data?.status === 'saiu_para_entrega') return { icon: Truck, bg: '#dbeafe', color: '#1e40af' };
   return { icon: Package, bg: '#d1fae5', color: '#059669' };
 }

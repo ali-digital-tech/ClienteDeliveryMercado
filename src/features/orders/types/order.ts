@@ -22,6 +22,26 @@ export interface OrderCancellationRequest {
   resolvedAt?: string | null;
 }
 
+export interface OrderRefund {
+  id: string;
+  paymentId?: string | null;
+  value: number;
+  reason?: string | null;
+  status: string;
+  refundedAt?: string | null;
+  createdAt?: string | null;
+  type?: 'produto_em_falta' | 'outro_motivo' | string | null;
+  missingItems?: Array<{
+    orderItemId?: string | null;
+    productId?: string | null;
+    name: string;
+    boughtQuantity?: number | null;
+    missingQuantity: number;
+    unitPrice?: number | null;
+    refundValue?: number | null;
+  }>;
+}
+
 export interface Order {
   id: string;
   rawId?: string;
@@ -46,6 +66,7 @@ export interface Order {
   total: number;
   isPaid?: boolean;
   payment?: OrderPayment | null;
+  refunds?: OrderRefund[];
   cancellationRequest?: OrderCancellationRequest | null;
   status: 'pendente' | 'recebido' | 'confirmado' | 'separacao' | 'pronto' | 'saiu' | 'entregue' | 'nao_entregue' | 'cancelado';
   backendStatus?: string;

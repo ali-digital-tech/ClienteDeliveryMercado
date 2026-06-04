@@ -13,6 +13,7 @@ import {
   Package,
   ReceiptText,
   RefreshCw,
+  RotateCcw,
   ShoppingBag,
   Truck,
   User,
@@ -398,6 +399,7 @@ export function OrderTrackingScreen() {
   const assignedVehicle = selectedOrder.type === "delivery" ? formatVehicle(selectedOrder) : null;
   const deliveryFailureReason = selectedOrder.deliveryInfo?.failureReason || "";
   const cancellationRequest = selectedOrder.cancellationRequest;
+  const refunds = selectedOrder.refunds || [];
   const isPaymentPending = !selectedOrder.isPaid;
   const canRequestCancellation = !cancellationRequest
     && CUSTOMER_CANCELABLE_STATUSES.has(selectedOrder.status);
@@ -626,6 +628,44 @@ export function OrderTrackingScreen() {
                   {cancellationRequest.status === "aprovada" && `Valor reembolsado: ${formatCurrency(cancellationRequest.refundValue || 0)}.`}
                   {cancellationRequest.status === "recusada" && "A loja recusou a solicitação de cancelamento."}
                   {cancellationRequest.note ? ` Motivo: ${cancellationRequest.note}` : ""}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {refunds.length > 0 && (
+          <div className="rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #bfdbfe", backgroundColor: "#eff6ff" }}>
+            <div className="flex items-start gap-3">
+              <RotateCcw size={20} color="#1d4ed8" className="mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p style={{ fontSize: "14px", fontWeight: 800, color: "#1e3a8a" }}>
+                  Reembolso solicitado
+                </p>
+                <div className="mt-2 space-y-2">
+                  {refunds.map((refund) => (
+                    <div key={refund.id} className="rounded-xl bg-white/70 px-3 py-2" style={{ border: "1px solid #dbeafe" }}>
+                      <div className="flex items-center justify-between gap-3">
+                        <span style={{ fontSize: "13px", fontWeight: 800, color: "#1e40af" }}>
+                          {formatCurrency(refund.value)}
+                        </span>
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: "#2563eb", textTransform: "capitalize" }}>
+                          {refund.status.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      <p className="mt-1" style={{ fontSize: "12px", color: "#1d4ed8", lineHeight: 1.4 }}>
+                        {refund.reason || (refund.type === "produto_em_falta" ? "Produto em falta" : "Reembolso do pedido")}
+                      </p>
+                      {refund.missingItems && refund.missingItems.length > 0 && (
+                        <p className="mt-1" style={{ fontSize: "11px", color: "#1e3a8a", lineHeight: 1.4 }}>
+                          {refund.missingItems.map((item) => `${item.missingQuantity}x ${item.name}`).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-2" style={{ fontSize: "12px", color: "#1d4ed8", lineHeight: 1.45 }}>
+                  O prazo para aparecer na forma de pagamento depende da instituição financeira.
                 </p>
               </div>
             </div>

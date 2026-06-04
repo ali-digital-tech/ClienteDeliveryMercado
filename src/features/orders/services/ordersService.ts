@@ -79,6 +79,27 @@ interface ApiOrder {
     pago_em?: string | null;
     criado_em?: string | null;
   } | null;
+  reembolsos?: Array<{
+    id: string;
+    pagamento_id?: string | null;
+    valor?: string | number | null;
+    motivo?: string | null;
+    status?: string | null;
+    estornado_em?: string | null;
+    criado_em?: string | null;
+    metadata?: {
+      tipo?: string | null;
+      itens_faltantes?: Array<{
+        item_pedido_id?: string | null;
+        produto_id?: string | null;
+        nome_produto?: string | null;
+        quantidade_comprada?: string | number | null;
+        quantidade_faltante?: string | number | null;
+        preco_unitario?: string | number | null;
+        valor_reembolso?: string | number | null;
+      }> | null;
+    } | null;
+  }> | null;
   solicitacao_cancelamento?: {
     status?: 'pendente' | 'aprovada' | 'recusada' | null;
     valor_reembolsado?: string | number | null;
@@ -342,6 +363,29 @@ function mapOrder(order: ApiOrder): Order {
       paidAt: order.pagamento.pago_em || null,
       createdAt: order.pagamento.criado_em || null,
     } : null,
+    refunds: Array.isArray(order.reembolsos)
+      ? order.reembolsos.map((refund) => ({
+          id: refund.id,
+          paymentId: refund.pagamento_id || null,
+          value: toNumber(refund.valor),
+          reason: refund.motivo || null,
+          status: refund.status || '',
+          refundedAt: refund.estornado_em || null,
+          createdAt: refund.criado_em || null,
+          type: refund.metadata?.tipo || null,
+          missingItems: Array.isArray(refund.metadata?.itens_faltantes)
+            ? refund.metadata.itens_faltantes.map((item) => ({
+                orderItemId: item.item_pedido_id || null,
+                productId: item.produto_id || null,
+                name: item.nome_produto || 'Produto',
+                boughtQuantity: toNumber(item.quantidade_comprada),
+                missingQuantity: toNumber(item.quantidade_faltante),
+                unitPrice: toNumber(item.preco_unitario),
+                refundValue: toNumber(item.valor_reembolso),
+              }))
+            : [],
+        }))
+      : [],
     cancellationRequest: order.solicitacao_cancelamento?.status ? {
       status: order.solicitacao_cancelamento.status,
       refundValue: order.solicitacao_cancelamento.valor_reembolsado === null
