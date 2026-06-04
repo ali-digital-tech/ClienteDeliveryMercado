@@ -146,62 +146,77 @@ function CompactOrderTimeline({ order }: { order: Order }) {
   const steps = getCompactTimelineSteps(order);
   const currentStep = steps.find((step) => step.state === "active" || step.state === "failed")
     || steps[steps.length - 1];
+  const activeIndex = steps.findIndex((step) => step.state === "active" || step.state === "failed");
+  const progressIndex = activeIndex >= 0 ? activeIndex : steps.length - 1;
+  const progressRatio = steps.length > 1 ? progressIndex / (steps.length - 1) : 0;
+  const lineInset = `${100 / (steps.length * 2)}%`;
 
   return (
     <div
-      className="mt-3 rounded-xl px-3 py-2.5"
-      style={{ backgroundColor: "#f8fafc", border: "1px solid #eef2f7" }}
+      className="mt-2.5 rounded-lg px-2.5 py-2"
+      style={{ backgroundColor: "#fbfdff", border: "1px solid #eef2f7" }}
       aria-label={`Progresso do pedido: ${currentStep?.label || "Recebido"}`}
     >
-      <div className="flex items-start">
-        {steps.map((step, index) => {
-          const tone = getTimelineTone(step.state);
-          const nextTone = steps[index + 1] ? getTimelineTone(steps[index + 1].state) : tone;
-          const isCurrent = step.state === "active" || step.state === "failed";
+      <div className="relative">
+        <div
+          className="absolute h-px"
+          style={{
+            left: lineInset,
+            right: lineInset,
+            top: "5px",
+            backgroundColor: "#e2e8f0",
+          }}
+        >
+          <div
+            className="h-full"
+            style={{
+              width: `${progressRatio * 100}%`,
+              backgroundColor: "#d7e3f3",
+            }}
+          />
+        </div>
 
-          return (
-            <div key={`${step.label}-${index}`} className="flex min-w-0 flex-1 flex-col items-center">
-              <div className="flex w-full items-center">
-                <div
-                  className="h-px flex-1"
-                  style={{ backgroundColor: index === 0 ? "transparent" : tone.line }}
-                />
-                <div
-                  className="flex flex-shrink-0 items-center justify-center rounded-full"
+        <div
+          className="grid"
+          style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
+        >
+          {steps.map((step, index) => {
+            const tone = getTimelineTone(step.state);
+            const isCurrent = step.state === "active" || step.state === "failed";
+            const dotSize = isCurrent ? "10px" : "6px";
+
+            return (
+              <div key={`${step.label}-${index}`} className="flex min-w-0 flex-1 flex-col items-center">
+                <div className="flex h-2.5 w-full items-center justify-center">
+                  <div
+                    className="relative z-10 flex flex-shrink-0 items-center justify-center rounded-full"
+                    style={{
+                      width: dotSize,
+                      height: dotSize,
+                      backgroundColor: isCurrent ? "#fbfdff" : tone.dot,
+                      border: isCurrent ? `2px solid ${tone.dot}` : "none",
+                      boxShadow: step.state === "active" ? "0 0 0 3px rgba(47,91,147,0.07)" : "none",
+                    }}
+                  />
+                </div>
+                <span
+                  className="mt-1 block min-w-0 text-center"
                   style={{
-                    width: isCurrent ? "12px" : "9px",
-                    height: isCurrent ? "12px" : "9px",
-                    backgroundColor: isCurrent ? tone.bg : tone.dot,
-                    border: isCurrent ? `2px solid ${tone.dot}` : "none",
-                    boxShadow: step.state === "active" ? "0 0 0 4px rgba(47,91,147,0.08)" : "none",
+                    maxWidth: "100%",
+                    fontSize: "8.5px",
+                    lineHeight: 1,
+                    fontWeight: isCurrent ? 700 : 600,
+                    color: tone.text,
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  {step.state === "done" && (
-                    <div className="rounded-full bg-white" style={{ width: "3px", height: "3px" }} />
-                  )}
-                </div>
-                <div
-                  className="h-px flex-1"
-                  style={{ backgroundColor: index === steps.length - 1 ? "transparent" : nextTone.line }}
-                />
+                  {step.label}
+                </span>
               </div>
-              <span
-                className="mt-1 min-w-0 text-center"
-                style={{
-                  maxWidth: "58px",
-                  minHeight: "22px",
-                  fontSize: "10px",
-                  lineHeight: 1.1,
-                  fontWeight: isCurrent ? 700 : 600,
-                  color: tone.text,
-                  overflowWrap: "break-word",
-                }}
-              >
-                {step.label}
-              </span>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
