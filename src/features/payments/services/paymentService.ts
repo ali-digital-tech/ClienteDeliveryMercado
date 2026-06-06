@@ -6,6 +6,7 @@ export const PIX_PAYMENT_WINDOW_MS = 5 * 60 * 1000;
 const CARD_TOKEN_TTL_MS = 20 * 60 * 1000;
 
 export type PaymentMethod = 'pix' | 'cartao_credito' | 'cartao_debito';
+export type CardPaymentMethod = Exclude<PaymentMethod, 'pix'>;
 
 export interface PayerData {
   payer_email: string;
@@ -34,7 +35,7 @@ export interface StoredPaymentSelection {
 export interface SavedPaymentCard {
   id: string;
   loja_id: string;
-  forma_pagamento: Exclude<PaymentMethod, 'pix'>;
+  forma_pagamento: CardPaymentMethod;
   payment_method_id: string;
   issuer_id?: string | number | null;
   bandeira?: string | null;
@@ -257,7 +258,8 @@ export async function getSavedPaymentCards(marketId: string) {
 export async function saveCustomerPaymentCard(
   marketId: string,
   payer: PayerData,
-  selection: StoredPaymentSelection
+  selection: StoredPaymentSelection,
+  options?: { formas_pagamento?: CardPaymentMethod[] }
 ) {
   if (!selection.card_token || !selection.payment_method_id) {
     throw new Error('Confirme os dados do cartão antes de salvar.');
@@ -269,6 +271,7 @@ export async function saveCustomerPaymentCard(
       loja_id: marketId,
       card_token: selection.card_token,
       forma_pagamento: selection.method,
+      formas_pagamento: options?.formas_pagamento,
       payment_method_id: selection.payment_method_id,
       issuer_id: selection.issuer_id ?? null,
       cardholder_name: selection.cardholder_name,

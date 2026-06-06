@@ -9,6 +9,7 @@ import {
   savePaymentSelection,
   selectionFromSavedCard,
   setPrincipalCustomerPaymentCard,
+  type CardPaymentMethod,
   type PaymentMethod,
   type SavedPaymentCard,
   type StoredPaymentSelection,
@@ -17,6 +18,44 @@ import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
 
 function getCardTypeLabel(method?: PaymentMethod) {
   return method === "cartao_debito" ? "Débito" : "Crédito";
+}
+
+type SavedPaymentCardGroup = SavedPaymentCard & {
+  cards: SavedPaymentCard[];
+  formas_pagamento: CardPaymentMethod[];
+  group_key: string;
+};
+
+function getCardGroupLabel(group: SavedPaymentCardGroup) {
+  const hasCredit = group.formas_pagamento.includes("cartao_credito");
+  const hasDebit = group.formas_pagamento.includes("cartao_debito");
+
+  if (hasCredit && hasDebit) return "Crédito e débito";
+  return getCardTypeLabel(group.formas_pagamento[0]);
+}
+
+function groupSavedCards(cards: SavedPaymentCard[]): SavedPaymentCardGroup[] {
+  const groups = new Map<string, SavedPaymentCard[]>();
+
+  cards.forEach((card) => {
+    const key = card.gateway_card_id || card.id;
+    groups.set(key, [...(groups.get(key) || []), card]);
+  });
+
+  return Array.from(groups.entries()).map(([groupKey, groupCards]) => {
+    const representative = groupCards.find((card) => card.principal) || groupCards[0];
+    const formasPagamento = Array.from(
+      new Set(groupCards.map((card) => card.forma_pagamento))
+    ) as CardPaymentMethod[];
+
+    return {
+      ...representative,
+      principal: groupCards.some((card) => card.principal),
+      cards: groupCards,
+      formas_pagamento: formasPagamento,
+      group_key: groupKey,
+    };
+  });
 }
 
 function getBrandLabel(paymentMethodId?: string) {
@@ -39,6 +78,7 @@ export function AddCardScreen() {
   const [isLoadingCards, setIsLoadingCards] = useState(true);
   const [processingCardId, setProcessingCardId] = useState("");
   const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const groupedCards = groupSavedCards(savedCards);
   const principalCard = savedCards.find((card) => card.principal) || savedCards[0] || null;
 
   const syncStoredSelection = useCallback((cards: SavedPaymentCard[]) => {
@@ -81,9 +121,9 @@ export function AddCardScreen() {
 
   useEffect(() => {
     setActiveCardIndex((currentIndex) => (
-      savedCards.length > 0 ? Math.min(currentIndex, savedCards.length - 1) : 0
+      groupedCards.length > 0 ? Math.min(currentIndex, groupedCards.length - 1) : 0
     ));
-  }, [savedCards.length]);
+  }, [groupedCards.length]);
 
   const handleCardsScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
     const carousel = event.currentTarget;
@@ -118,10 +158,10 @@ export function AddCardScreen() {
     });
   };
 
-  const makePrincipal = async (card: SavedPaymentCard) => {
+  const makePrincipal = async (card: SavedPaymentCardGroup) => {
     if (card.principal) return;
 
-    setProcessingCardId(card.id);
+    setProcessingCardId(card.group_key);
     try {
       const updatedCard = await setPrincipalCustomerPaymentCard(card.id);
       const nextSelection = selectionFromSavedCard(updatedCard);
@@ -136,11 +176,13 @@ export function AddCardScreen() {
     }
   };
 
-  const removeCard = async (card: SavedPaymentCard) => {
-    setProcessingCardId(card.id);
+  const removeCard = async (card: SavedPaymentCardGroup) => {
+    setProcessingCardId(card.group_key);
 
     try {
-      await removeCustomerPaymentCard(card.id);
+      for (const cardToRemove of card.cards) {
+        await removeCustomerPaymentCard(cardToRemove.id);
+      }
       const remainingCards = await getSavedPaymentCards(marketId);
       setSavedCards(remainingCards);
 
@@ -204,7 +246,7 @@ export function AddCardScreen() {
             {principalCard && <CheckCircle2 size={19} color="#16a34a" className="flex-shrink-0" />}
           </div>
 
-          {savedCards.length > 0 ? (
+          {groupedCards.length > 0 ? (
             <div className="space-y-2">
               <div
                 onScroll={handleCardsScroll}
@@ -216,12 +258,12 @@ export function AddCardScreen() {
                 aria-label="Cartões salvos"
               >
                 <div className="flex gap-3">
-                  {savedCards.map((card, index) => {
+                  {groupedCards.map((card, index) => {
                     const isActiveCard = index === activeCardIndex;
 
                     return (
                       <div
-                        key={card.id}
+                        key={card.group_key}
                         data-payment-card-slide="true"
                         className="min-w-[88%] max-w-[88%] flex-shrink-0"
                         style={{
@@ -273,7 +315,7 @@ export function AddCardScreen() {
                                 BANDEIRA
                               </p>
                               <p className="truncate" style={{ fontSize: "12px", fontWeight: 800 }}>
-                                {getBrandLabel(card.payment_method_id)} · {getCardTypeLabel(card.forma_pagamento)}
+                                {getBrandLabel(card.payment_method_id)} · {getCardGroupLabel(card)}
                               </p>
                             </div>
                           </div>
@@ -282,7 +324,7 @@ export function AddCardScreen() {
                             <button
                               type="button"
                               onClick={() => void makePrincipal(card)}
-                              disabled={card.principal || processingCardId === card.id}
+                              disabled={card.principal || processingCardId === card.group_key}
                               className="rounded-xl px-3 py-2.5 disabled:opacity-60"
                               style={{ backgroundColor: "rgba(255,255,255,0.14)", color: "white", fontSize: "12px", fontWeight: 800 }}
                             >
@@ -291,7 +333,7 @@ export function AddCardScreen() {
                             <button
                               type="button"
                               onClick={() => void removeCard(card)}
-                              disabled={processingCardId === card.id}
+                              disabled={processingCardId === card.group_key}
                               className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 disabled:opacity-60"
                               style={{ backgroundColor: "rgba(254,242,242,0.96)", color: "#dc2626", fontSize: "12px", fontWeight: 800 }}
                             >
@@ -306,11 +348,11 @@ export function AddCardScreen() {
                 </div>
               </div>
 
-              {savedCards.length > 1 && (
+              {groupedCards.length > 1 && (
                 <div className="flex items-center justify-center gap-1.5" aria-hidden="true">
-                  {savedCards.map((card, index) => (
+                  {groupedCards.map((card, index) => (
                     <span
-                      key={card.id}
+                      key={card.group_key}
                       className="rounded-full transition-all"
                       style={{
                         width: index === activeCardIndex ? "18px" : "6px",

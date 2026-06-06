@@ -15,6 +15,7 @@ import {
   savePaymentSelection,
   selectionFromSavedCard,
   validatePayerData,
+  type CardPaymentMethod,
   type PaymentMethod,
   type PayerData,
   type SavedPaymentCard,
@@ -141,7 +142,35 @@ const methodOptions: Array<{
   },
 ];
 
+const cardSaveOptions: Array<{
+  id: CardSaveMode;
+  label: string;
+  desc: string;
+  badge?: string;
+  Icon: typeof CreditCard;
+}> = [
+  {
+    id: "cartao_credito",
+    label: "Crédito",
+    desc: "Salva o cartão para compras no crédito",
+    Icon: CreditCard,
+  },
+  {
+    id: "cartao_debito",
+    label: "Débito",
+    desc: "Salva o cartão para compras no débito",
+    Icon: Smartphone,
+  },
+  {
+    id: "cartao_credito_debito",
+    label: "Crédito + Débito",
+    desc: "O mesmo cartão aparecerá nas duas opções",
+    Icon: CreditCard,
+  },
+];
+
 type PaymentScreenMode = "checkout" | "profilePaymentMethods";
+type CardSaveMode = CardPaymentMethod | "cartao_credito_debito";
 
 type PaymentLocationState = {
   mode?: PaymentScreenMode;
@@ -228,6 +257,15 @@ function loadMercadoPagoSdk() {
 
 function getCardPaymentTypeId(method: PaymentMethod): CardPaymentTypeId {
   return method === "cartao_debito" ? "debit_card" : "credit_card";
+}
+
+function getPaymentMethodForSaveMode(mode: CardSaveMode): CardPaymentMethod {
+  return mode === "cartao_debito" ? "cartao_debito" : "cartao_credito";
+}
+
+function getCardSaveModeLabel(mode: CardSaveMode) {
+  if (mode === "cartao_credito_debito") return "Crédito e débito";
+  return mode === "cartao_debito" ? "Débito" : "Crédito";
 }
 
 const debitPaymentMethodByBrand: Record<string, string> = {
@@ -337,6 +375,9 @@ export function PaymentScreen() {
   const selectedRef = useRef<PaymentMethod>(initialMethod);
 
   const [selected, setSelected] = useState<PaymentMethod>(initialMethod);
+  const [cardSaveMode, setCardSaveMode] = useState<CardSaveMode>(
+    initialMethod === "cartao_debito" ? "cartao_debito" : "cartao_credito"
+  );
   const [payer, setPayer] = useState<PayerData>({
     payer_email: storedPayer.payer_email || currentUser?.email || "",
     payer_first_name: storedPayer.payer_first_name || nameParts.firstName,
@@ -532,6 +573,13 @@ export function PaymentScreen() {
 
     setSelectedSavedCardId("");
   }, [applySavedCardSelection, findSavedCardForMethod, isProfilePaymentMethods]);
+
+  const handleSelectCardSaveMode = useCallback((mode: CardSaveMode) => {
+    setCardSaveMode(mode);
+    setSelected(getPaymentMethodForSaveMode(mode));
+    setSelectedSavedCardId("");
+    resetCardMetadata();
+  }, [resetCardMetadata]);
 
   const refreshCardMetadata = useCallback(async (bin: string) => {
     const mp = mpRef.current;
@@ -800,7 +848,12 @@ export function PaymentScreen() {
             };
 
         if (!selectedSavedCard && (isProfilePaymentMethods || saveCardForNextPurchases)) {
-          const savedCard = await saveCustomerPaymentCard(marketId, normalizedPayer, baseSelection);
+          const formasPagamento = isProfilePaymentMethods && cardSaveMode === "cartao_credito_debito"
+            ? ["cartao_credito", "cartao_debito"] satisfies CardPaymentMethod[]
+            : undefined;
+          const savedCard = await saveCustomerPaymentCard(marketId, normalizedPayer, baseSelection, {
+            formas_pagamento: formasPagamento,
+          });
           const savedSelection = selectionFromSavedCard(savedCard);
 
           if (isProfilePaymentMethods) {
@@ -864,58 +917,74 @@ export function PaymentScreen() {
 
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-4" style={{ background: "#f8fafc" }}>
         <div className="mb-4 flex flex-col gap-3">
-          {availableMethodOptions.map(({ id, label, desc, badge, Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => handleSelectMethod(id)}
-              className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 border-2 text-left transition-all"
-              style={{ borderColor: selected === id ? primaryColor : "var(--market-primary-border-color)" }}
-            >
-              <div
-                className="rounded-2xl flex items-center justify-center flex-shrink-0"
-                style={{
-                  width: "48px",
-                  height: "48px",
-                  backgroundColor: selected === id ? primarySoftColor : "#f8fafc",
+          {isProfilePaymentMethods && (
+            <p style={{ fontSize: "12px", fontWeight: 900, color: "var(--market-primary-color)" }}>
+              Salvar como
+            </p>
+          )}
+
+          {(isProfilePaymentMethods ? cardSaveOptions : availableMethodOptions).map(({ id, label, desc, badge, Icon }) => {
+            const isSelectedOption = isProfilePaymentMethods ? cardSaveMode === id : selected === id;
+
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  if (isProfilePaymentMethods) {
+                    handleSelectCardSaveMode(id as CardSaveMode);
+                    return;
+                  }
+                  handleSelectMethod(id as PaymentMethod);
                 }}
+                className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 border-2 text-left transition-all"
+                style={{ borderColor: isSelectedOption ? primaryColor : "var(--market-primary-border-color)" }}
               >
-                <Icon size={22} color={primaryColor} />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
-                    {label}
-                  </p>
-                  {badge && (
-                    <span
-                      className="rounded-full px-2 py-0.5"
-                      style={{
-                        fontSize: "10px",
-                        fontWeight: 600,
-                        backgroundColor: primarySoftColor,
-                        color: primaryColor,
-                      }}
-                    >
-                      {badge}
-                    </span>
-                  )}
+                <div
+                  className="rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    backgroundColor: isSelectedOption ? primarySoftColor : "#f8fafc",
+                  }}
+                >
+                  <Icon size={22} color={primaryColor} />
                 </div>
-                <p style={{ fontSize: "12px", color: "#64748b" }}>{desc}</p>
-              </div>
 
-              <div
-                className="rounded-full flex-shrink-0"
-                style={{
-                  width: "20px",
-                  height: "20px",
-                  border: `2px solid ${selected === id ? primaryColor : "#cbd5e1"}`,
-                  backgroundColor: selected === id ? primaryColor : "white",
-                }}
-              />
-            </button>
-          ))}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
+                      {label}
+                    </p>
+                    {badge && (
+                      <span
+                        className="rounded-full px-2 py-0.5"
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          backgroundColor: primarySoftColor,
+                          color: primaryColor,
+                        }}
+                      >
+                        {badge}
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: "12px", color: "#64748b" }}>{desc}</p>
+                </div>
+
+                <div
+                  className="rounded-full flex-shrink-0"
+                  style={{
+                    width: "20px",
+                    height: "20px",
+                    border: `2px solid ${isSelectedOption ? primaryColor : "#cbd5e1"}`,
+                    backgroundColor: isSelectedOption ? primaryColor : "white",
+                  }}
+                />
+              </button>
+            );
+          })}
         </div>
 
         <div className="mb-4">
@@ -1120,7 +1189,7 @@ export function PaymentScreen() {
                             TIPO
                           </p>
                           <p style={{ fontSize: "12px", fontWeight: 800 }}>
-                            {selected === "cartao_debito" ? "Débito" : "Crédito"}
+                            {isProfilePaymentMethods ? getCardSaveModeLabel(cardSaveMode) : selected === "cartao_debito" ? "Débito" : "Crédito"}
                           </p>
                         </div>
                       </div>
