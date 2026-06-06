@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } 
 import type { Product } from '@/features/products';
 import { validateCoupon } from '../services/couponsService';
 import type { CartItem } from '../types/cart';
+import { getCartLineCount, isWeightProduct, roundCartQuantity } from '../utils/formatCartQuantity';
 
 const CART_STORAGE_KEY = 'cliente_delivery_cart_by_market_v1';
 
@@ -168,7 +169,7 @@ export function useCartStore(marketId: string, products: Product[] = []) {
   const coupon = couponByMarket[marketId] || '';
   const couponId = couponIdByMarket[marketId] || '';
   const discount = discountByMarket[marketId] || 0;
-  const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
+  const cartCount = getCartLineCount(cart);
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.qty, 0);
 
   const updateCartsByMarket = useCallback((updater: (prev: Record<string, CartItem[]>) => Record<string, CartItem[]>) => {
@@ -207,14 +208,14 @@ export function useCartStore(marketId: string, products: Product[] = []) {
     updateCartsByMarket(prevByMarket => {
       const currentCart = prevByMarket[marketId] || [];
       const existing = currentCart.find(item => item.product.id === product.id);
-      const quantityToAdd = toPositiveQuantity(quantity) || 1;
+      const quantityToAdd = roundCartQuantity(toPositiveQuantity(quantity) || (isWeightProduct(product) ? product.minQty : 1));
 
       if (existing) {
         return {
           ...prevByMarket,
           [marketId]: currentCart.map(item =>
             item.product.id === product.id
-              ? { ...item, product, qty: item.qty + quantityToAdd }
+              ? { ...item, product, qty: roundCartQuantity(item.qty + quantityToAdd) }
               : item
           ),
         };
@@ -242,7 +243,7 @@ export function useCartStore(marketId: string, products: Product[] = []) {
         ...prevByMarket,
         [marketId]: nextQuantity <= 0
           ? currentCart.filter(item => item.product.id !== productId)
-          : currentCart.map(item => item.product.id === productId ? { ...item, qty: nextQuantity } : item),
+          : currentCart.map(item => item.product.id === productId ? { ...item, qty: roundCartQuantity(nextQuantity) } : item),
       };
     });
     clearCouponState(marketId, setCouponByMarket, setDiscountByMarket, setCouponIdByMarket);

@@ -4,9 +4,9 @@ import { useParams, useNavigate } from 'react-router';
 import { ChevronLeft, ChevronRight, Heart, Home, Share2, ShoppingCart, Plus, Minus, ShieldCheck, Store } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
-import { formatCartQuantity } from '@/features/cart';
+import { formatCartQuantity, getNextCartQuantity, isWeightProduct } from '@/features/cart';
 import { useCategories } from '@/features/categories';
-import { getProductById, ProductCard, ProductImage, useProducts } from '@/features/products';
+import { getProductById, ProductCard, ProductImage, WeightQuantityModal, useProducts } from '@/features/products';
 import type { Product } from '@/features/products';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
@@ -78,6 +78,7 @@ export function ProductDetailsPage() {
   const { addToCart, updateQty, cart, toggleFavorite, isFavorite, cartCount, tenantPath, currentMarket } = useApp();
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
+  const [showWeightSelector, setShowWeightSelector] = useState(false);
   const relatedDrag = useHorizontalDragScroll<HTMLDivElement>();
   const { categories: availableCategories } = useCategories(marketId, {});
   const { products: relatedProducts } = useProducts(marketId, {
@@ -127,6 +128,7 @@ export function ProductDetailsPage() {
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : 0;
   const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
+  const isWeightSale = isWeightProduct(product);
   const related = relatedProducts.filter(p => p.id !== product.id).slice(0, 4);
   const categoryTrail = (product.categoryPath || 'Produtos')
     .split(/\s*>\s*/)
@@ -168,17 +170,22 @@ export function ProductDetailsPage() {
 
   const handleAdd = () => {
     if (qty === 0) {
+      if (isWeightSale) {
+        setShowWeightSelector(true);
+        return;
+      }
+
       void addToCart(product).catch(error => {
         console.error('Erro ao adicionar produto ao carrinho:', error);
       });
     } else {
-      void addToCart(product).catch(error => {
-        console.error('Erro ao adicionar produto ao carrinho:', error);
+      void updateQty(product.id, getNextCartQuantity(product, qty, 1)).catch(error => {
+        console.error('Erro ao atualizar quantidade do produto:', error);
       });
     }
   };
   const handleRemove = () => {
-    void updateQty(product.id, qty - 1).catch(error => {
+    void updateQty(product.id, getNextCartQuantity(product, qty, -1)).catch(error => {
       console.error('Erro ao atualizar quantidade do produto:', error);
     });
   };
@@ -209,6 +216,19 @@ export function ProductDetailsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: '#f8fafc' }}>
+      {showWeightSelector && (
+        <WeightQuantityModal
+          product={product}
+          primaryColor={primaryColor}
+          onClose={() => setShowWeightSelector(false)}
+          onConfirm={(quantity) => {
+            setShowWeightSelector(false);
+            void addToCart(product, quantity).catch(error => {
+              console.error('Erro ao adicionar produto ao carrinho:', error);
+            });
+          }}
+        />
+      )}
       <div className="hidden border-b bg-white md:block" style={{ borderColor: '#e2e8f0' }}>
         <nav aria-label="Caminho do produto" className="mx-auto flex max-w-6xl items-center gap-2 overflow-hidden px-6 py-4">
           <button onClick={() => navigate(tenantPath())} className="flex flex-shrink-0 items-center text-slate-500 transition-colors hover:text-slate-800" aria-label="Início">
@@ -309,7 +329,7 @@ export function ProductDetailsPage() {
                   {product.brand}
                 </span>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                  {product.unit}
+                  {isWeightSale ? 'kg' : product.unit}
                 </span>
               </div>
               <h1 className="line-clamp-3 text-slate-900" style={{ fontSize: '16px', fontWeight: 800, lineHeight: 1.25 }}>
@@ -318,6 +338,7 @@ export function ProductDetailsPage() {
               <div className="mt-2 flex flex-wrap items-end gap-x-2">
                 <p style={{ fontSize: '22px', fontWeight: 800, lineHeight: 1.1, color: primaryColor }}>
                   R$ {product.price.toFixed(2).replace('.', ',')}
+                  {isWeightSale && <span style={{ fontSize: '12px', fontWeight: 700 }}>/kg</span>}
                 </p>
                 {product.originalPrice && (
                   <p className="text-slate-400 line-through" style={{ fontSize: '11px' }}>
@@ -357,7 +378,7 @@ export function ProductDetailsPage() {
                   <Minus size={17} color={primaryColor} />
                 </button>
                 <span style={{ fontSize: '15px', fontWeight: 700, color: '#1f2937', minWidth: '27px', textAlign: 'center' }}>
-                  {formatCartQuantity(qty)}
+                  {formatCartQuantity(qty, product)}
                 </span>
                 <button
                   onClick={handleAdd}
@@ -372,7 +393,7 @@ export function ProductDetailsPage() {
                 className="min-w-0 flex-1 rounded-xl px-3 py-3 text-white transition-all active:scale-[0.98]"
                 style={{ backgroundColor: primaryColor, fontSize: '13px', fontWeight: 750 }}
               >
-                {qty === 0 ? 'Adicionar' : `Ver carrinho (${formatCartQuantity(qty)})`}
+                {qty === 0 ? 'Adicionar' : `Ver carrinho (${formatCartQuantity(qty, product)})`}
               </button>
             </div>
 
@@ -441,7 +462,7 @@ export function ProductDetailsPage() {
                 {product.brand}
               </span>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                {product.unit}
+                {isWeightSale ? 'kg' : product.unit}
               </span>
             </div>
 
@@ -452,6 +473,7 @@ export function ProductDetailsPage() {
             <div className="mt-4 flex flex-wrap items-end gap-x-3 gap-y-1">
               <p style={{ fontSize: '30px', fontWeight: 800, lineHeight: 1, color: primaryColor }}>
                 R$ {product.price.toFixed(2).replace('.', ',')}
+                {isWeightSale && <span style={{ fontSize: '14px', fontWeight: 700 }}>/kg</span>}
               </p>
               {product.originalPrice && (
                 <p className="mb-0.5 text-slate-400 line-through" style={{ fontSize: '15px' }}>
@@ -471,7 +493,7 @@ export function ProductDetailsPage() {
                     <Minus size={18} color={primaryColor} />
                   </button>
                   <span style={{ fontSize: '17px', fontWeight: 700, color: '#1f2937', minWidth: '32px', textAlign: 'center' }}>
-                    {formatCartQuantity(qty)}
+                    {formatCartQuantity(qty, product)}
                   </span>
                   <button
                     onClick={handleAdd}
@@ -486,7 +508,7 @@ export function ProductDetailsPage() {
                   className="flex-1 rounded-xl px-4 py-3 text-white transition-all active:scale-[0.98]"
                   style={{ backgroundColor: primaryColor, fontSize: '14px', fontWeight: 750 }}
                 >
-                  {qty === 0 ? 'Adicionar ao carrinho' : `Ver carrinho (${formatCartQuantity(qty)})`}
+                  {qty === 0 ? 'Adicionar ao carrinho' : `Ver carrinho (${formatCartQuantity(qty, product)})`}
                 </button>
               </div>
             </div>

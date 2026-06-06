@@ -10,6 +10,10 @@ interface ApiStoreProduct {
   marca?: string | null;
   preco?: string | number | null;
   preco_promocional?: string | number | null;
+  tipo_venda?: 'unidade' | 'peso' | null;
+  quantidade_minima_compra?: string | number | null;
+  incremento_quantidade?: string | number | null;
+  vendavel_por_peso?: boolean | null;
   imagem_url?: string | null;
   categoria_id?: string | null;
   categoria_final_id?: string | null;
@@ -33,6 +37,8 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
   const promoPrice = product.preco_promocional === null ? 0 : toNumber(product.preco_promocional);
   const hasPromo = promoPrice > 0 && regularPrice > 0 && promoPrice < regularPrice;
   const salesCount = toNumber(product.quantidade_vendida);
+  const saleType = product.tipo_venda || (product.vendavel_por_peso ? 'peso' : 'unidade');
+  const isWeight = saleType === 'peso';
 
   return {
     id: product.id,
@@ -42,6 +48,10 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
     brand: product.marca || 'Mercado',
     price: hasPromo ? promoPrice : regularPrice,
     originalPrice: hasPromo ? regularPrice : undefined,
+    saleType,
+    minQty: toNumber(product.quantidade_minima_compra, isWeight ? 0.1 : 1),
+    stepQty: toNumber(product.incremento_quantidade, isWeight ? 0.1 : 1),
+    priceUnit: isWeight ? 'kg' : product.unidade_medida || 'un',
     image: product.imagem_url || '',
     category: product.categoria_final_id || product.categoria_id || product.categoria_nome || 'geral',
     categoryPath: product.categoria_caminho || product.categoria_nome || undefined,

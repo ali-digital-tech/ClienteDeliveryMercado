@@ -6,6 +6,10 @@ export interface Product {
   brand: string;
   price: number;
   originalPrice?: number;
+  saleType: 'unidade' | 'peso';
+  minQty: number;
+  stepQty: number;
+  priceUnit: string;
   image: string;
   category: string;
   categoryPath?: string;

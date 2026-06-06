@@ -5,7 +5,7 @@ import { ChevronLeft, Plus, Minus, Trash2, Tag, Truck, ShoppingCart } from 'luci
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { BannerRenderer, useBanners } from '@/features/banners';
-import { formatCartQuantity } from '@/features/cart';
+import { formatCartQuantity, getCartLineCount, getNextCartQuantity } from '@/features/cart';
 import {
   calculatePlatformServiceFee,
   getMercadoPagoCheckoutConfig,
@@ -93,7 +93,7 @@ export function CartPage() {
   const deliveryFee = Math.max(0, currentMarket?.deliveryFee || 0);
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
   const serviceFee = calculatePlatformServiceFee(total, checkoutConfig?.platform_split);
-  const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
+  const itemCount = getCartLineCount(cart);
   const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
 
   useEffect(() => {
@@ -267,7 +267,7 @@ export function CartPage() {
                     <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1">
                       <button
                         onClick={() => {
-                          void updateQty(item.product.id, item.qty - 1).catch(error => {
+                        void updateQty(item.product.id, getNextCartQuantity(item.product, item.qty, -1)).catch(error => {
                             console.error('Erro ao atualizar quantidade do produto:', error);
                           });
                         }}
@@ -277,11 +277,11 @@ export function CartPage() {
                         <Minus size={12} color="#374151" />
                       </button>
                       <span style={{ fontSize: '14px', fontWeight: 700, minWidth: '16px', textAlign: 'center' }}>
-                        {formatCartQuantity(item.qty)}
+                        {formatCartQuantity(item.qty, item.product)}
                       </span>
                       <button
                         onClick={() => {
-                          void updateQty(item.product.id, item.qty + 1).catch(error => {
+                          void updateQty(item.product.id, getNextCartQuantity(item.product, item.qty, 1)).catch(error => {
                             console.error('Erro ao atualizar quantidade do produto:', error);
                           });
                         }}

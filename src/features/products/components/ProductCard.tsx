@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Plus, Minus, Heart } from 'lucide-react';
 import type { Product } from '../types/product';
 import { useApp } from '@/app/providers/AppProvider';
 import { useNavigate } from 'react-router';
 import { ProductImage } from './ProductImage';
-import { formatCartQuantity } from '@/features/cart';
+import { formatCartQuantity, getNextCartQuantity, isWeightProduct } from '@/features/cart';
+import { WeightQuantityModal } from './WeightQuantityModal';
 
 interface ProductCardProps {
   product: Product;
@@ -14,6 +16,7 @@ interface ProductCardProps {
 export function ProductCard({ product, compact = false, fluid = false }: ProductCardProps) {
   const { addToCart, updateQty, cart, toggleFavorite, isFavorite, tenantPath, currentMarket } = useApp();
   const navigate = useNavigate();
+  const [showWeightSelector, setShowWeightSelector] = useState(false);
   const cartItem = cart.find(item => item.product.id === product.id);
   const qty = cartItem?.qty || 0;
   const favorite = isFavorite(product.id);
@@ -22,32 +25,54 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
     : 0;
   const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
+  const isWeightSale = isWeightProduct(product);
   const handleIncrement = () => {
     if (qty === 0) {
+      if (isWeightSale) {
+        setShowWeightSelector(true);
+        return;
+      }
+
       void addToCart(product).catch(error => {
         console.error('Erro ao adicionar produto ao carrinho:', error);
       });
       return;
     }
 
-    void updateQty(product.id, qty + 1).catch(error => {
+    void updateQty(product.id, getNextCartQuantity(product, qty, 1)).catch(error => {
       console.error('Erro ao atualizar quantidade do produto:', error);
     });
   };
   const handleDecrement = () => {
-    void updateQty(product.id, qty - 1).catch(error => {
+    void updateQty(product.id, getNextCartQuantity(product, qty, -1)).catch(error => {
       console.error('Erro ao atualizar quantidade do produto:', error);
     });
   };
 
+  const weightSelector = showWeightSelector && (
+    <WeightQuantityModal
+      product={product}
+      primaryColor={primaryColor}
+      onClose={() => setShowWeightSelector(false)}
+      onConfirm={(quantity) => {
+        setShowWeightSelector(false);
+        void addToCart(product, quantity).catch(error => {
+          console.error('Erro ao adicionar produto ao carrinho:', error);
+        });
+      }}
+    />
+  );
+
   if (compact) {
     return (
-      <div
-        className={`bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform ${fluid ? 'w-full' : ''}`}
-        onClick={() => navigate(tenantPath(`product/${product.id}`))}
-        style={fluid ? { minWidth: '150px' } : { width: '150px', flexShrink: 0 }}
-      >
-        <div className="relative bg-white flex items-center justify-center overflow-hidden" style={{ height: '110px' }}>
+      <>
+        {weightSelector}
+        <div
+          className={`bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform ${fluid ? 'w-full' : ''}`}
+          onClick={() => navigate(tenantPath(`product/${product.id}`))}
+          style={fluid ? { minWidth: '150px' } : { width: '150px', flexShrink: 0 }}
+        >
+          <div className="relative bg-white flex items-center justify-center overflow-hidden" style={{ height: '110px' }}>
           <ProductImage src={product.image} alt={product.name} className="w-full h-full object-contain p-2 pb-5" iconSize={30} />
           {discount > 0 && (
             <div 
@@ -71,7 +96,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
         <div className="p-2.5">
           <p className="text-gray-400 truncate" style={{ fontSize: '10px' }}>{product.brand}</p>
           <p className="text-gray-800 truncate" style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.3 }}>{product.name}</p>
-          <p className="text-gray-400" style={{ fontSize: '10px' }}>{product.unit}</p>
+          <p className="text-gray-400" style={{ fontSize: '10px' }}>{isWeightSale ? 'kg' : product.unit}</p>
           <div className="flex items-center justify-between mt-2">
             <div>
               {product.originalPrice && (
@@ -81,6 +106,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
               )}
               <p style={{ fontSize: '14px', fontWeight: 700, color: primaryColor }}>
                 R$ {product.price.toFixed(2).replace('.', ',')}
+                {isWeightSale && <span style={{ fontSize: '10px', fontWeight: 600 }}>/kg</span>}
               </p>
             </div>
             {qty > 0 ? (
@@ -97,7 +123,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
                   <Minus size={13} color={primaryColor} strokeWidth={2.5} />
                 </button>
                 <span style={{ fontSize: '12px', color: primaryColor, fontWeight: 700, minWidth: '18px', textAlign: 'center' }}>
-                  {formatCartQuantity(qty)}
+                  {formatCartQuantity(qty, product)}
                 </span>
                 <button
                   onClick={handleIncrement}
@@ -122,15 +148,18 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
             )}
           </div>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div
-      className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform flex"
-      onClick={() => navigate(tenantPath(`product/${product.id}`))}
-    >
+    <>
+      {weightSelector}
+      <div
+        className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform flex"
+        onClick={() => navigate(tenantPath(`product/${product.id}`))}
+      >
       <div className="relative bg-white flex-shrink-0 flex items-center justify-center overflow-hidden" style={{ width: '90px', height: '90px' }}>
         <ProductImage src={product.image} alt={product.name} className="w-full h-full object-contain p-1 pb-4" iconSize={26} />
         {discount > 0 && (
@@ -150,7 +179,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
         <div>
           <p className="text-gray-400 truncate" style={{ fontSize: '10px' }}>{product.brand}</p>
           <p className="text-gray-800" style={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.3 }}>{product.name}</p>
-          <p className="text-gray-400" style={{ fontSize: '10px' }}>{product.unit}</p>
+          <p className="text-gray-400" style={{ fontSize: '10px' }}>{isWeightSale ? 'kg' : product.unit}</p>
         </div>
         <div className="flex items-center justify-between">
           <div>
@@ -161,6 +190,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
             )}
             <p style={{ fontSize: '15px', fontWeight: 700, color: primaryColor }}>
               R$ {product.price.toFixed(2).replace('.', ',')}
+              {isWeightSale && <span style={{ fontSize: '10px', fontWeight: 600 }}>/kg</span>}
             </p>
           </div>
           {qty > 0 ? (
@@ -177,7 +207,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
                 <Minus size={14} color={primaryColor} strokeWidth={2.5} />
               </button>
               <span style={{ fontSize: '13px', color: primaryColor, fontWeight: 700, minWidth: '24px', textAlign: 'center' }}>
-                {formatCartQuantity(qty)}
+                {formatCartQuantity(qty, product)}
               </span>
               <button
                 onClick={handleIncrement}
@@ -199,6 +229,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

@@ -28,7 +28,7 @@ import {
   resolveSelectedAddress,
   type CustomerAddress,
 } from '@/features/addresses';
-import { formatCartQuantity, syncCartItemsBatch } from '@/features/cart';
+import { formatCartQuantity, getCartLineCount, syncCartItemsBatch } from '@/features/cart';
 import { ProductImage } from '@/features/products';
 import { createCheckoutOrder } from '@/features/orders/services/ordersService';
 import { getStoredCheckoutMode } from '@/features/orders/services/checkoutModeService';
@@ -456,7 +456,7 @@ export function CheckoutPage() {
   const minimumOrder = Math.max(0, currentMarket.minimumOrder || 0);
   const missingMinimumOrder = Math.max(0, minimumOrder - cartTotal);
   const meetsMinimumOrder = minimumOrder <= 0 || missingMinimumOrder <= 0;
-  const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
+  const itemCount = getCartLineCount(cart);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
   const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const storedPayerData = getStoredPayerData();
@@ -1064,7 +1064,7 @@ export function CheckoutPage() {
                       color: "#94a3b8",
                     }}
                   >
-                    Qtd: {formatCartQuantity(item.qty)}
+                    Qtd: {formatCartQuantity(item.qty, item.product)}
                   </p>
                 </div>
 
