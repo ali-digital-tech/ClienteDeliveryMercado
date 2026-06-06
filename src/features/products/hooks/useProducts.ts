@@ -81,7 +81,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     paginationMode = 'append',
   } = options;
   const normalizedSearch = search.trim();
-  const requestCategoryId = subcategoryId || categoryId || null;
+  const requestCategoryId = subcategoryId || categoryId || departmentId || null;
   const requestKey = useMemo(
     () => JSON.stringify({
       scope: 'market-products',

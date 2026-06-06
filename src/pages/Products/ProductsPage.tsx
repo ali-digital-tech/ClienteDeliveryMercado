@@ -249,11 +249,7 @@ export function ProductsPage() {
     marketId
     && (
       hasSearchQuery
-      || (
-        selectedDepartmentId
-        && selectedLevel2
-        && (!selectedSubcategoryId || selectedSubcategory)
-      )
+      || selectedDepartmentId
     ),
   );
   const {
@@ -367,7 +363,9 @@ export function ProductsPage() {
     }
     if (selectedLevel2Id && level2Categories.some((category) => category.id === selectedLevel2Id)) return;
 
-    updateNavigation({ categoriaNivel2: level2Categories[0].id, subcategoria: null });
+    if (selectedLevel2Id || selectedSubcategoryId) {
+      updateNavigation({ categoriaNivel2: "", subcategoria: null });
+    }
   }, [
     isLoadingLevel2Categories,
     level2Categories,

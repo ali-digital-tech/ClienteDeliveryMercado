@@ -1293,7 +1293,7 @@ export function PaymentScreen() {
                   )}
                 </div>
 
-                {!isProfilePaymentMethods && savedCards.length === 0 && (
+                {!isProfilePaymentMethods && (
                   <label
                     className="mt-4 flex items-start gap-3 rounded-xl px-3 py-3"
                     style={{ backgroundColor: "#f8fafc", border: "1px solid var(--market-primary-border-color)" }}

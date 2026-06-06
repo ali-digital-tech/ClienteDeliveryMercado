@@ -80,7 +80,7 @@ function useHorizontalDragScroll<T extends HTMLElement>() {
 export function MarketPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
-  const { cartCount, currentMarket, tenantPath } = useApp();
+  const { cartCount, cartPulseKey, currentMarket, tenantPath } = useApp();
   const categoryDrag = useHorizontalDragScroll<HTMLDivElement>();
   const promoDrag = useHorizontalDragScroll<HTMLDivElement>();
   const immediateConsumptionDrag = useHorizontalDragScroll<HTMLDivElement>();
@@ -163,10 +163,27 @@ export function MarketPage() {
               }}
               onClick={() => navigate(tenantPath("carrinho"))}
             >
-              <ShoppingCart size={18} color="white" />
+              <span key={cartPulseKey} className={cartPulseKey > 0 ? "cart-added-bounce inline-flex" : "inline-flex"}>
+                <ShoppingCart size={18} color="white" />
+              </span>
+              {cartPulseKey > 0 && (
+                <span
+                  key={`cart-pop-${cartPulseKey}`}
+                  className="cart-added-pop absolute -bottom-2 left-1/2 text-white"
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 900,
+                    textShadow: "0 1px 3px rgba(0,0,0,0.28)",
+                  }}
+                  aria-hidden="true"
+                >
+                  +1
+                </span>
+              )}
               {cartCount > 0 && (
                 <span
-                  className="absolute -top-1 -right-1 text-white rounded-full flex items-center justify-center"
+                  key={`cart-badge-${cartPulseKey}`}
+                  className={`absolute -top-1 -right-1 text-white rounded-full flex items-center justify-center ${cartPulseKey > 0 ? "cart-badge-pop" : ""}`}
                   style={{
                     width: "18px",
                     height: "18px",

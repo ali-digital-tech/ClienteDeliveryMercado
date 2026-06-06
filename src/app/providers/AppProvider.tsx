@@ -87,6 +87,7 @@ interface AppState {
   placeOrder: (address: string, type: 'delivery' | 'pickup') => string;
   cartCount: number;
   cartTotal: number;
+  cartPulseKey: number;
   login: (credentials: LoginCredentials) => Promise<AuthUser>;
   logout: () => void;
   updateCurrentUser: (user: AuthUser) => void;
@@ -146,6 +147,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   const sessionValidatedRef = useRef(false);
   const [favoritesByMarket, setFavoritesByMarket] = useState<Record<string, string[]>>(() => readFavoritesFromStorage());
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => authService.getStoredUser());
+  const [cartPulseKey, setCartPulseKey] = useState(0);
 
   const favorites = favoritesByMarket[marketId] || [];
   const storeId = currentMarket?.id || marketId;
@@ -333,6 +335,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
 
     if (product.marketId !== marketId) return;
     addToLocalCart(product, quantity);
+    setCartPulseKey((key) => key + 1);
   }, [addToLocalCart, isAuthenticatedForAction, marketId, requireCustomerLogin]);
 
   const removeFromCart = useCallback(async (productId: string) => {
@@ -377,7 +380,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
       currentScreen: '',
       addToCart, removeFromCart, updateQty, clearCart,
       toggleFavorite, isFavorite, applyCoupon, placeOrder,
-      cartCount, cartTotal, login, logout, updateCurrentUser, refreshOrders, tenantPath,
+      cartCount, cartTotal, cartPulseKey, login, logout, updateCurrentUser, refreshOrders, tenantPath,
     }}>
       {children}
     </AppContext.Provider>

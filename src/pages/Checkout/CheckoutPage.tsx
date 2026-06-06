@@ -861,7 +861,7 @@ export function CheckoutPage() {
     };
   }, [completeApprovedPayment, paymentResult, pendingOrder, pixStatus]);
 
-  const handleFinalize = async () => {
+  const handleFinalize = async (paymentSelectionOverride?: StoredPaymentSelection) => {
     if (cart.length === 0) {
       showSystemNotice('Seu carrinho está vazio.');
       return;
@@ -894,14 +894,35 @@ export function CheckoutPage() {
       return;
     }
 
-    const currentPaymentSelection = getStoredPaymentSelection();
+    const currentPaymentSelection = paymentSelectionOverride ?? getStoredPaymentSelection();
     if (currentPaymentSelection.method !== 'pix' && !hasFreshCardToken(currentPaymentSelection)) {
       if (currentPaymentSelection.saved_card_id) {
-        const savedCard = savedPaymentCards.find((card) => card.id === currentPaymentSelection.saved_card_id);
+        let nextSavedPaymentCards = savedPaymentCards;
+        let savedCard = nextSavedPaymentCards.find((card) => card.id === currentPaymentSelection.saved_card_id);
+
+        if (!savedCard && !currentPaymentSelection.gateway_card_id) {
+          try {
+            nextSavedPaymentCards = await getSavedPaymentCards(marketId);
+            setSavedPaymentCards(nextSavedPaymentCards);
+            savedCard = nextSavedPaymentCards.find((card) => card.id === currentPaymentSelection.saved_card_id);
+          } catch (error) {
+            console.error('Erro ao carregar cartão salvo para CVV:', error);
+          }
+        }
+
         const selectionHasGatewayCard = Boolean(currentPaymentSelection.gateway_card_id);
 
         if (savedCard || selectionHasGatewayCard) {
-          setPendingCvvSelection(currentPaymentSelection);
+          const nextSelection = savedCard
+            ? {
+                ...selectionFromSavedCard(savedCard),
+                installments: currentPaymentSelection.installments || 1,
+              }
+            : currentPaymentSelection;
+
+          savePaymentSelection(nextSelection);
+          setPaymentSelection(nextSelection);
+          setPendingCvvSelection(nextSelection);
           return;
         }
 
@@ -923,7 +944,7 @@ export function CheckoutPage() {
     try {
       const payer = resolvePayerData();
       const cpfInvoicePayload = resolveCpfInvoicePayload();
-      const selection = getStoredPaymentSelection();
+      const selection = paymentSelectionOverride ?? getStoredPaymentSelection();
       const syncedCart = await syncCartItemsBatch(marketId, cart);
       const order = await createCheckoutOrder({
         marketId,
@@ -980,7 +1001,7 @@ export function CheckoutPage() {
     savePaymentSelection(nextSelection);
     setPaymentSelection(nextSelection);
     setPendingCvvSelection(null);
-    void handleFinalize();
+    void handleFinalize(nextSelection);
   };
 
   return (
@@ -1660,7 +1681,7 @@ export function CheckoutPage() {
         style={{ borderTop: "1px solid var(--market-primary-border-color)" }}
       >
         <button
-          onClick={canChooseAnotherPayment ? resetPixPayment : handleFinalize}
+          onClick={canChooseAnotherPayment ? resetPixPayment : () => void handleFinalize()}
           disabled={isSubmitting || isPixWaiting}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
           style={{ backgroundColor: meetsMinimumOrder ? "var(--market-primary-color)" : "#9ca3af" }}
