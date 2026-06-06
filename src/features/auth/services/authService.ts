@@ -119,7 +119,7 @@ export const authService = {
     return response.data;
   },
 
-  async updateCurrentCustomer(payload: Partial<Pick<AuthUser, 'cpf' | 'cpf_na_nota_padrao'>>) {
+  async updateCurrentCustomer(payload: Partial<Pick<AuthUser, 'cpf' | 'cpf_na_nota_padrao' | 'telefone'>>) {
     const response = await apiRequest<{ data: AuthUser }>('/clientes/me', {
       method: 'PUT',
       body: payload,

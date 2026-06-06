@@ -8,6 +8,10 @@ import { fetchPublishedLegalDocument, type LegalDocument } from "@/features/lega
 import { getProductById } from '@/features/products';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
 export function LoginScreen() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -118,6 +122,16 @@ export function LoginScreen() {
       return;
     }
 
+    if (mode === "signup" && !phone.trim()) {
+      showSystemNotice("Informe seu telefone.");
+      return;
+    }
+
+    if (mode === "signup" && onlyDigits(phone).length < 8) {
+      showSystemNotice("Informe um telefone válido.");
+      return;
+    }
+
     if (mode === "signup" && password.length < 6) {
       showSystemNotice("A senha deve ter pelo menos 6 caracteres.");
       return;
@@ -140,7 +154,7 @@ export function LoginScreen() {
         await authService.registerCustomer({
           nome: name.trim(),
           email: email.trim(),
-          telefone: phone.trim() || undefined,
+          telefone: phone.trim(),
           senha: password,
           loja_id: storeId,
           privacy_policy_accepted: privacyAccepted,
@@ -311,12 +325,13 @@ export function LoginScreen() {
 
             {mode === "signup" && (
               <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-slate-600">Telefone <span className="font-normal text-slate-400">(opcional)</span></span>
+                <span className="mb-1.5 block text-xs font-semibold text-slate-600">Telefone</span>
                 <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid var(--market-primary-border-color)", backgroundColor: "#f8fafc" }}>
                   <Phone size={18} color={primaryColor} />
                   <input
                     type="tel"
                     autoComplete="tel"
+                    required
                     placeholder="(00) 00000-0000"
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
