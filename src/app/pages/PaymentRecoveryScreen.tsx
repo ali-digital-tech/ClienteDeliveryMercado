@@ -149,7 +149,7 @@ export function PaymentRecoveryScreen() {
   const needsCardConfirmation = Boolean(
     selectedMethod !== "pix" && !paymentSelection.saved_card_id && !hasFreshCardToken(paymentSelection)
   );
-  const primaryColor = currentMarket?.primaryColor || "#122a4c";
+  const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const payerValidation = validatePayerData(payer);
   const paymentActionDisabled = isSubmitting || !payerValidation.isValid;
 
@@ -315,7 +315,7 @@ export function PaymentRecoveryScreen() {
   if (isLoading && !order) {
     return (
       <div className="flex flex-1 items-center justify-center gap-3" style={{ background: "#f8fafc" }}>
-        <Loader2 className="animate-spin" size={26} color="#122a4c" />
+        <Loader2 className="animate-spin" size={26} color="var(--market-primary-color)" />
         <span style={{ color: "#64748b", fontSize: "14px", fontWeight: 700 }}>Carregando pedido...</span>
       </div>
     );
@@ -326,7 +326,7 @@ export function PaymentRecoveryScreen() {
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center" style={{ background: "#f8fafc" }}>
         <CreditCard size={42} color="#94a3b8" />
         <p style={{ color: "#334155", fontSize: "16px", fontWeight: 800 }}>Pedido não encontrado</p>
-        <button onClick={() => navigate(tenantPath("orders"))} className="rounded-xl px-5 py-3 text-white" style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
+        <button onClick={() => navigate(tenantPath("orders"))} className="rounded-xl px-5 py-3 text-white" style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
           Ver meus pedidos
         </button>
       </div>
@@ -341,7 +341,7 @@ export function PaymentRecoveryScreen() {
         <p style={{ color: "#64748b", fontSize: "13px", lineHeight: 1.45 }}>
           Este pedido foi cancelado e não pode receber pagamento.
         </p>
-        <button onClick={openTracking} className="rounded-xl px-5 py-3 text-white" style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
+        <button onClick={openTracking} className="rounded-xl px-5 py-3 text-white" style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
           Ver detalhes
         </button>
       </div>
@@ -352,18 +352,18 @@ export function PaymentRecoveryScreen() {
     <div className="flex-1 overflow-y-auto px-4 pb-6 pt-8 md:pt-4" style={{ background: "#f8fafc" }}>
       <div className="mx-auto max-w-md">
         <div className="mb-4 flex items-center gap-3">
-          <button onClick={() => navigate(tenantPath("orders"))} className="rounded-full p-2" style={{ backgroundColor: "#eef4fb" }}>
-            <ChevronLeft size={20} color="#122a4c" />
+          <button onClick={() => navigate(tenantPath("orders"))} className="rounded-full p-2" style={{ backgroundColor: "var(--market-primary-soft-color)" }}>
+            <ChevronLeft size={20} color="var(--market-primary-color)" />
           </button>
           <div>
-            <h1 style={{ color: "#122a4c", fontSize: "18px", fontWeight: 800 }}>Concluir pagamento</h1>
+            <h1 style={{ color: "var(--market-primary-color)", fontSize: "18px", fontWeight: 800 }}>Concluir pagamento</h1>
             <p style={{ color: "#64748b", fontSize: "12px" }}>{order.number ? `#${order.number}` : order.id}</p>
           </div>
         </div>
 
-        <div className="mb-3 rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+        <div className="mb-3 rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>
           <p style={{ color: "#64748b", fontSize: "12px" }}>Total do pedido</p>
-          <p style={{ color: "#122a4c", fontSize: "24px", fontWeight: 900 }}>{formatCurrency(order.total)}</p>
+          <p style={{ color: "var(--market-primary-color)", fontSize: "24px", fontWeight: 900 }}>{formatCurrency(order.total)}</p>
         </div>
 
         <div className="mb-3">
@@ -389,12 +389,12 @@ export function PaymentRecoveryScreen() {
               <img src={`data:image/png;base64,${payment.qrCodeBase64}`} alt="QR Code PIX" className="mx-auto mb-3 rounded-xl" style={{ height: "190px", width: "190px" }} />
             )}
 
-            <textarea readOnly value={payment?.qrCode || ""} rows={4} className="w-full resize-none rounded-xl border px-3 py-2 text-xs" style={{ borderColor: "#d9e4f2", color: "#334155" }} />
-            <button onClick={copyPixCode} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white" style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
+            <textarea readOnly value={payment?.qrCode || ""} rows={4} className="w-full resize-none rounded-xl border px-3 py-2 text-xs" style={{ borderColor: "var(--market-primary-border-color)", color: "#334155" }} />
+            <button onClick={copyPixCode} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white" style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
               <Copy size={16} />
               {copied ? "Código copiado" : "Copiar código PIX"}
             </button>
-            <button onClick={() => void updatePaymentStatus()} disabled={isRefreshing} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3" style={{ backgroundColor: "#eef4fb", color: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
+            <button onClick={() => void updatePaymentStatus()} disabled={isRefreshing} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3" style={{ backgroundColor: "var(--market-primary-soft-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
               <RefreshCw className={isRefreshing ? "animate-spin" : ""} size={16} />
               Já paguei, atualizar
             </button>
@@ -413,17 +413,17 @@ export function PaymentRecoveryScreen() {
               </div>
             </div>
 
-            <button onClick={() => void createPayment(true)} disabled={paymentActionDisabled} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:opacity-60" style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
+            <button onClick={() => void createPayment(true)} disabled={paymentActionDisabled} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
               {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <QrCode size={16} />}
               {payerValidation.isValid ? "Gerar novo PIX" : "Complete os dados do pagador"}
             </button>
-            <button onClick={choosePaymentMethod} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3" style={{ backgroundColor: "#eef4fb", color: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
+            <button onClick={choosePaymentMethod} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3" style={{ backgroundColor: "var(--market-primary-soft-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
               <CreditCard size={16} />
               Alterar forma de pagamento
             </button>
 
             {selectedMethod !== "pix" && (
-              <button onClick={() => void createPayment()} disabled={paymentActionDisabled} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 disabled:opacity-60" style={{ borderColor: "#bfd3ee", color: "#122a4c", fontSize: "13px", fontWeight: 800 }}>
+              <button onClick={() => void createPayment()} disabled={paymentActionDisabled} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 disabled:opacity-60" style={{ borderColor: "var(--market-primary-border-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
                 <CheckCircle2 size={16} />
                 {needsSavedCardCvv
                   ? "Informar CVV do cartão salvo"

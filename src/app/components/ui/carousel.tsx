@@ -203,7 +203,7 @@ function CarouselPrevious({
       variant={variant}
       size={size}
       className={cn(
-        "absolute size-9 rounded-full border border-[#d9e4f2] bg-white text-[#122a4c] shadow-sm hover:bg-[#eef4fb] disabled:opacity-40",
+        "absolute size-9 rounded-full border border-[var(--market-primary-border-color)] bg-white text-[var(--market-primary-color)] shadow-sm hover:bg-[var(--market-primary-soft-color)] disabled:opacity-40",
         orientation === "horizontal"
           ? "top-1/2 -left-4 -translate-y-1/2 md:-left-5"
           : "-top-4 left-1/2 -translate-x-1/2 rotate-90",
@@ -234,7 +234,7 @@ function CarouselNext({
       variant={variant}
       size={size}
       className={cn(
-        "absolute size-9 rounded-full border border-[#d9e4f2] bg-white text-[#122a4c] shadow-sm hover:bg-[#eef4fb] disabled:opacity-40",
+        "absolute size-9 rounded-full border border-[var(--market-primary-border-color)] bg-white text-[var(--market-primary-color)] shadow-sm hover:bg-[var(--market-primary-soft-color)] disabled:opacity-40",
         orientation === "horizontal"
           ? "top-1/2 -right-4 -translate-y-1/2 md:-right-5"
           : "-bottom-4 left-1/2 -translate-x-1/2 rotate-90",

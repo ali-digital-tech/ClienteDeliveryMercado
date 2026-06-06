@@ -132,7 +132,7 @@ export function AddCardScreen() {
     <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#f8fafc" }}>
       <div
         className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 flex items-center gap-3"
-        style={{ background: "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)" }}
+        style={{ background: "linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)" }}
       >
         <button
           type="button"
@@ -154,18 +154,18 @@ export function AddCardScreen() {
       <div className="flex-1 overflow-y-auto px-4 py-5">
         <div
           className="mx-auto mb-4 max-w-md rounded-2xl bg-white p-4 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div
                 className="rounded-2xl p-3"
-                style={{ backgroundColor: "#eef4fb" }}
+                style={{ backgroundColor: "var(--market-primary-soft-color)" }}
               >
-                <CreditCard size={20} color="#122a4c" />
+                <CreditCard size={20} color="var(--market-primary-color)" />
               </div>
               <div>
-                <h2 style={{ fontSize: "15px", fontWeight: 900, color: "#122a4c" }}>
+                <h2 style={{ fontSize: "15px", fontWeight: 900, color: "var(--market-primary-color)" }}>
                   Cartões
                 </h2>
                 <p style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.4 }}>
@@ -184,7 +184,7 @@ export function AddCardScreen() {
                   className="overflow-hidden rounded-2xl p-4 text-white"
                   style={{
                     background: card.principal
-                      ? "linear-gradient(135deg, #1b3d6d 0%, #122a4c 100%)"
+                      ? "linear-gradient(135deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)"
                       : "linear-gradient(135deg, #475569 0%, #334155 100%)",
                     boxShadow: "0 14px 32px rgba(18,42,76,0.18)",
                   }}
@@ -268,7 +268,7 @@ export function AddCardScreen() {
               type="button"
               onClick={openCardForm}
               className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-white transition-all active:scale-[0.98]"
-              style={{ backgroundColor: "#122a4c", fontSize: "15px", fontWeight: 800 }}
+              style={{ backgroundColor: "var(--market-primary-color)", fontSize: "15px", fontWeight: 800 }}
             >
               <Plus size={18} />
               {isLoadingCards ? "Carregando..." : "Adicionar cartão"}
@@ -278,14 +278,14 @@ export function AddCardScreen() {
 
         <div
           className="mx-auto mb-4 max-w-md rounded-2xl bg-white p-4 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <div className="flex items-center gap-3">
             <div className="rounded-2xl p-3" style={{ backgroundColor: "#f0fdf4" }}>
               <QrCode size={20} color="#15803d" />
             </div>
             <div>
-              <h2 style={{ fontSize: "15px", fontWeight: 900, color: "#122a4c" }}>
+              <h2 style={{ fontSize: "15px", fontWeight: 900, color: "var(--market-primary-color)" }}>
                 PIX
               </h2>
               <p style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.4 }}>
@@ -297,7 +297,7 @@ export function AddCardScreen() {
 
         <div
           className="mx-auto max-w-md rounded-2xl bg-white p-4 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <div className="flex items-start gap-3">
             <div className="rounded-2xl p-3" style={{ backgroundColor: "#f0fdf4" }}>

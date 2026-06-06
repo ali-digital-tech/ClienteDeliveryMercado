@@ -76,7 +76,7 @@ export function NotificationsFeedScreen() {
         const config = iconFor(notification);
         const Icon = config.icon;
         return (
-          <button key={notification.id} onClick={() => void openNotification(notification)} className="w-full text-left rounded-lg bg-white p-4 flex items-start gap-3" style={{ border: '1px solid #d9e4f2' }}>
+          <button key={notification.id} onClick={() => void openNotification(notification)} className="w-full text-left rounded-lg bg-white p-4 flex items-start gap-3" style={{ border: '1px solid var(--market-primary-border-color)' }}>
             <div className="rounded-md flex items-center justify-center flex-shrink-0" style={{ width: 42, height: 42, backgroundColor: config.bg }}>
               <Icon size={20} color={config.color} />
             </div>
@@ -94,7 +94,7 @@ export function NotificationsFeedScreen() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#f8fafc' }}>
-      <div className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 flex items-center gap-3" style={{ background: 'linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)' }}>
+      <div className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 flex items-center gap-3" style={{ background: 'linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)' }}>
         <button onClick={() => navigate(-1)} className="rounded-full p-2 flex items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.14)' }}>
           <ChevronLeft size={20} color="white" />
         </button>
@@ -108,10 +108,10 @@ export function NotificationsFeedScreen() {
         <button
           onClick={() => navigate(tenantPath('privacy/permissions'))}
           className="mb-5 flex w-full items-center gap-3 rounded-xl bg-white p-4 text-left"
-          style={{ border: '1px solid #d9e4f2' }}
+          style={{ border: '1px solid var(--market-primary-border-color)' }}
         >
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: '#eef4fb' }}>
-            <ShieldCheck size={19} color="#122a4c" />
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: 'var(--market-primary-soft-color)' }}>
+            <ShieldCheck size={19} color="var(--market-primary-color)" />
           </div>
           <div className="flex-1">
             <p style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Gerenciar permissões</p>

@@ -16,6 +16,51 @@ import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 import { getAuthToken, onSessionExpired } from '@/shared/lib/api';
 
 const FAVORITES_STORAGE_KEY = 'cliente_delivery_favorites_by_market';
+const DEFAULT_MARKET_PRIMARY_COLOR = '#122a4c';
+const DEFAULT_MARKET_SECONDARY_COLOR = '#16a34a';
+
+const MARKET_THEME_PROPERTIES = [
+  '--market-primary-color',
+  '--market-secondary-color',
+  '--market-primary-foreground-color',
+  '--market-secondary-foreground-color',
+  '--market-primary-soft-color',
+  '--market-primary-border-color',
+  '--market-primary-muted-color',
+  '--primary',
+  '--primary-foreground',
+  '--secondary',
+  '--secondary-foreground',
+  '--accent',
+  '--accent-foreground',
+  '--ring',
+  '--sidebar-primary',
+  '--sidebar-primary-foreground',
+] as const;
+
+function normalizeHexColor(color: string | null | undefined, fallback: string) {
+  if (!color) return fallback;
+
+  const trimmed = color.trim();
+  const withHash = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+
+  if (/^#[0-9a-fA-F]{3}$/.test(withHash)) {
+    return `#${withHash.slice(1).split('').map((char) => `${char}${char}`).join('')}`;
+  }
+
+  return /^#[0-9a-fA-F]{6}$/.test(withHash) ? withHash : fallback;
+}
+
+function getReadableTextColor(background: string) {
+  const hex = normalizeHexColor(background, DEFAULT_MARKET_PRIMARY_COLOR).slice(1);
+  const [r, g, b] = [0, 2, 4].map((start) => parseInt(hex.slice(start, start + 2), 16) / 255);
+  const [sr, sg, sb] = [r, g, b].map((channel) => (
+    channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  ));
+  const luminance = 0.2126 * sr + 0.7152 * sg + 0.0722 * sb;
+
+  return luminance > 0.55 ? '#0f172a' : '#ffffff';
+}
 
 interface AppState {
   marketId: string;
@@ -122,15 +167,38 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   }, [location.hash, location.pathname, location.search, navigate, tenantPath]);
 
   useEffect(() => {
-    document.documentElement.style.setProperty(
-      '--market-primary-color',
-      currentMarket?.primaryColor || '#122a4c'
-    );
+    const primaryColor = normalizeHexColor(currentMarket?.primaryColor, DEFAULT_MARKET_PRIMARY_COLOR);
+    const secondaryColor = normalizeHexColor(currentMarket?.secondaryColor, DEFAULT_MARKET_SECONDARY_COLOR);
+    const primaryForegroundColor = getReadableTextColor(primaryColor);
+    const secondaryForegroundColor = getReadableTextColor(secondaryColor);
+    const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
+    const primaryBorderColor = `color-mix(in srgb, ${primaryColor} 20%, white)`;
+    const primaryMutedColor = `color-mix(in srgb, ${primaryColor} 35%, white)`;
+
+    const root = document.documentElement;
+    root.style.setProperty('--market-primary-color', primaryColor);
+    root.style.setProperty('--market-secondary-color', secondaryColor);
+    root.style.setProperty('--market-primary-foreground-color', primaryForegroundColor);
+    root.style.setProperty('--market-secondary-foreground-color', secondaryForegroundColor);
+    root.style.setProperty('--market-primary-soft-color', primarySoftColor);
+    root.style.setProperty('--market-primary-border-color', primaryBorderColor);
+    root.style.setProperty('--market-primary-muted-color', primaryMutedColor);
+    root.style.setProperty('--primary', primaryColor);
+    root.style.setProperty('--primary-foreground', primaryForegroundColor);
+    root.style.setProperty('--secondary', secondaryColor);
+    root.style.setProperty('--secondary-foreground', secondaryForegroundColor);
+    root.style.setProperty('--accent', primarySoftColor);
+    root.style.setProperty('--accent-foreground', primaryColor);
+    root.style.setProperty('--ring', primaryColor);
+    root.style.setProperty('--sidebar-primary', primaryColor);
+    root.style.setProperty('--sidebar-primary-foreground', primaryForegroundColor);
 
     return () => {
-      document.documentElement.style.removeProperty('--market-primary-color');
+      MARKET_THEME_PROPERTIES.forEach((property) => {
+        document.documentElement.style.removeProperty(property);
+      });
     };
-  }, [currentMarket?.primaryColor]);
+  }, [currentMarket?.primaryColor, currentMarket?.secondaryColor]);
 
   const toggleFavorite = useCallback((productId: string) => {
     if (!isAuthenticatedForAction()) {

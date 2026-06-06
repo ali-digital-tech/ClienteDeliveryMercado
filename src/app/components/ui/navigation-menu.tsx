@@ -78,10 +78,10 @@ function NavigationMenuTrigger({
       data-slot="navigation-menu-trigger"
       className={cn(
         navigationMenuTriggerStyle(),
-        "hover:bg-[#eef4fb] hover:text-[#122a4c]",
-        "focus:bg-[#eef4fb] focus:text-[#122a4c]",
-        "focus-visible:ring-[3px] focus-visible:ring-[#122a4c]/20",
-        "data-[state=open]:bg-[#eef4fb] data-[state=open]:text-[#122a4c]",
+        "hover:bg-[var(--market-primary-soft-color)] hover:text-[var(--market-primary-color)]",
+        "focus:bg-[var(--market-primary-soft-color)] focus:text-[var(--market-primary-color)]",
+        "focus-visible:ring-[3px] focus-visible:ring-[var(--market-primary-color)]/20",
+        "data-[state=open]:bg-[var(--market-primary-soft-color)] data-[state=open]:text-[var(--market-primary-color)]",
         "disabled:pointer-events-none disabled:opacity-50",
         className,
       )}
@@ -116,7 +116,7 @@ function NavigationMenuContent({
         "group-data-[viewport=false]/navigation-menu:overflow-hidden",
         "group-data-[viewport=false]/navigation-menu:rounded-2xl",
         "group-data-[viewport=false]/navigation-menu:border",
-        "group-data-[viewport=false]/navigation-menu:border-[#d9e4f2]",
+        "group-data-[viewport=false]/navigation-menu:border-[var(--market-primary-border-color)]",
         "group-data-[viewport=false]/navigation-menu:bg-white",
         "group-data-[viewport=false]/navigation-menu:text-[#334155]",
         "group-data-[viewport=false]/navigation-menu:shadow-lg",
@@ -151,7 +151,7 @@ function NavigationMenuViewport({
       <NavigationMenuPrimitive.Viewport
         data-slot="navigation-menu-viewport"
         className={cn(
-          "relative mt-1.5 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden rounded-2xl border border-[#d9e4f2] bg-white text-[#334155] shadow-lg md:w-[var(--radix-navigation-menu-viewport-width)]",
+          "relative mt-1.5 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden rounded-2xl border border-[var(--market-primary-border-color)] bg-white text-[#334155] shadow-lg md:w-[var(--radix-navigation-menu-viewport-width)]",
           "origin-top-center data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-90",
           className,
@@ -171,10 +171,10 @@ function NavigationMenuLink({
       data-slot="navigation-menu-link"
       className={cn(
         "flex flex-col gap-1 rounded-xl p-2 text-sm text-[#334155] outline-none transition-all",
-        "hover:bg-[#eef4fb] hover:text-[#122a4c]",
-        "focus:bg-[#eef4fb] focus:text-[#122a4c]",
-        "focus-visible:ring-[3px] focus-visible:ring-[#122a4c]/20",
-        "data-[active=true]:bg-[#eef4fb] data-[active=true]:text-[#122a4c]",
+        "hover:bg-[var(--market-primary-soft-color)] hover:text-[var(--market-primary-color)]",
+        "focus:bg-[var(--market-primary-soft-color)] focus:text-[var(--market-primary-color)]",
+        "focus-visible:ring-[3px] focus-visible:ring-[var(--market-primary-color)]/20",
+        "data-[active=true]:bg-[var(--market-primary-soft-color)] data-[active=true]:text-[var(--market-primary-color)]",
         "[&_svg:not([class*='text-'])]:text-[#94a3b8]",
         "[&_svg:not([class*='size-'])]:size-4",
         className,
@@ -201,7 +201,7 @@ function NavigationMenuIndicator({
       )}
       {...props}
     >
-      <div className="relative top-[60%] h-2 w-2 rotate-45 rounded-tl-sm bg-[#d9e4f2] shadow-md" />
+      <div className="relative top-[60%] h-2 w-2 rotate-45 rounded-tl-sm bg-[var(--market-primary-border-color)] shadow-md" />
     </NavigationMenuPrimitive.Indicator>
   );
 }

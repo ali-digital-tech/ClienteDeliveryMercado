@@ -48,7 +48,7 @@ export function ProfileScreen() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <div
         className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-4"
-        style={{ background: "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)" }}
+        style={{ background: "linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)" }}
       >
         <h1 className="mb-3 text-white" style={{ fontSize: "18px", fontWeight: 800 }}>
           Meu Perfil
@@ -73,16 +73,16 @@ export function ProfileScreen() {
             </p>
 
             <div className="mt-0.5 flex items-center gap-1.5">
-              <Mail size={12} color="#c7d7ee" />
-              <p className="truncate" style={{ fontSize: "12px", color: "#c7d7ee" }}>
+              <Mail size={12} color="var(--market-primary-muted-color)" />
+              <p className="truncate" style={{ fontSize: "12px", color: "var(--market-primary-muted-color)" }}>
                 {currentUser?.email || "Entre para acessar sua conta"}
               </p>
             </div>
 
             {currentUser?.telefone && (
               <div className="mt-0.5 flex items-center gap-1.5">
-                <Phone size={12} color="#c7d7ee" />
-                <p style={{ fontSize: "12px", color: "#c7d7ee" }}>{currentUser.telefone}</p>
+                <Phone size={12} color="var(--market-primary-muted-color)" />
+                <p style={{ fontSize: "12px", color: "var(--market-primary-muted-color)" }}>{currentUser.telefone}</p>
               </div>
             )}
           </div>
@@ -105,7 +105,7 @@ export function ProfileScreen() {
               <p className="text-white" style={{ fontSize: "16px", fontWeight: 800 }}>
                 {stat.value}
               </p>
-              <p style={{ fontSize: "10px", color: "#c7d7ee" }}>{stat.label}</p>
+              <p style={{ fontSize: "10px", color: "var(--market-primary-muted-color)" }}>{stat.label}</p>
             </div>
           ))}
         </div>
@@ -114,7 +114,7 @@ export function ProfileScreen() {
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-4" style={{ background: "#f8fafc" }}>
         <div
           className="overflow-hidden rounded-2xl bg-white shadow-sm mb-4"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           {menuItems.map((item, index) => {
             const Icon = item.icon;
@@ -130,9 +130,9 @@ export function ProfileScreen() {
               >
                 <div
                   className="rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}
+                  style={{ width: "38px", height: "38px", backgroundColor: "var(--market-primary-soft-color)" }}
                 >
-                  <Icon size={18} color="#122a4c" />
+                  <Icon size={18} color="var(--market-primary-color)" />
                 </div>
 
                 <span className="flex-1 text-left" style={{ fontSize: "14px", color: "#334155", fontWeight: 500 }}>
@@ -148,16 +148,16 @@ export function ProfileScreen() {
         <button
           onClick={isLoggedIn ? handleLogout : handleLogin}
           className="w-full rounded-2xl p-4 flex items-center gap-3 shadow-sm transition-all active:bg-slate-50"
-          style={{ backgroundColor: "#ffffff", border: "1px solid #d9e4f2" }}
+          style={{ backgroundColor: "#ffffff", border: "1px solid var(--market-primary-border-color)" }}
         >
           <div
             className="rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}
+            style={{ width: "38px", height: "38px", backgroundColor: "var(--market-primary-soft-color)" }}
           >
-            <LogOut size={18} color="#122a4c" />
+            <LogOut size={18} color="var(--market-primary-color)" />
           </div>
 
-          <span style={{ fontSize: "14px", color: "#122a4c", fontWeight: 600 }}>
+          <span style={{ fontSize: "14px", color: "var(--market-primary-color)", fontWeight: 600 }}>
             {isLoggedIn ? "Sair da conta" : "Entrar na conta"}
           </span>
         </button>

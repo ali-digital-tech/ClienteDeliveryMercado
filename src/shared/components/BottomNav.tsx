@@ -14,7 +14,7 @@ export function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const { tenantPath, currentMarket } = useApp();
-  const primaryColor = currentMarket?.primaryColor || '#122a4c';
+  const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
 
   return (
     <div className="md:hidden flex-shrink-0 bg-white border-t border-gray-100 flex items-center justify-around py-2 px-1 safe-area-bottom">

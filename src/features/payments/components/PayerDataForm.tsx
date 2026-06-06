@@ -45,7 +45,7 @@ function formatDocument(value: string, docType: PayerData["doc_type"]) {
 export function PayerDataForm({
   value,
   onChange,
-  primaryColor = "#122a4c",
+  primaryColor = "var(--market-primary-color)",
   title = "Dados para pagamento",
   description = "Necessário para processar Pix e cartão.",
   showSaveButton = false,
@@ -86,7 +86,7 @@ export function PayerDataForm({
   };
 
   const inputStyle = {
-    borderColor: "#d9e4f2",
+    borderColor: "var(--market-primary-border-color)",
     color: "#334155",
     fontSize: "14px",
   };
@@ -98,7 +98,7 @@ export function PayerDataForm({
   };
 
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+    <div className="rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="flex min-w-0 gap-3">
           <div
@@ -112,7 +112,7 @@ export function PayerDataForm({
             )}
           </div>
           <div className="min-w-0">
-            <h2 style={{ color: "#122a4c", fontSize: "15px", fontWeight: 900 }}>{title}</h2>
+            <h2 style={{ color: "var(--market-primary-color)", fontSize: "15px", fontWeight: 900 }}>{title}</h2>
             <p style={{ color: "#64748b", fontSize: "12px", lineHeight: 1.4 }}>{description}</p>
           </div>
         </div>
@@ -177,7 +177,7 @@ export function PayerDataForm({
         <div>
           <label className="mb-1.5 block" style={labelStyle}>Documento</label>
           <div className="grid grid-cols-[104px_1fr] gap-2">
-            <div className="grid grid-cols-2 rounded-xl border p-1" style={{ borderColor: "#d9e4f2" }}>
+            <div className="grid grid-cols-2 rounded-xl border p-1" style={{ borderColor: "var(--market-primary-border-color)" }}>
               {(["CPF", "CNPJ"] as const).map((docType) => (
                 <button
                   key={docType}

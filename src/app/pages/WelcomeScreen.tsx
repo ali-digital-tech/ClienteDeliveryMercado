@@ -70,7 +70,7 @@ export function WelcomeScreen() {
           className="mt-2 max-w-xs text-center"
           style={{
             fontSize: "14px",
-            color: "#c7d7ee",
+            color: "var(--market-primary-muted-color)",
             lineHeight: 1.5,
           }}
         >
@@ -93,7 +93,7 @@ export function WelcomeScreen() {
             style={{
               fontSize: "22px",
               fontWeight: 700,
-              color: "#122a4c",
+              color: "var(--market-primary-color)",
             }}
           >
             Onde você está?
@@ -119,9 +119,9 @@ export function WelcomeScreen() {
         >
           <div
             className="rounded-xl p-2.5"
-            style={{ backgroundColor: "#eef4fb" }}
+            style={{ backgroundColor: "var(--market-primary-soft-color)" }}
           >
-            <Navigation size={22} color="#122a4c" />
+            <Navigation size={22} color="var(--market-primary-color)" />
           </div>
 
           <div className="flex-1 text-left">
@@ -129,7 +129,7 @@ export function WelcomeScreen() {
               style={{
                 fontSize: "14px",
                 fontWeight: 600,
-                color: "#122a4c",
+                color: "var(--market-primary-color)",
               }}
             >
               {locating
@@ -166,10 +166,10 @@ export function WelcomeScreen() {
           <div
             className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm"
             style={{
-              border: "1px solid #d9e4f2",
+              border: "1px solid var(--market-primary-border-color)",
             }}
           >
-            <MapPin size={20} color="#122a4c" />
+            <MapPin size={20} color="var(--market-primary-color)" />
             <input
               type="text"
               placeholder="Digite seu CEP"
@@ -193,7 +193,7 @@ export function WelcomeScreen() {
             className="rounded-2xl py-4 text-white transition-all active:scale-[0.98]"
             style={{
               backgroundColor:
-                cep.length >= 8 ? "#122a4c" : "#cbd5e1",
+                cep.length >= 8 ? "var(--market-primary-color)" : "#cbd5e1",
               fontSize: "15px",
               fontWeight: 700,
             }}
@@ -204,18 +204,18 @@ export function WelcomeScreen() {
 
         <div
           className="flex items-start gap-3 rounded-2xl p-4"
-          style={{ backgroundColor: "#eef4fb" }}
+          style={{ backgroundColor: "var(--market-primary-soft-color)" }}
         >
           <MapPin
             size={18}
-            color="#122a4c"
+            color="var(--market-primary-color)"
             className="mt-0.5 flex-shrink-0"
           />
           <p
             style={{
               fontSize: "13px",
               lineHeight: 1.5,
-              color: "#1e3a5f",
+              color: "var(--market-primary-color)",
             }}
           >
             Entregamos em {currentMarket.neighborhood}. As entregas são feitas por ordem de pedido.

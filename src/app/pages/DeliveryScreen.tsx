@@ -79,22 +79,22 @@ export function DeliveryScreen() {
       {/* Header */}
       <div
         className="flex-shrink-0 bg-white px-4 pt-8 md:pt-4 pb-3 border-b"
-        style={{ borderColor: "#d9e4f2" }}
+        style={{ borderColor: "var(--market-primary-border-color)" }}
       >
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
             className="rounded-full p-2"
-            style={{ backgroundColor: "#eef4fb" }}
+            style={{ backgroundColor: "var(--market-primary-soft-color)" }}
           >
-            <ChevronLeft size={20} color="#122a4c" />
+            <ChevronLeft size={20} color="var(--market-primary-color)" />
           </button>
 
           <h1
             style={{
               fontSize: "18px",
               fontWeight: 800,
-              color: "#122a4c",
+              color: "var(--market-primary-color)",
             }}
           >
             Entrega ou Retirada
@@ -109,14 +109,14 @@ export function DeliveryScreen() {
         {/* Mode selector */}
         <div
           className="rounded-2xl p-1.5 flex gap-1 mb-4 shadow-sm bg-white"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <button
             onClick={() => setMode("delivery")}
             className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 transition-all"
             style={{
               backgroundColor:
-                mode === "delivery" ? "#122a4c" : "transparent",
+                mode === "delivery" ? "var(--market-primary-color)" : "transparent",
               color: mode === "delivery" ? "white" : "#64748b",
             }}
           >
@@ -131,7 +131,7 @@ export function DeliveryScreen() {
             className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 transition-all"
             style={{
               backgroundColor:
-                mode === "pickup" ? "#122a4c" : "transparent",
+                mode === "pickup" ? "var(--market-primary-color)" : "transparent",
               color: mode === "pickup" ? "white" : "#64748b",
             }}
           >
@@ -147,7 +147,7 @@ export function DeliveryScreen() {
             {/* Selected address */}
             <div
               className="bg-white rounded-2xl p-4 mb-4 shadow-sm"
-              style={{ border: "1px solid #d9e4f2" }}
+              style={{ border: "1px solid var(--market-primary-border-color)" }}
             >
               <div className="flex items-center justify-between mb-2">
                 <span
@@ -163,7 +163,7 @@ export function DeliveryScreen() {
                   onClick={() => navigate(tenantPath("addresses"))}
                   style={{
                     fontSize: "12px",
-                    color: "#122a4c",
+                    color: "var(--market-primary-color)",
                     fontWeight: 600,
                   }}
                 >
@@ -175,7 +175,7 @@ export function DeliveryScreen() {
               <div className="flex items-start gap-3">
                 <MapPin
                   size={18}
-                  color="#122a4c"
+                  color="var(--market-primary-color)"
                   className="flex-shrink-0 mt-0.5"
                 />
                 <div>
@@ -183,7 +183,7 @@ export function DeliveryScreen() {
                     style={{
                       fontSize: "14px",
                       fontWeight: 700,
-                      color: "#122a4c",
+                      color: "var(--market-primary-color)",
                     }}
                   >
                     {selectedAddress.apelido || 'Endereço'}
@@ -210,7 +210,7 @@ export function DeliveryScreen() {
                 <button
                   onClick={() => navigate(tenantPath("addresses"))}
                   className="w-full rounded-2xl py-3 text-white"
-                  style={{ backgroundColor: "#122a4c", fontSize: "14px", fontWeight: 700 }}
+                  style={{ backgroundColor: "var(--market-primary-color)", fontSize: "14px", fontWeight: 700 }}
                 >
                   Cadastrar endereço
                 </button>
@@ -220,10 +220,10 @@ export function DeliveryScreen() {
             {/* Info Entrega */}
             <div
               className="bg-white rounded-2xl p-4 mb-4 shadow-sm"
-              style={{ border: "1px solid #d9e4f2" }}
+              style={{ border: "1px solid var(--market-primary-border-color)" }}
             >
               <div className="flex items-center gap-2 mb-2">
-                <Clock size={16} color="#122a4c" />
+                <Clock size={16} color="var(--market-primary-color)" />
                 <span
                   style={{
                     fontSize: "13px",
@@ -242,17 +242,17 @@ export function DeliveryScreen() {
         ) : (
           <div
             className="bg-white rounded-2xl p-4 mb-4 shadow-sm flex items-start gap-3"
-            style={{ border: "1px solid #d9e4f2" }}
+            style={{ border: "1px solid var(--market-primary-border-color)" }}
           >
             <div
               className="rounded-xl flex items-center justify-center flex-shrink-0"
               style={{
                 width: "44px",
                 height: "44px",
-                backgroundColor: "#eef4fb",
+                backgroundColor: "var(--market-primary-soft-color)",
               }}
             >
-              <Store size={22} color="#122a4c" />
+              <Store size={22} color="var(--market-primary-color)" />
             </div>
 
             <div className="flex-1 min-w-0">
@@ -260,7 +260,7 @@ export function DeliveryScreen() {
                 style={{
                   fontSize: "14px",
                   fontWeight: 700,
-                  color: "#122a4c",
+                  color: "var(--market-primary-color)",
                 }}
               >
                 {currentMarket.name}
@@ -280,8 +280,8 @@ export function DeliveryScreen() {
                 style={{
                   fontSize: "10px",
                   fontWeight: 600,
-                  backgroundColor: "#eef4fb",
-                  color: "#1b3d6d",
+                  backgroundColor: "var(--market-primary-soft-color)",
+                  color: "var(--market-secondary-color)",
                 }}
               >
                 Retirada grátis
@@ -293,7 +293,7 @@ export function DeliveryScreen() {
         {/* Summary */}
         <div
           className="bg-white rounded-2xl p-4 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <div className="flex justify-between mb-1">
             <span
@@ -317,7 +317,7 @@ export function DeliveryScreen() {
               <span style={{ fontSize: "13px", color: "#64748b" }}>
                 Desconto cupom
               </span>
-              <span style={{ fontSize: "13px", fontWeight: 600, color: "#122a4c" }}>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--market-primary-color)" }}>
                 -R$ {discount.toFixed(2).replace('.', ',')}
               </span>
             </div>
@@ -328,7 +328,7 @@ export function DeliveryScreen() {
               <span style={{ fontSize: "13px", color: "#64748b" }}>
                 Pedido mínimo
               </span>
-              <span style={{ fontSize: "13px", fontWeight: 600, color: meetsMinimumOrder ? "#122a4c" : "#dc2626" }}>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: meetsMinimumOrder ? "var(--market-primary-color)" : "#dc2626" }}>
                 R$ {minimumOrder.toFixed(2).replace('.', ',')}
               </span>
             </div>
@@ -346,7 +346,7 @@ export function DeliveryScreen() {
                 fontWeight: 600,
                 color:
                   mode === "pickup" || deliveryFee === 0
-                    ? "#122a4c"
+                    ? "var(--market-primary-color)"
                     : "#334155",
               }}
             >
@@ -373,7 +373,7 @@ export function DeliveryScreen() {
               style={{
                 fontSize: "16px",
                 fontWeight: 800,
-                color: "#122a4c",
+                color: "var(--market-primary-color)",
               }}
             >
               R$ {total.toFixed(2).replace('.', ',')}
@@ -385,12 +385,12 @@ export function DeliveryScreen() {
       {/* CTA */}
       <div
         className="flex-shrink-0 bg-white px-4 py-4"
-        style={{ borderTop: "1px solid #d9e4f2" }}
+        style={{ borderTop: "1px solid var(--market-primary-border-color)" }}
       >
         <button
           onClick={handleContinueToCheckout}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-          style={{ backgroundColor: meetsMinimumOrder ? "#122a4c" : "#9ca3af" }}
+          style={{ backgroundColor: meetsMinimumOrder ? "var(--market-primary-color)" : "#9ca3af" }}
         >
           <span style={{ fontSize: "15px", fontWeight: 700 }}>
             {meetsMinimumOrder ? "Continuar para pagamento →" : "Pedido mínimo não atingido"}

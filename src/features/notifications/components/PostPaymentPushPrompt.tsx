@@ -65,7 +65,7 @@ type PostPaymentPushPromptProps = {
 
 export function PostPaymentPushPrompt({
   isLoggedIn,
-  primaryColor = "#122a4c",
+  primaryColor = "var(--market-primary-color)",
   delayMs = 0,
   requireRecoverySignal = false,
 }: PostPaymentPushPromptProps) {
@@ -118,14 +118,14 @@ export function PostPaymentPushPrompt({
 
   return (
     <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/45 px-4" role="dialog" aria-modal="true" aria-labelledby="post-payment-push-title">
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ border: "1px solid #d9e4f2" }}>
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" style={{ border: "1px solid var(--market-primary-border-color)" }}>
         <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "#eef4fb" }}>
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "var(--market-primary-soft-color)" }}>
               <Bell size={20} color={primaryColor} />
             </div>
             <div>
-              <h3 id="post-payment-push-title" style={{ color: "#122a4c", fontSize: 16, fontWeight: 900 }}>
+              <h3 id="post-payment-push-title" style={{ color: "var(--market-primary-color)", fontSize: 16, fontWeight: 900 }}>
                 Receba atualizações do seu pedido
               </h3>
               <p className="mt-1" style={{ color: "#64748b", fontSize: 12, lineHeight: 1.45 }}>
@@ -173,7 +173,7 @@ export function PostPaymentPushPrompt({
               onClick={() => setVisible(false)}
               disabled={activating}
               className="w-full rounded-xl px-4 py-3 disabled:opacity-60"
-              style={{ backgroundColor: "#eef4fb", color: "#122a4c", fontSize: 13, fontWeight: 800 }}
+              style={{ backgroundColor: "var(--market-primary-soft-color)", color: "var(--market-primary-color)", fontSize: 13, fontWeight: 800 }}
             >
               Agora não
             </button>

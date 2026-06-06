@@ -335,10 +335,10 @@ function SavedCardCvvModal({
       aria-modal="true"
       aria-labelledby="saved-card-cvv-title"
     >
-      <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-2xl" style={{ border: "1px solid #d9e4f2" }}>
+      <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-2xl" style={{ border: "1px solid var(--market-primary-border-color)" }}>
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 id="saved-card-cvv-title" style={{ fontSize: "16px", fontWeight: 900, color: "#122a4c" }}>
+            <h3 id="saved-card-cvv-title" style={{ fontSize: "16px", fontWeight: 900, color: "var(--market-primary-color)" }}>
               Confirmar cartão
             </h3>
             <p className="mt-1" style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.45 }}>
@@ -349,14 +349,14 @@ function SavedCardCvvModal({
             type="button"
             onClick={onClose}
             className="rounded-full p-2"
-            style={{ backgroundColor: "#eef4fb" }}
+            style={{ backgroundColor: "var(--market-primary-soft-color)" }}
             aria-label="Fechar"
           >
-            <X size={16} color="#122a4c" />
+            <X size={16} color="var(--market-primary-color)" />
           </button>
         </div>
 
-        <div className="mb-4 rounded-2xl p-4 text-white" style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, #122a4c 100%)` }}>
+        <div className="mb-4 rounded-2xl p-4 text-white" style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, var(--market-primary-color) 100%)` }}>
           <div className="mb-6 flex items-center justify-between">
             <CreditCard size={24} color="white" />
             <span style={{ fontSize: "12px", fontWeight: 900 }}>
@@ -384,7 +384,7 @@ function SavedCardCvvModal({
         <div
           id={CHECKOUT_SAVED_CARD_CVV_FIELD_ID}
           className="mp-secure-field rounded-xl border bg-white px-3"
-          style={{ borderColor: "#d9e4f2" }}
+          style={{ borderColor: "var(--market-primary-border-color)" }}
         />
 
         {errorMessage && (
@@ -462,7 +462,7 @@ export function CheckoutPage() {
   const meetsMinimumOrder = minimumOrder <= 0 || missingMinimumOrder <= 0;
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
-  const primaryColor = currentMarket?.primaryColor || "#122a4c";
+  const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const storedPayerData = getStoredPayerData();
   const payerValidation = validatePayerData(storedPayerData);
   const hasPayerData = payerValidation.isValid;
@@ -995,22 +995,22 @@ export function CheckoutPage() {
       {/* Header */}
       <div
         className="flex-shrink-0 bg-white px-4 pt-8 md:pt-4 pb-3 border-b"
-        style={{ borderColor: "#d9e4f2" }}
+        style={{ borderColor: "var(--market-primary-border-color)" }}
       >
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
             className="rounded-full p-2"
-            style={{ backgroundColor: "#eef4fb" }}
+            style={{ backgroundColor: "var(--market-primary-soft-color)" }}
           >
-            <ChevronLeft size={20} color="#122a4c" />
+            <ChevronLeft size={20} color="var(--market-primary-color)" />
           </button>
 
           <h1
             style={{
               fontSize: "18px",
               fontWeight: 800,
-              color: "#122a4c",
+              color: "var(--market-primary-color)",
             }}
           >
             Finalizar Pedido
@@ -1026,13 +1026,13 @@ export function CheckoutPage() {
         {/* Itens */}
         <div
           className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <h3
             style={{
               fontSize: "14px",
               fontWeight: 700,
-              color: "#122a4c",
+              color: "var(--market-primary-color)",
             }}
             className="mb-3"
           >
@@ -1079,7 +1079,7 @@ export function CheckoutPage() {
                   style={{
                     fontSize: "13px",
                     fontWeight: 700,
-                    color: "#122a4c",
+                    color: "var(--market-primary-color)",
                   }}
                 >
                   R${" "}
@@ -1101,22 +1101,22 @@ export function CheckoutPage() {
             style={{
               fontSize: "12px",
               fontWeight: 600,
-              color: "#122a4c",
+              color: "var(--market-primary-color)",
             }}
           >
             Ver carrinho completo{" "}
-            <ChevronRight size={14} color="#122a4c" />
+            <ChevronRight size={14} color="var(--market-primary-color)" />
           </button>
         </div>
 
         {/* Entrega ou retirada */}
         <div
           className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              {isPickup ? <Store size={15} color="#122a4c" /> : <MapPin size={15} color="#122a4c" />}
+              {isPickup ? <Store size={15} color="var(--market-primary-color)" /> : <MapPin size={15} color="var(--market-primary-color)" />}
               <span
                 style={{
                   fontSize: "14px",
@@ -1132,7 +1132,7 @@ export function CheckoutPage() {
               onClick={() => navigate(isPickup ? tenantPath("delivery") : tenantPath("addresses"))}
               style={{
                 fontSize: "12px",
-                color: "#122a4c",
+                color: "var(--market-primary-color)",
                 fontWeight: 600,
               }}
             >
@@ -1175,7 +1175,7 @@ export function CheckoutPage() {
             <button
               onClick={() => navigate(tenantPath("addresses"))}
               className="rounded-xl px-4 py-3 text-white"
-              style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 700 }}
+              style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 700 }}
             >
               Cadastrar endereço
             </button>
@@ -1185,11 +1185,11 @@ export function CheckoutPage() {
         {/* Entrega */}
         <div
           className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Truck size={15} color="#122a4c" />
+              <Truck size={15} color="var(--market-primary-color)" />
               <span
                 style={{
                   fontSize: "14px",
@@ -1205,7 +1205,7 @@ export function CheckoutPage() {
               onClick={() => navigate(tenantPath("delivery"))}
               style={{
                 fontSize: "12px",
-                color: "#122a4c",
+                color: "var(--market-primary-color)",
                 fontWeight: 600,
               }}
             >
@@ -1259,7 +1259,7 @@ export function CheckoutPage() {
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <CreditCard size={15} color="#122a4c" />
+              <CreditCard size={15} color="var(--market-primary-color)" />
               <span
                 style={{
                   fontSize: "14px",
@@ -1275,7 +1275,7 @@ export function CheckoutPage() {
               onClick={openPaymentScreen}
               style={{
                 fontSize: "12px",
-                color: "#122a4c",
+                color: "var(--market-primary-color)",
                 fontWeight: 600,
               }}
             >
@@ -1286,9 +1286,9 @@ export function CheckoutPage() {
           <div className="flex items-center gap-2">
             <div
               className="rounded-lg p-1.5"
-              style={{ backgroundColor: "#eef4fb" }}
+              style={{ backgroundColor: "var(--market-primary-soft-color)" }}
             >
-              <CreditCard size={14} color="#122a4c" />
+              <CreditCard size={14} color="var(--market-primary-color)" />
             </div>
             <div className="flex-1">
               <p style={{ fontSize: "13px", color: "#64748b" }}>
@@ -1316,10 +1316,10 @@ export function CheckoutPage() {
         {/* CPF na nota */}
         <div
           className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <div className="mb-3 flex items-center gap-2">
-            <ReceiptText size={15} color="#122a4c" />
+            <ReceiptText size={15} color="var(--market-primary-color)" />
             <span
               style={{
                 fontSize: "14px",
@@ -1361,9 +1361,9 @@ export function CheckoutPage() {
                       }}
                       className="rounded-xl px-3 py-3 text-center transition-all"
                       style={{
-                        border: `2px solid ${selected ? "#122a4c" : "#d9e4f2"}`,
-                        backgroundColor: selected ? "#eef4fb" : "#ffffff",
-                        color: selected ? "#122a4c" : "#64748b",
+                        border: `2px solid ${selected ? "var(--market-primary-color)" : "var(--market-primary-border-color)"}`,
+                        backgroundColor: selected ? "var(--market-primary-soft-color)" : "#ffffff",
+                        color: selected ? "var(--market-primary-color)" : "#64748b",
                         fontSize: "13px",
                         fontWeight: 800,
                       }}
@@ -1378,7 +1378,7 @@ export function CheckoutPage() {
                 <div className="mt-3">
                   <input
                     className="w-full rounded-xl border px-3 py-3 text-sm outline-none"
-                    style={{ borderColor: "#d9e4f2", color: "#334155" }}
+                    style={{ borderColor: "var(--market-primary-border-color)", color: "#334155" }}
                     placeholder="000.000.000-00"
                     inputMode="numeric"
                     value={cpfInvoice}
@@ -1408,10 +1408,10 @@ export function CheckoutPage() {
                       type="button"
                       onClick={() => showSystemNotice('Você pode desativar essa opção depois nas permissões do seu perfil.')}
                       className="rounded-full p-1.5"
-                      style={{ backgroundColor: "#eef4fb" }}
+                      style={{ backgroundColor: "var(--market-primary-soft-color)" }}
                       aria-label="Informação sobre CPF padrão"
                     >
-                      <Info size={15} color="#122a4c" />
+                      <Info size={15} color="var(--market-primary-color)" />
                     </button>
                   </div>
                 </div>
@@ -1423,7 +1423,7 @@ export function CheckoutPage() {
         {/* Totals */}
         <div
           className="bg-white rounded-2xl p-4 mb-4 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <div className="flex flex-col gap-2">
             <div className="flex justify-between">
@@ -1446,7 +1446,7 @@ export function CheckoutPage() {
             {discount > 0 && (
               <div className="flex justify-between">
                 <span
-                  style={{ fontSize: "13px", color: "#1b3d6d" }}
+                  style={{ fontSize: "13px", color: "var(--market-secondary-color)" }}
                 >
                   Desconto
                 </span>
@@ -1454,7 +1454,7 @@ export function CheckoutPage() {
                   style={{
                     fontSize: "13px",
                     fontWeight: 600,
-                    color: "#122a4c",
+                    color: "var(--market-primary-color)",
                   }}
                 >
                   -R$ {discount.toFixed(2).replace('.', ',')}
@@ -1473,7 +1473,7 @@ export function CheckoutPage() {
                   style={{
                     fontSize: "13px",
                     fontWeight: 600,
-                    color: meetsMinimumOrder ? "#122a4c" : "#dc2626",
+                    color: meetsMinimumOrder ? "var(--market-primary-color)" : "#dc2626",
                   }}
                 >
                   R$ {minimumOrder.toFixed(2).replace('.', ',')}
@@ -1492,7 +1492,7 @@ export function CheckoutPage() {
                   fontSize: "13px",
                   fontWeight: 600,
                   color:
-                    effectiveDeliveryFee === 0 ? "#122a4c" : "#334155",
+                    effectiveDeliveryFee === 0 ? "var(--market-primary-color)" : "#334155",
                 }}
               >
                 {effectiveDeliveryFee === 0
@@ -1518,7 +1518,7 @@ export function CheckoutPage() {
                 style={{
                   fontSize: "18px",
                   fontWeight: 800,
-                  color: "#122a4c",
+                  color: "var(--market-primary-color)",
                 }}
               >
                 R$ {total.toFixed(2).replace('.', ',')}
@@ -1558,7 +1558,7 @@ export function CheckoutPage() {
               border: `1px solid ${pixStatus === 'waiting' ? '#bbf7d0' : '#fde68a'}`,
             }}
           >
-            <h3 id="pix-payment-title" style={{ fontSize: "16px", fontWeight: 800, color: "#122a4c" }} className="mb-3">
+            <h3 id="pix-payment-title" style={{ fontSize: "16px", fontWeight: 800, color: "var(--market-primary-color)" }} className="mb-3">
               Pagamento via PIX
             </h3>
 
@@ -1604,7 +1604,7 @@ export function CheckoutPage() {
               readOnly
               value={paymentResult.qr_code}
               className="w-full resize-none rounded-xl border px-3 py-2 text-xs outline-none"
-              style={{ borderColor: "#d9e4f2", color: "#334155" }}
+              style={{ borderColor: "var(--market-primary-border-color)", color: "#334155" }}
               rows={4}
               aria-label="Código PIX copia e cola"
             />
@@ -1619,7 +1619,7 @@ export function CheckoutPage() {
               type="button"
               onClick={handleCopyPixCode}
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white"
-              style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 700 }}
+              style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 700 }}
             >
               <Copy size={16} />
               {pixCodeCopied ? "Código copiado" : "Copiar código PIX"}
@@ -1631,8 +1631,8 @@ export function CheckoutPage() {
               disabled={isCancellingPix}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 disabled:opacity-70"
               style={{
-                backgroundColor: "#eef4fb",
-                color: "#122a4c",
+                backgroundColor: "var(--market-primary-soft-color)",
+                color: "var(--market-primary-color)",
                 fontSize: "13px",
                 fontWeight: 800,
               }}
@@ -1651,13 +1651,13 @@ export function CheckoutPage() {
       {/* CTA */}
       <div
         className="flex-shrink-0 bg-white px-4 py-4"
-        style={{ borderTop: "1px solid #d9e4f2" }}
+        style={{ borderTop: "1px solid var(--market-primary-border-color)" }}
       >
         <button
           onClick={canChooseAnotherPayment ? resetPixPayment : handleFinalize}
           disabled={isSubmitting || isPixWaiting}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
-          style={{ backgroundColor: meetsMinimumOrder ? "#122a4c" : "#9ca3af" }}
+          style={{ backgroundColor: meetsMinimumOrder ? "var(--market-primary-color)" : "#9ca3af" }}
         >
           <span style={{ fontSize: "16px", fontWeight: 800 }}>
             {isSubmitting

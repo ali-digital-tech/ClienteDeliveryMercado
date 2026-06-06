@@ -87,7 +87,7 @@ export function CartPage() {
   const deliveryFee = Math.max(0, currentMarket?.deliveryFee || 0);
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
-  const primaryColor = currentMarket?.primaryColor || '#122a4c';
+  const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
   const minimumOrder = Math.max(0, currentMarket?.minimumOrder || 0);
   const missingMinimumOrder = Math.max(0, minimumOrder - cartTotal);
@@ -169,7 +169,7 @@ export function CartPage() {
           {visibleSuggestions.length > 0 && (
             <div>
               <div className="mb-3 flex items-center justify-between">
-                <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#122a4c' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--market-primary-color)' }}>
                   Produtos selecionados para você
                 </h2>
                 <button

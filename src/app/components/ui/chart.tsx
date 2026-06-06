@@ -61,14 +61,14 @@ function ChartContainer({
         data-slot="chart"
         data-chart={chartId}
         className={cn(
-          "flex aspect-video justify-center rounded-2xl border border-[#d9e4f2] bg-white p-3 text-xs",
+          "flex aspect-video justify-center rounded-2xl border border-[var(--market-primary-border-color)] bg-white p-3 text-xs",
           "[&_.recharts-cartesian-axis-tick_text]:fill-[#64748b]",
           "[&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-[#e2e8f0]",
-          "[&_.recharts-curve.recharts-tooltip-cursor]:stroke-[#d9e4f2]",
+          "[&_.recharts-curve.recharts-tooltip-cursor]:stroke-[var(--market-primary-border-color)]",
           "[&_.recharts-polar-grid_[stroke='#ccc']]:stroke-[#e2e8f0]",
-          "[&_.recharts-radial-bar-background-sector]:fill-[#eef4fb]",
-          "[&_.recharts-rectangle.recharts-tooltip-cursor]:fill-[#eef4fb]",
-          "[&_.recharts-reference-line_[stroke='#ccc']]:stroke-[#d9e4f2]",
+          "[&_.recharts-radial-bar-background-sector]:fill-[var(--market-primary-soft-color)]",
+          "[&_.recharts-rectangle.recharts-tooltip-cursor]:fill-[var(--market-primary-soft-color)]",
+          "[&_.recharts-reference-line_[stroke='#ccc']]:stroke-[var(--market-primary-border-color)]",
           "[&_.recharts-dot[stroke='#fff']]:stroke-transparent",
           "[&_.recharts-layer]:outline-hidden",
           "[&_.recharts-sector]:outline-hidden",
@@ -174,7 +174,7 @@ function ChartTooltipContent({
       return (
         <div
           className={cn(
-            "font-semibold text-[#122a4c]",
+            "font-semibold text-[var(--market-primary-color)]",
             labelClassName,
           )}
         >
@@ -190,7 +190,7 @@ function ChartTooltipContent({
     return (
       <div
         className={cn(
-          "font-semibold text-[#122a4c]",
+          "font-semibold text-[var(--market-primary-color)]",
           labelClassName,
         )}
       >
@@ -216,7 +216,7 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "grid min-w-[8rem] items-start gap-1.5 rounded-2xl border border-[#d9e4f2] bg-white px-3 py-2 text-xs shadow-xl",
+        "grid min-w-[8rem] items-start gap-1.5 rounded-2xl border border-[var(--market-primary-border-color)] bg-white px-3 py-2 text-xs shadow-xl",
         className,
       )}
     >
@@ -294,7 +294,7 @@ function ChartTooltipContent({
                     </div>
 
                     {item.value && (
-                      <span className="font-mono font-semibold tabular-nums text-[#122a4c]">
+                      <span className="font-mono font-semibold tabular-nums text-[var(--market-primary-color)]">
                         {item.value.toLocaleString()}
                       </span>
                     )}

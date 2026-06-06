@@ -29,7 +29,7 @@ export function LoginScreen() {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const showMarketLogo = Boolean(currentMarket.logo && !logoFailed);
-  const primaryColor = currentMarket.primaryColor || "#122a4c";
+  const primaryColor = currentMarket.primaryColor || "var(--market-primary-color)";
 
   useEffect(() => {
     let isActive = true;
@@ -278,7 +278,7 @@ export function LoginScreen() {
             {mode === "signup" && (
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-slate-600">Nome completo</span>
-                <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid #d9e4f2", backgroundColor: "#f8fafc" }}>
+                <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid var(--market-primary-border-color)", backgroundColor: "#f8fafc" }}>
                   <UserRound size={18} color={primaryColor} />
                   <input
                     type="text"
@@ -295,7 +295,7 @@ export function LoginScreen() {
             {mode !== "reset" && (
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-slate-600">E-mail</span>
-                <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid #d9e4f2", backgroundColor: "#f8fafc" }}>
+                <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid var(--market-primary-border-color)", backgroundColor: "#f8fafc" }}>
                   <Mail size={18} color={primaryColor} />
                   <input
                     type="email"
@@ -312,7 +312,7 @@ export function LoginScreen() {
             {mode === "signup" && (
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-slate-600">Telefone <span className="font-normal text-slate-400">(opcional)</span></span>
-                <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid #d9e4f2", backgroundColor: "#f8fafc" }}>
+                <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid var(--market-primary-border-color)", backgroundColor: "#f8fafc" }}>
                   <Phone size={18} color={primaryColor} />
                   <input
                     type="tel"
@@ -331,7 +331,7 @@ export function LoginScreen() {
                 <span className="mb-1.5 block text-xs font-semibold text-slate-600">
                   {mode === "login" ? "Senha" : "Nova senha"}
                 </span>
-                <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid #d9e4f2", backgroundColor: "#f8fafc" }}>
+                <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid var(--market-primary-border-color)", backgroundColor: "#f8fafc" }}>
                   <Lock size={18} color={primaryColor} />
                   <input
                     type={showPass ? "text" : "password"}
@@ -351,7 +351,7 @@ export function LoginScreen() {
             {(mode === "signup" || mode === "reset") && (
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-slate-600">Confirmar senha</span>
-                <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid #d9e4f2", backgroundColor: "#f8fafc" }}>
+                <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid var(--market-primary-border-color)", backgroundColor: "#f8fafc" }}>
                   <Lock size={18} color={primaryColor} />
                   <input
                     type={showPass ? "text" : "password"}
@@ -377,7 +377,7 @@ export function LoginScreen() {
             )}
 
             {mode === "signup" && (
-              <div className="rounded-xl p-3" style={{ border: "1px solid #d9e4f2", backgroundColor: "#f8fafc" }}>
+              <div className="rounded-xl p-3" style={{ border: "1px solid var(--market-primary-border-color)", backgroundColor: "#f8fafc" }}>
                 <label className="flex items-start gap-2">
                   <input
                     type="checkbox"

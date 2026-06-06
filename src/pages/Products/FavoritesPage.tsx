@@ -10,7 +10,7 @@ export function FavoritesPage() {
   const navigate = useNavigate();
   const { favorites, cartCount, marketId, tenantPath, currentMarket } = useApp();
   const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
-  const primaryColor = currentMarket?.primaryColor || '#122a4c';
+  const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
 
   useEffect(() => {
     let ignore = false;

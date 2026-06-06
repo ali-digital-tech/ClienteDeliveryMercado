@@ -81,7 +81,7 @@ export function ProductCollectionPage() {
   const { marketId } = useMarketContext();
   const { cartCount, currentMarket, tenantPath } = useApp();
   const config = isCollectionKey(collection) ? collectionConfigs[collection] : null;
-  const primaryColor = currentMarket?.primaryColor || "#122a4c";
+  const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const {
     products,
     isLoading,
@@ -170,13 +170,13 @@ export function ProductCollectionPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <div
         className="flex-shrink-0 bg-white px-4 pt-8 md:pt-4 pb-3 border-b"
-        style={{ borderColor: "#d9e4f2" }}
+        style={{ borderColor: "var(--market-primary-border-color)" }}
       >
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
             className="rounded-full p-2 flex-shrink-0"
-            style={{ backgroundColor: "#eef4fb" }}
+            style={{ backgroundColor: "var(--market-primary-soft-color)" }}
           >
             <ChevronLeft size={20} color={primaryColor} />
           </button>
@@ -187,7 +187,7 @@ export function ProductCollectionPage() {
 
           <button
             className="relative rounded-full p-2 flex-shrink-0"
-            style={{ backgroundColor: "#eef4fb" }}
+            style={{ backgroundColor: "var(--market-primary-soft-color)" }}
             onClick={() => navigate(tenantPath("carrinho"))}
           >
             <ShoppingCart size={20} color={primaryColor} />

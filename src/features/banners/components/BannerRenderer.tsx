@@ -18,6 +18,10 @@ const getBannerPlacements = (banner: Banner) => (
   banner.placement_keys?.length ? banner.placement_keys : [banner.placement_key]
 );
 
+function transparentize(color: string | null | undefined, amount: number) {
+  return `color-mix(in srgb, ${color || 'var(--market-primary-color)'} ${amount}%, transparent)`;
+}
+
 export function BannerRenderer({ banners, placement, page, className = '' }: BannerRendererProps) {
   const navigate = useNavigate();
   const { marketId, tenantPath } = useApp();
@@ -79,11 +83,11 @@ export function BannerRenderer({ banners, placement, page, className = '' }: Ban
                 }}
               >
                 <img src={banner.imagem_url} alt={banner.titulo} className="w-full h-full object-cover" />
-                <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${banner.background_color || '#122a4c'}ee 0%, ${banner.background_color || '#122a4c'}55 100%)` }} />
+                <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${transparentize(banner.background_color, 93)} 0%, ${transparentize(banner.background_color, 33)} 100%)` }} />
                 <div className="absolute inset-0 p-4 flex flex-col justify-end">
                   <h3 className="text-white" style={{ fontSize: '21px', fontWeight: 800, lineHeight: 1.1 }}>{banner.titulo}</h3>
                   {banner.subtitulo && <p className="text-white/85 mt-1" style={{ fontSize: '12px' }}>{banner.subtitulo}</p>}
-                  <span className="mt-2 bg-white rounded-full px-3 py-1 self-start" style={{ fontSize: '11px', fontWeight: 700, color: '#122a4c' }}>
+                  <span className="mt-2 bg-white rounded-full px-3 py-1 self-start" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--market-primary-color)' }}>
                     {banner.cta_text || 'Ver ofertas'}
                   </span>
                 </div>
@@ -102,14 +106,14 @@ export function BannerRenderer({ banners, placement, page, className = '' }: Ban
             <button onClick={() => openBanner(modalBanner)} className="block w-full text-left">
               <div className="relative h-60">
                 <img src={modalBanner.imagem_url} alt={modalBanner.titulo} className="h-full w-full object-cover" />
-                <div className="absolute inset-0" style={{ background: `linear-gradient(0deg, ${modalBanner.background_color || '#122a4c'}ee 0%, transparent 80%)` }} />
+                <div className="absolute inset-0" style={{ background: `linear-gradient(0deg, ${transparentize(modalBanner.background_color, 93)} 0%, transparent 80%)` }} />
                 <div className="absolute bottom-0 p-5 text-white">
                   <h3 className="text-2xl font-extrabold">{modalBanner.titulo}</h3>
                   {modalBanner.subtitulo && <p className="mt-1 text-sm text-white/85">{modalBanner.subtitulo}</p>}
                 </div>
               </div>
               <div className="p-4">
-                <span className="block rounded-2xl py-3 text-center text-sm font-bold text-white" style={{ backgroundColor: '#122a4c' }}>
+                <span className="block rounded-2xl py-3 text-center text-sm font-bold text-white" style={{ backgroundColor: 'var(--market-primary-color)' }}>
                   {modalBanner.cta_text || 'Ver ofertas'}
                 </span>
               </div>

@@ -127,7 +127,7 @@ export function MarketPage() {
         className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-2"
         style={{
           background:
-            "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
+            "linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)",
         }}
       >
         <div className="flex items-center justify-between mb-2">
@@ -172,7 +172,7 @@ export function MarketPage() {
                     height: "18px",
                     fontSize: "10px",
                     fontWeight: 700,
-                    backgroundColor: "#2f5b93",
+                    backgroundColor: "var(--market-secondary-color)",
                   }}
                 >
                   {cartCount}
@@ -209,7 +209,7 @@ export function MarketPage() {
               style={{
                 fontSize: "16px",
                 fontWeight: 700,
-                color: "#122a4c",
+                color: "var(--market-primary-color)",
               }}
             >
               Categorias
@@ -221,13 +221,13 @@ export function MarketPage() {
               <span
                 style={{
                   fontSize: "12px",
-                  color: "#122a4c",
+                  color: "var(--market-primary-color)",
                   fontWeight: 600,
                 }}
               >
                 Ver todas
               </span>
-              <ChevronRight size={14} color="#122a4c" />
+              <ChevronRight size={14} color="var(--market-primary-color)" />
             </button>
           </div>
 
@@ -241,8 +241,8 @@ export function MarketPage() {
                 onClick={() => navigate(`${tenantPath("produtos")}?categoria=${encodeURIComponent(cat.id)}`)}
                 className="flex h-[104px] w-[88px] flex-shrink-0 flex-col items-center justify-between gap-1.5 rounded-2xl p-3 transition-all active:scale-95"
                 style={{
-                  backgroundColor: "#eef4fb",
-                  border: "1px solid #d9e4f2",
+                  backgroundColor: "var(--market-primary-soft-color)",
+                  border: "1px solid var(--market-primary-border-color)",
                 }}
               >
                 <span style={{ fontSize: "24px" }}>
@@ -254,7 +254,7 @@ export function MarketPage() {
                     fontSize: "10px",
                     fontWeight: 600,
                     lineHeight: 1.3,
-                    color: "#122a4c",
+                    color: "var(--market-primary-color)",
                     minHeight: "26px",
                     textAlign: "center",
                   }}
@@ -274,15 +274,15 @@ export function MarketPage() {
             <div className="flex items-center gap-2">
               <div
                 className="rounded-lg p-1"
-                style={{ backgroundColor: "#eef4fb" }}
+                style={{ backgroundColor: "var(--market-primary-soft-color)" }}
               >
-                <Zap size={16} color="#122a4c" fill="#122a4c" />
+                <Zap size={16} color="var(--market-primary-color)" fill="var(--market-primary-color)" />
               </div>
               <h2
                 style={{
                   fontSize: "16px",
                   fontWeight: 700,
-                  color: "#122a4c",
+                  color: "var(--market-primary-color)",
                 }}
               >
                 Ofertas do dia
@@ -296,13 +296,13 @@ export function MarketPage() {
               <span
                 style={{
                   fontSize: "12px",
-                  color: "#122a4c",
+                  color: "var(--market-primary-color)",
                   fontWeight: 600,
                 }}
               >
                 Ver todas
               </span>
-              <ChevronRight size={14} color="#122a4c" />
+              <ChevronRight size={14} color="var(--market-primary-color)" />
             </button>
           </div>
 
@@ -326,7 +326,7 @@ export function MarketPage() {
               style={{
                 fontSize: "16px",
                 fontWeight: 700,
-                color: "#122a4c",
+                color: "var(--market-primary-color)",
               }}
             >
               ⚡ Consumo imediato
@@ -338,13 +338,13 @@ export function MarketPage() {
               <span
                 style={{
                   fontSize: "12px",
-                  color: "#122a4c",
+                  color: "var(--market-primary-color)",
                   fontWeight: 600,
                 }}
               >
                 Ver todos
               </span>
-              <ChevronRight size={14} color="#122a4c" />
+              <ChevronRight size={14} color="var(--market-primary-color)" />
             </button>
           </div>
 
@@ -367,7 +367,7 @@ export function MarketPage() {
               style={{
                 fontSize: "16px",
                 fontWeight: 700,
-                color: "#122a4c",
+                color: "var(--market-primary-color)",
               }}
             >
               🔥 Mais vendidos
@@ -379,13 +379,13 @@ export function MarketPage() {
               <span
                 style={{
                   fontSize: "12px",
-                  color: "#122a4c",
+                  color: "var(--market-primary-color)",
                   fontWeight: 600,
                 }}
               >
                 Ver todos
               </span>
-              <ChevronRight size={14} color="#122a4c" />
+              <ChevronRight size={14} color="var(--market-primary-color)" />
             </button>
           </div>
 
@@ -410,7 +410,7 @@ export function MarketPage() {
               style={{
                 fontSize: "16px",
                 fontWeight: 700,
-                color: "#122a4c",
+                color: "var(--market-primary-color)",
               }}
             >
               🔄 Compre novamente
@@ -422,13 +422,13 @@ export function MarketPage() {
               <span
                 style={{
                   fontSize: "12px",
-                  color: "#122a4c",
+                  color: "var(--market-primary-color)",
                   fontWeight: 600,
                 }}
               >
                 Ver todos
               </span>
-              <ChevronRight size={14} color="#122a4c" />
+              <ChevronRight size={14} color="var(--market-primary-color)" />
             </button>
           </div>
 
@@ -450,7 +450,7 @@ export function MarketPage() {
               style={{
                 fontSize: "16px",
                 fontWeight: 700,
-                color: "#122a4c",
+                color: "var(--market-primary-color)",
               }}
             >
               ⭐ Destaques
@@ -462,13 +462,13 @@ export function MarketPage() {
               <span
                 style={{
                   fontSize: "12px",
-                  color: "#122a4c",
+                  color: "var(--market-primary-color)",
                   fontWeight: 600,
                 }}
               >
                 Ver todos
               </span>
-              <ChevronRight size={14} color="#122a4c" />
+              <ChevronRight size={14} color="var(--market-primary-color)" />
             </button>
           </div>
 
@@ -490,7 +490,7 @@ export function MarketPage() {
               <button
                 onClick={() => window.location.reload()}
                 className="rounded-2xl px-5 py-2.5 text-white"
-                style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 700 }}
+                style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 700 }}
               >
                 Recarregar
               </button>

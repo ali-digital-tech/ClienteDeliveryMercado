@@ -232,7 +232,7 @@ export function ProductsPage() {
       ? selectedSubcategory
       : selectedLevel2 || selectedDepartment;
   const searchChips = recentSearches.length > 0 ? recentSearches : DEFAULT_SEARCH_SUGGESTIONS;
-  const primaryColor = currentMarket?.primaryColor || "#122a4c";
+  const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const categorySurface = colorWithAlpha(primaryColor, 0.08);
   const categorySurfaceStrong = colorWithAlpha(primaryColor, 0.14);
   const categoryBorder = colorWithAlpha(primaryColor, 0.2);
@@ -519,22 +519,22 @@ export function ProductsPage() {
       {/* Header */}
       <div
         className="flex-shrink-0 bg-white px-4 pt-8 md:pt-4 pb-2 border-b"
-        style={{ borderColor: "#d9e4f2" }}
+        style={{ borderColor: "var(--market-primary-border-color)" }}
       >
         <div className="mb-2 flex items-center gap-1.5">
           <button
             onClick={() => navigate(-1)}
             className="rounded-full p-2 flex-shrink-0"
-            style={{ backgroundColor: "#eef4fb" }}
+            style={{ backgroundColor: "var(--market-primary-soft-color)" }}
           >
-            <ChevronLeft size={20} color="#122a4c" />
+            <ChevronLeft size={20} color="var(--market-primary-color)" />
           </button>
 
           <div
             className="flex-1 flex min-w-0 items-center gap-2 rounded-xl px-3 py-2"
             style={{
               backgroundColor: "#f8fafc",
-              border: "1px solid #d9e4f2",
+              border: "1px solid var(--market-primary-border-color)",
             }}
           >
             <Search size={17} color="#94a3b8" />
@@ -571,7 +571,7 @@ export function ProductsPage() {
               title={`Buscar com pelo menos ${MIN_SEARCH_LENGTH} letras`}
               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full transition-all"
               style={{
-                backgroundColor: canSubmitSearch ? primaryColor : "#d9e4f2",
+                backgroundColor: canSubmitSearch ? primaryColor : "var(--market-primary-border-color)",
                 color: canSubmitSearch ? "#ffffff" : "#94a3b8",
               }}
             >
@@ -586,16 +586,16 @@ export function ProductsPage() {
               title="Ordenar"
               onClick={() => setShowSort(!showSort)}
               className="rounded-full p-2 transition-all"
-              style={{ backgroundColor: "#eef4fb" }}
+              style={{ backgroundColor: "var(--market-primary-soft-color)" }}
             >
-              <SlidersHorizontal size={20} color="#122a4c" />
+              <SlidersHorizontal size={20} color="var(--market-primary-color)" />
             </button>
 
             {showSort && (
               <div
                 className="absolute right-0 top-[calc(100%+8px)] w-48 overflow-hidden rounded-2xl bg-white shadow-xl z-[100]"
                 style={{
-                  border: "1px solid #d9e4f2",
+                  border: "1px solid var(--market-primary-border-color)",
                   animation: "fadeIn 0.2s ease-out forwards"
                 }}
               >
@@ -629,10 +629,10 @@ export function ProductsPage() {
 
           <button
             className="relative rounded-full p-2 flex-shrink-0"
-            style={{ backgroundColor: "#eef4fb" }}
+            style={{ backgroundColor: "var(--market-primary-soft-color)" }}
             onClick={() => navigate(tenantPath("carrinho"))}
           >
-            <ShoppingCart size={20} color="#122a4c" />
+            <ShoppingCart size={20} color="var(--market-primary-color)" />
             {cartCount > 0 && (
               <span
                 className="absolute -top-1 -right-1 text-white rounded-full flex items-center justify-center"
@@ -681,7 +681,7 @@ export function ProductsPage() {
                     className="flex-shrink-0 rounded-full px-3 py-1.5 transition-all duration-200"
                     style={{
                       backgroundColor: isActive ? primaryColor : "#f8fafc",
-                      border: `1px solid ${isActive ? primaryColor : "#d9e4f2"}`,
+                      border: `1px solid ${isActive ? primaryColor : "var(--market-primary-border-color)"}`,
                       boxShadow: isActive ? `0 5px 12px ${categoryShadow}` : "none",
                       color: isActive ? "#ffffff" : "#64748b",
                       fontSize: "11px",
@@ -758,8 +758,8 @@ export function ProductsPage() {
         <BannerRenderer banners={banners} placement="products_top" page="products" className="mb-4" />
 
         {bannerId && (
-          <div className="mb-4 flex items-center justify-between rounded-2xl px-4 py-3" style={{ backgroundColor: "#eef4fb" }}>
-            <span style={{ fontSize: "13px", color: "#122a4c", fontWeight: 700 }}>
+          <div className="mb-4 flex items-center justify-between rounded-2xl px-4 py-3" style={{ backgroundColor: "var(--market-primary-soft-color)" }}>
+            <span style={{ fontSize: "13px", color: "var(--market-primary-color)", fontWeight: 700 }}>
               {bannerTitle || "Ofertas do banner"}
             </span>
             <button
@@ -790,7 +790,7 @@ export function ProductsPage() {
                   key={r}
                   onClick={() => setQuery(r)}
                   className="flex items-center gap-1.5 rounded-full px-3 py-2 bg-white"
-                  style={{ border: "1px solid #d9e4f2" }}
+                  style={{ border: "1px solid var(--market-primary-border-color)" }}
                 >
                   <Search size={12} color="#94a3b8" />
                   <span
@@ -840,7 +840,7 @@ export function ProductsPage() {
                 <button
                   onClick={() => window.location.reload()}
                   className="rounded-2xl px-5 py-2.5 text-white"
-                  style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 700 }}
+                  style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 700 }}
                 >
                   Recarregar
                 </button>
@@ -887,8 +887,8 @@ export function ProductsPage() {
                       className="flex h-9 min-w-9 items-center justify-center rounded-full px-3 transition-all disabled:opacity-40"
                       style={{
                         backgroundColor: "#ffffff",
-                        border: "1px solid #d9e4f2",
-                        color: "#122a4c",
+                        border: "1px solid var(--market-primary-border-color)",
+                        color: "var(--market-primary-color)",
                         fontSize: "13px",
                         fontWeight: 800,
                       }}
@@ -915,8 +915,8 @@ export function ProductsPage() {
                           className="flex h-9 min-w-9 items-center justify-center rounded-full px-3 transition-all disabled:cursor-default"
                           style={{
                             backgroundColor: item === currentPage ? primaryColor : "#ffffff",
-                            border: `1px solid ${item === currentPage ? primaryColor : "#d9e4f2"}`,
-                            color: item === currentPage ? "#ffffff" : "#122a4c",
+                            border: `1px solid ${item === currentPage ? primaryColor : "var(--market-primary-border-color)"}`,
+                            color: item === currentPage ? "#ffffff" : "var(--market-primary-color)",
                             fontSize: "13px",
                             fontWeight: 800,
                           }}
@@ -933,8 +933,8 @@ export function ProductsPage() {
                       className="flex h-9 min-w-9 items-center justify-center rounded-full px-3 transition-all disabled:opacity-40"
                       style={{
                         backgroundColor: "#ffffff",
-                        border: "1px solid #d9e4f2",
-                        color: "#122a4c",
+                        border: "1px solid var(--market-primary-border-color)",
+                        color: "var(--market-primary-color)",
                         fontSize: "13px",
                         fontWeight: 800,
                       }}

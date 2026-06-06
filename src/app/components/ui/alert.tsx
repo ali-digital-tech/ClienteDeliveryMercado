@@ -12,7 +12,7 @@ const alertVariants = cva(
     variants: {
       variant: {
         default:
-          "border-[#d9e4f2] bg-[#eef4fb] text-[#122a4c] [&>svg]:text-[#122a4c]",
+          "border-[var(--market-primary-border-color)] bg-[var(--market-primary-soft-color)] text-[var(--market-primary-color)] [&>svg]:text-[var(--market-primary-color)]",
         destructive:
           "border-red-200 bg-red-50 text-red-700 [&>svg]:text-red-600 *:data-[slot=alert-description]:text-red-600/90",
       },
@@ -47,7 +47,7 @@ function AlertTitle({
     <div
       data-slot="alert-title"
       className={cn(
-        "col-start-2 min-h-4 line-clamp-1 font-semibold tracking-tight text-[#122a4c]",
+        "col-start-2 min-h-4 line-clamp-1 font-semibold tracking-tight text-[var(--market-primary-color)]",
         className,
       )}
       {...props}

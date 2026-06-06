@@ -40,7 +40,7 @@ function HoverCardContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          "z-50 w-64 origin-(--radix-hover-card-content-transform-origin) rounded-2xl border border-[#d9e4f2] bg-white p-4 text-[#334155] shadow-lg outline-hidden",
+          "z-50 w-64 origin-(--radix-hover-card-content-transform-origin) rounded-2xl border border-[var(--market-primary-border-color)] bg-white p-4 text-[#334155] shadow-lg outline-hidden",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",

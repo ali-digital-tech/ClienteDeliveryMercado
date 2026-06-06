@@ -34,12 +34,12 @@ const REVIEW_CANCELLATION_STATUSES = new Set<Order["status"]>(["separacao", "pro
 
 const statusConfig: Record<Order["status"], { label: string; color: string; bg: string }> = {
   pendente: { label: "Pendente", color: "#92400e", bg: "#fffbeb" },
-  recebido: { label: "Recebido", color: "#1b3d6d", bg: "#eef4fb" },
-  confirmado: { label: "Confirmado", color: "#122a4c", bg: "#e8f0fb" },
-  separacao: { label: "Em separação", color: "#2f5b93", bg: "#edf3fb" },
+  recebido: { label: "Recebido", color: "var(--market-secondary-color)", bg: "var(--market-primary-soft-color)" },
+  confirmado: { label: "Confirmado", color: "var(--market-primary-color)", bg: "var(--market-primary-soft-color)" },
+  separacao: { label: "Em separação", color: "var(--market-secondary-color)", bg: "var(--market-primary-soft-color)" },
   pronto: { label: "Pronto", color: "#1e40af", bg: "#dbeafe" },
-  saiu: { label: "Saiu para entrega", color: "#3f5f8a", bg: "#eff4fb" },
-  entregue: { label: "Entregue", color: "#122a4c", bg: "#eef4fb" },
+  saiu: { label: "Saiu para entrega", color: "#3f5f8a", bg: "var(--market-primary-soft-color)" },
+  entregue: { label: "Entregue", color: "var(--market-primary-color)", bg: "var(--market-primary-soft-color)" },
   nao_entregue: { label: "Não entregue", color: "#b91c1c", bg: "#fef2f2" },
   cancelado: { label: "Cancelado", color: "#b91c1c", bg: "#fef2f2" },
 };
@@ -355,7 +355,7 @@ export function OrderTrackingScreen() {
   if (isLoadingOrders && orders.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ background: "#f8fafc" }}>
-        <Loader2 className="animate-spin" size={28} color="#122a4c" />
+        <Loader2 className="animate-spin" size={28} color="var(--market-primary-color)" />
         <p style={{ fontSize: "14px", color: "#64748b", fontWeight: 600 }}>
           Carregando pedido...
         </p>
@@ -366,9 +366,9 @@ export function OrderTrackingScreen() {
   if (!selectedOrder) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#f8fafc" }}>
-        <div className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 border-b bg-white" style={{ borderColor: "#d9e4f2" }}>
-          <button onClick={() => navigate(tenantPath("orders"), { replace: true })} className="rounded-full p-2" style={{ backgroundColor: "#eef4fb" }}>
-            <ChevronLeft size={20} color="#122a4c" />
+        <div className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 border-b bg-white" style={{ borderColor: "var(--market-primary-border-color)" }}>
+          <button onClick={() => navigate(tenantPath("orders"), { replace: true })} className="rounded-full p-2" style={{ backgroundColor: "var(--market-primary-soft-color)" }}>
+            <ChevronLeft size={20} color="var(--market-primary-color)" />
           </button>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-3">
@@ -379,7 +379,7 @@ export function OrderTrackingScreen() {
           <button
             onClick={() => navigate(tenantPath("orders"))}
             className="rounded-2xl px-5 py-3 text-white"
-            style={{ backgroundColor: "#122a4c", fontSize: "14px", fontWeight: 700 }}
+            style={{ backgroundColor: "var(--market-primary-color)", fontSize: "14px", fontWeight: 700 }}
           >
             Ver meus pedidos
           </button>
@@ -441,7 +441,7 @@ export function OrderTrackingScreen() {
       <div
         className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 border-b"
         style={{
-          background: "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
+          background: "linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)",
           borderColor: "rgba(255,255,255,0.08)",
         }}
       >
@@ -458,7 +458,7 @@ export function OrderTrackingScreen() {
             <h1 className="text-white" style={{ fontSize: "16px", fontWeight: 800 }}>
               {isFinished ? "Detalhes do pedido" : "Acompanhando pedido"}
             </h1>
-            <p className="truncate" style={{ fontSize: "12px", color: "#c7d7ee" }}>
+            <p className="truncate" style={{ fontSize: "12px", color: "var(--market-primary-muted-color)" }}>
               {formatOrderCode(selectedOrder)}
             </p>
           </div>
@@ -473,14 +473,14 @@ export function OrderTrackingScreen() {
           style={{ backgroundColor: "rgba(255,255,255,0.12)" }}
         >
           <div className="rounded-xl p-2" style={{ backgroundColor: "rgba(255,255,255,0.95)" }}>
-            <Package size={20} color="#122a4c" />
+            <Package size={20} color="var(--market-primary-color)" />
           </div>
 
           <div className="flex-1 min-w-0">
             <p className="text-white" style={{ fontSize: "13px", fontWeight: 700 }}>
               {selectedOrder.type === "delivery" ? "Entrega por ordem de pedido" : "Retirada no mercado"}
             </p>
-            <p className="truncate" style={{ fontSize: "12px", color: "#c7d7ee" }}>
+            <p className="truncate" style={{ fontSize: "12px", color: "var(--market-primary-muted-color)" }}>
               Realizado em {formatDateTime(selectedOrder.createdAt)}
             </p>
           </div>
@@ -506,21 +506,21 @@ export function OrderTrackingScreen() {
             className="mb-2 flex items-center justify-center overflow-hidden transition-[height]"
             style={{ height: isRefreshingOrder ? "36px" : `${pullDistance}px` }}
           >
-            <div className="flex items-center justify-center rounded-full bg-white shadow-sm" style={{ width: "30px", height: "30px", border: "1px solid #d9e4f2" }}>
-              <RefreshCw className={isRefreshingOrder ? "animate-spin" : ""} size={15} color="#122a4c" />
+            <div className="flex items-center justify-center rounded-full bg-white shadow-sm" style={{ width: "30px", height: "30px", border: "1px solid var(--market-primary-border-color)" }}>
+              <RefreshCw className={isRefreshingOrder ? "animate-spin" : ""} size={15} color="var(--market-primary-color)" />
             </div>
           </div>
         )}
 
         {selectedOrder.type === "delivery" && selectedOrder.receiptKey && !isFinished && (
-          <div className="rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #bfd3ee", backgroundColor: "#eef4fb" }}>
+          <div className="rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)", backgroundColor: "var(--market-primary-soft-color)" }}>
             <div className="flex items-center gap-2">
-              <KeyRound size={18} color="#122a4c" />
-              <p style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }}>
+              <KeyRound size={18} color="var(--market-primary-color)" />
+              <p style={{ fontSize: "14px", fontWeight: 800, color: "var(--market-primary-color)" }}>
                 Chave de recebimento
               </p>
             </div>
-            <p className="mt-2" style={{ fontSize: "28px", fontWeight: 800, letterSpacing: "0.3em", color: "#122a4c" }}>
+            <p className="mt-2" style={{ fontSize: "28px", fontWeight: 800, letterSpacing: "0.3em", color: "var(--market-primary-color)" }}>
               {selectedOrder.receiptKey}
             </p>
             <p className="mt-1" style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.45 }}>
@@ -529,8 +529,8 @@ export function OrderTrackingScreen() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
-          <h3 className="mb-4" style={{ fontSize: "14px", fontWeight: 700, color: "#122a4c" }}>
+        <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>
+          <h3 className="mb-4" style={{ fontSize: "14px", fontWeight: 700, color: "var(--market-primary-color)" }}>
             {isFinished ? "Histórico do pedido" : "Progresso do pedido"}
           </h3>
 
@@ -539,9 +539,9 @@ export function OrderTrackingScreen() {
               const Icon = step.icon;
               const isFailedStep = Boolean(step.failed);
               const nextStepFailed = Boolean(steps[index + 1]?.failed);
-              const stepDoneColor = isFailedStep ? "#dc2626" : "#122a4c";
-              const stepActiveBg = isFailedStep ? "#fef2f2" : "#eef4fb";
-              const stepActiveColor = isFailedStep ? "#b91c1c" : "#122a4c";
+              const stepDoneColor = isFailedStep ? "#dc2626" : "var(--market-primary-color)";
+              const stepActiveBg = isFailedStep ? "#fef2f2" : "var(--market-primary-soft-color)";
+              const stepActiveColor = isFailedStep ? "#b91c1c" : "var(--market-primary-color)";
 
               return (
                 <div key={step.id} className="flex gap-4">
@@ -588,7 +588,7 @@ export function OrderTrackingScreen() {
                     <p
                       style={{
                         fontSize: "11px",
-                        color: isFailedStep ? "#b91c1c" : step.active ? "#1b3d6d" : step.done ? "#64748b" : "#cbd5e1",
+                        color: isFailedStep ? "#b91c1c" : step.active ? "var(--market-secondary-color)" : step.done ? "#64748b" : "#cbd5e1",
                         lineHeight: 1.4,
                       }}
                     >
@@ -715,13 +715,13 @@ export function OrderTrackingScreen() {
         )}
 
         {assignedDriver && (
-          <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+          <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>
             <p className="mb-3" style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
               Entrega
             </p>
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <User size={18} color="#122a4c" />
+                <User size={18} color="var(--market-primary-color)" />
                 <div>
                   <p style={{ fontSize: "12px", color: "#64748b" }}>Entregador</p>
                   <p style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
@@ -731,7 +731,7 @@ export function OrderTrackingScreen() {
               </div>
               {assignedVehicle && (
                 <div className="flex items-center gap-3">
-                  <Truck size={18} color="#122a4c" />
+                  <Truck size={18} color="var(--market-primary-color)" />
                   <div>
                     <p style={{ fontSize: "12px", color: "#64748b" }}>Automóvel</p>
                     <p style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
@@ -744,14 +744,14 @@ export function OrderTrackingScreen() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+        <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>
           <p className="mb-3" style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
             Dados do pedido
           </p>
 
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <CalendarClock size={18} color="#122a4c" />
+              <CalendarClock size={18} color="var(--market-primary-color)" />
               <div>
                 <p style={{ fontSize: "12px", color: "#64748b" }}>Criado em</p>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
@@ -776,7 +776,7 @@ export function OrderTrackingScreen() {
             )}
 
             <div className="flex items-center gap-3">
-              <Truck size={18} color="#122a4c" />
+              <Truck size={18} color="var(--market-primary-color)" />
               <div>
                 <p style={{ fontSize: "12px", color: "#64748b" }}>Tipo</p>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
@@ -787,7 +787,7 @@ export function OrderTrackingScreen() {
 
             {selectedOrder.backendStatus && (
               <div className="flex items-center gap-3">
-                <ReceiptText size={18} color="#122a4c" />
+                <ReceiptText size={18} color="var(--market-primary-color)" />
                 <div>
                   <p style={{ fontSize: "12px", color: "#64748b" }}>Status do pedido</p>
                   <p style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
@@ -799,14 +799,14 @@ export function OrderTrackingScreen() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+        <div className="bg-white rounded-2xl p-4 mb-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>
           <p className="mb-3" style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
             Itens do pedido
           </p>
 
           {isLoadingItems ? (
             <div className="flex items-center gap-2 py-2">
-              <Loader2 className="animate-spin" size={16} color="#122a4c" />
+              <Loader2 className="animate-spin" size={16} color="var(--market-primary-color)" />
               <span style={{ fontSize: "13px", color: "#64748b", fontWeight: 600 }}>
                 Carregando itens...
               </span>
@@ -836,7 +836,7 @@ export function OrderTrackingScreen() {
                     </p>
                   </div>
 
-                  <p style={{ fontSize: "13px", fontWeight: 800, color: "#122a4c" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 800, color: "var(--market-primary-color)" }}>
                     {formatCurrency(product.price * qty)}
                   </p>
                 </div>
@@ -849,14 +849,14 @@ export function OrderTrackingScreen() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl p-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+        <div className="bg-white rounded-2xl p-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>
           <div className="flex justify-between items-center">
             <p style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
               Resumo do pedido
             </p>
             <button
               onClick={() => navigate(tenantPath("orders"))}
-              style={{ fontSize: "12px", color: "#122a4c", fontWeight: 600 }}
+              style={{ fontSize: "12px", color: "var(--market-primary-color)", fontWeight: 600 }}
             >
               Ver pedidos
             </button>
@@ -905,15 +905,15 @@ export function OrderTrackingScreen() {
               <span style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
                 Total
               </span>
-              <span style={{ fontSize: "16px", fontWeight: 800, color: "#122a4c" }}>
+              <span style={{ fontSize: "16px", fontWeight: 800, color: "var(--market-primary-color)" }}>
                 {formatCurrency(selectedOrder.total)}
               </span>
             </div>
           </div>
 
-          <div className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "#eef4fb" }}>
-            <CreditCard size={15} color="#122a4c" />
-            <p style={{ fontSize: "11px", color: "#1b3d6d", fontWeight: 600 }}>
+          <div className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "var(--market-primary-soft-color)" }}>
+            <CreditCard size={15} color="var(--market-primary-color)" />
+            <p style={{ fontSize: "11px", color: "var(--market-secondary-color)", fontWeight: 600 }}>
               {paymentStatusMessage}
             </p>
           </div>
@@ -921,7 +921,7 @@ export function OrderTrackingScreen() {
             <button
               onClick={() => navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(selectedOrder.rawId || selectedOrder.id)}`)}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2"
-              style={{ backgroundColor: "#122a4c", color: "#fff", fontSize: "12px", fontWeight: 800 }}
+              style={{ backgroundColor: "var(--market-primary-color)", color: "#fff", fontSize: "12px", fontWeight: 800 }}
             >
               <CreditCard size={14} />
               Concluir pagamento
@@ -942,7 +942,7 @@ export function OrderTrackingScreen() {
 
       <PostPaymentPushPrompt
         isLoggedIn={isLoggedIn}
-        primaryColor={currentMarket.primaryColor || "#122a4c"}
+        primaryColor={currentMarket.primaryColor || "var(--market-primary-color)"}
         delayMs={500}
         requireRecoverySignal
       />

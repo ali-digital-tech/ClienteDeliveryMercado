@@ -126,7 +126,7 @@ export function ProductDetailsPage() {
   const discount = product.originalPrice
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : 0;
-  const primaryColor = currentMarket?.primaryColor || '#122a4c';
+  const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
   const related = relatedProducts.filter(p => p.id !== product.id).slice(0, 4);
   const categoryTrail = (product.categoryPath || 'Produtos')
     .split(/\s*>\s*/)

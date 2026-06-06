@@ -48,10 +48,10 @@ function MarkdownBlock({ content }: { content: string }) {
       const [header, ...body] = rows;
 
       elements.push(
-        <div key={`table-${index}`} className="my-4 overflow-x-auto rounded-xl border border-[#d9e4f2]">
+        <div key={`table-${index}`} className="my-4 overflow-x-auto rounded-xl border border-[var(--market-primary-border-color)]">
           <table className="min-w-full text-left text-xs">
             {header && (
-              <thead className="bg-[#eef4fb] text-[#122a4c]">
+              <thead className="bg-[var(--market-primary-soft-color)] text-[var(--market-primary-color)]">
                 <tr>{header.map((cell, cellIndex) => <th key={cellIndex} className="px-3 py-2 font-bold">{cell}</th>)}</tr>
               </thead>
             )}
@@ -69,12 +69,12 @@ function MarkdownBlock({ content }: { content: string }) {
     }
 
     if (trimmed.startsWith("### ")) {
-      elements.push(<h3 key={index} className="mt-5 text-base font-extrabold text-[#122a4c]">{trimmed.replace(/^###\s+/, "")}</h3>);
+      elements.push(<h3 key={index} className="mt-5 text-base font-extrabold text-[var(--market-primary-color)]">{trimmed.replace(/^###\s+/, "")}</h3>);
       continue;
     }
 
     if (trimmed.startsWith("## ")) {
-      elements.push(<h2 key={index} className="mt-6 text-lg font-extrabold text-[#122a4c]">{trimmed.replace(/^##\s+/, "")}</h2>);
+      elements.push(<h2 key={index} className="mt-6 text-lg font-extrabold text-[var(--market-primary-color)]">{trimmed.replace(/^##\s+/, "")}</h2>);
       continue;
     }
 
@@ -106,7 +106,7 @@ export function LegalDocumentScreen() {
   const [document, setDocument] = useState<LegalDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const primaryColor = currentMarket.primaryColor || "#122a4c";
+  const primaryColor = currentMarket.primaryColor || "var(--market-primary-color)";
   const documentConfig = documentSlug === "terms" ? DOCUMENT_CONFIG.terms : DOCUMENT_CONFIG.policy;
 
   useEffect(() => {
@@ -137,7 +137,7 @@ export function LegalDocumentScreen() {
     <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#f8fafc" }}>
       <div
         className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 flex items-center gap-3"
-        style={{ background: `linear-gradient(160deg, ${primaryColor} 0%, #122a4c 100%)` }}
+        style={{ background: `linear-gradient(160deg, ${primaryColor} 0%, var(--market-primary-color) 100%)` }}
       >
         <button
           onClick={() => navigate(-1)}
@@ -155,14 +155,14 @@ export function LegalDocumentScreen() {
       </div>
 
       <main className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="mx-auto max-w-3xl rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+        <div className="mx-auto max-w-3xl rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>
           {loading ? (
             <p className="text-sm text-slate-500">Carregando documento...</p>
           ) : error ? (
             <p className="text-sm text-red-600">{error}</p>
           ) : document ? (
             <>
-              <div className="mb-4 rounded-xl p-3" style={{ backgroundColor: "#eef4fb" }}>
+              <div className="mb-4 rounded-xl p-3" style={{ backgroundColor: "var(--market-primary-soft-color)" }}>
                 <p className="text-sm font-bold" style={{ color: primaryColor }}>{document.title}</p>
                 <p className="mt-1 text-xs text-slate-600">
                   Versão {document.version}

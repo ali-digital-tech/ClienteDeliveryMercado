@@ -12,7 +12,7 @@ type SystemNoticeModalProps = {
 export function SystemNoticeModal({
   title = "Atenção",
   message,
-  primaryColor = "#122a4c",
+  primaryColor = "var(--market-primary-color)",
   onClose,
 }: SystemNoticeModalProps) {
   return (

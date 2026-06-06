@@ -42,7 +42,7 @@ function Slider({
       <SliderPrimitive.Track
         data-slot="slider-track"
         className={cn(
-          "relative grow overflow-hidden rounded-full bg-[#eef4fb]",
+          "relative grow overflow-hidden rounded-full bg-[var(--market-primary-soft-color)]",
           "data-[orientation=horizontal]:h-3 data-[orientation=horizontal]:w-full",
           "data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5",
         )}
@@ -50,7 +50,7 @@ function Slider({
         <SliderPrimitive.Range
           data-slot="slider-range"
           className={cn(
-            "absolute bg-[#122a4c]",
+            "absolute bg-[var(--market-primary-color)]",
             "data-[orientation=horizontal]:h-full",
             "data-[orientation=vertical]:w-full",
           )}
@@ -62,9 +62,9 @@ function Slider({
           data-slot="slider-thumb"
           key={index}
           className={cn(
-            "block size-5 shrink-0 rounded-full border-2 border-[#122a4c] bg-white shadow-sm outline-none transition-[box-shadow,transform]",
-            "hover:ring-4 hover:ring-[#122a4c]/15",
-            "focus-visible:ring-4 focus-visible:ring-[#122a4c]/20",
+            "block size-5 shrink-0 rounded-full border-2 border-[var(--market-primary-color)] bg-white shadow-sm outline-none transition-[box-shadow,transform]",
+            "hover:ring-4 hover:ring-[var(--market-primary-color)]/15",
+            "focus-visible:ring-4 focus-visible:ring-[var(--market-primary-color)]/20",
             "disabled:pointer-events-none disabled:opacity-50",
           )}
         />

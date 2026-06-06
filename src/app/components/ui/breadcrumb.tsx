@@ -59,7 +59,7 @@ function BreadcrumbLink({
     <Comp
       data-slot="breadcrumb-link"
       className={cn(
-        "text-[#64748b] transition-colors hover:text-[#122a4c]",
+        "text-[#64748b] transition-colors hover:text-[var(--market-primary-color)]",
         className,
       )}
       {...props}
@@ -77,7 +77,7 @@ function BreadcrumbPage({
       role="link"
       aria-disabled="true"
       aria-current="page"
-      className={cn("font-semibold text-[#122a4c]", className)}
+      className={cn("font-semibold text-[var(--market-primary-color)]", className)}
       {...props}
     />
   );

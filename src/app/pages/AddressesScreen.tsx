@@ -331,7 +331,7 @@ export function AddressesScreen() {
           <button
             onClick={() => navigate(tenantPath('login'), { state: { redirectTo: tenantPath('addresses') } })}
             className="rounded-2xl px-6 py-3 text-white"
-            style={{ backgroundColor: '#122a4c', fontSize: '14px', fontWeight: 700 }}
+            style={{ backgroundColor: 'var(--market-primary-color)', fontSize: '14px', fontWeight: 700 }}
           >
             Entrar
           </button>
@@ -357,7 +357,7 @@ export function AddressesScreen() {
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6" style={{ background: '#f3f4f6' }}>
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 size={24} className="animate-spin" color="#122a4c" />
+            <Loader2 size={24} className="animate-spin" color="var(--market-primary-color)" />
           </div>
         ) : (
           <div className="flex flex-col gap-3 mb-4">
@@ -417,7 +417,7 @@ export function AddressesScreen() {
                       disabled={address.principal}
                       style={{
                         fontSize: '12px',
-                        color: address.principal ? '#94a3b8' : '#122a4c',
+                        color: address.principal ? '#94a3b8' : 'var(--market-primary-color)',
                         fontWeight: 700,
                       }}
                     >
@@ -430,7 +430,7 @@ export function AddressesScreen() {
                           target="_blank"
                           rel="noreferrer"
                           className="flex items-center gap-1"
-                          style={{ fontSize: '12px', color: '#122a4c', fontWeight: 700 }}
+                          style={{ fontSize: '12px', color: 'var(--market-primary-color)', fontWeight: 700 }}
                         >
                           Mapa <ExternalLink size={12} />
                         </a>
@@ -520,7 +520,7 @@ export function AddressesScreen() {
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center justify-center gap-2 bg-white px-4 py-3"
-                    style={{ fontSize: '13px', color: '#122a4c', fontWeight: 700 }}
+                    style={{ fontSize: '13px', color: 'var(--market-primary-color)', fontWeight: 700 }}
                   >
                     Abrir no Google Maps <ExternalLink size={14} />
                   </a>

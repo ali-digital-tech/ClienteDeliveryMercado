@@ -22,18 +22,18 @@ const statusConfig: Record<Order["status"], { label: string; color: string; bg: 
   },
   recebido: {
     label: "Recebido",
-    color: "#1b3d6d",
-    bg: "#eef4fb",
+    color: "var(--market-secondary-color)",
+    bg: "var(--market-primary-soft-color)",
   },
   confirmado: {
     label: "Confirmado",
-    color: "#122a4c",
-    bg: "#e8f0fb",
+    color: "var(--market-primary-color)",
+    bg: "var(--market-primary-soft-color)",
   },
   separacao: {
     label: "Em separação",
-    color: "#2f5b93",
-    bg: "#edf3fb",
+    color: "var(--market-secondary-color)",
+    bg: "var(--market-primary-soft-color)",
   },
   pronto: {
     label: "Pronto",
@@ -43,12 +43,12 @@ const statusConfig: Record<Order["status"], { label: string; color: string; bg: 
   saiu: {
     label: "Saiu para entrega",
     color: "#3f5f8a",
-    bg: "#eff4fb",
+    bg: "var(--market-primary-soft-color)",
   },
   entregue: {
     label: "Entregue",
-    color: "#122a4c",
-    bg: "#eef4fb",
+    color: "var(--market-primary-color)",
+    bg: "var(--market-primary-soft-color)",
   },
   nao_entregue: {
     label: "Não entregue",
@@ -136,8 +136,8 @@ function getCompactTimelineSteps(order: Order): CompactTimelineStep[] {
 }
 
 function getTimelineTone(state: CompactTimelineState) {
-  if (state === "done") return { dot: "#122a4c", line: "#c7d7ee", text: "#334155", bg: "#122a4c" };
-  if (state === "active") return { dot: "#2f5b93", line: "#c7d7ee", text: "#1b3d6d", bg: "#eef4fb" };
+  if (state === "done") return { dot: "var(--market-primary-color)", line: "var(--market-primary-muted-color)", text: "#334155", bg: "var(--market-primary-color)" };
+  if (state === "active") return { dot: "var(--market-secondary-color)", line: "var(--market-primary-muted-color)", text: "var(--market-secondary-color)", bg: "var(--market-primary-soft-color)" };
   if (state === "failed") return { dot: "#dc2626", line: "#fecaca", text: "#b91c1c", bg: "#fef2f2" };
   return { dot: "#cbd5e1", line: "#e2e8f0", text: "#94a3b8", bg: "#f8fafc" };
 }
@@ -171,7 +171,7 @@ function CompactOrderTimeline({ order }: { order: Order }) {
             className="h-full"
             style={{
               width: `${progressRatio * 100}%`,
-              backgroundColor: "#d7e3f3",
+              backgroundColor: "var(--market-primary-muted-color)",
             }}
           />
         </div>
@@ -195,7 +195,7 @@ function CompactOrderTimeline({ order }: { order: Order }) {
                       height: dotSize,
                       backgroundColor: isCurrent ? "#fbfdff" : tone.dot,
                       border: isCurrent ? `2px solid ${tone.dot}` : "none",
-                      boxShadow: step.state === "active" ? "0 0 0 3px rgba(47,91,147,0.07)" : "none",
+                      boxShadow: step.state === "active" ? "0 0 0 3px color-mix(in srgb, var(--market-secondary-color) 7%, transparent)" : "none",
                     }}
                   />
                 </div>
@@ -306,7 +306,7 @@ export function MyOrdersScreen() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <div
         className="flex-shrink-0 bg-white px-4 pt-8 md:pt-4 pb-3 border-b"
-        style={{ borderColor: "#d9e4f2" }}
+        style={{ borderColor: "var(--market-primary-border-color)" }}
       >
         <div className="flex items-center justify-between">
           <div>
@@ -314,7 +314,7 @@ export function MyOrdersScreen() {
               style={{
                 fontSize: "20px",
                 fontWeight: 800,
-                color: "#122a4c",
+                color: "var(--market-primary-color)",
               }}
             >
               Meus Pedidos
@@ -326,15 +326,15 @@ export function MyOrdersScreen() {
 
           <button
             className="relative rounded-full p-2"
-            style={{ backgroundColor: "#eef4fb" }}
+            style={{ backgroundColor: "var(--market-primary-soft-color)" }}
             onClick={() => navigate(tenantPath("carrinho"))}
           >
-            <ShoppingCart size={20} color="#122a4c" />
+            <ShoppingCart size={20} color="var(--market-primary-color)" />
             {cartCount > 0 && (
               <span
                 className="absolute -top-1 -right-1 text-white rounded-full flex items-center justify-center"
                 style={{
-                  backgroundColor: "#122a4c",
+                  backgroundColor: "var(--market-primary-color)",
                   width: "18px",
                   height: "18px",
                   fontSize: "10px",
@@ -354,7 +354,7 @@ export function MyOrdersScreen() {
       >
         {isLoadingOrders && orders.length === 0 ? (
           <div className="flex flex-col items-center py-20 gap-3">
-            <Loader2 className="animate-spin" size={28} color="#122a4c" />
+            <Loader2 className="animate-spin" size={28} color="var(--market-primary-color)" />
             <p style={{ fontSize: "14px", color: "#64748b", fontWeight: 600 }}>
               Carregando pedidos...
             </p>
@@ -375,7 +375,7 @@ export function MyOrdersScreen() {
               onClick={() => navigate(tenantPath())}
               className="rounded-2xl px-6 py-3 text-white"
               style={{
-                backgroundColor: "#122a4c",
+                backgroundColor: "var(--market-primary-color)",
                 fontSize: "14px",
                 fontWeight: 700,
               }}
@@ -407,7 +407,7 @@ export function MyOrdersScreen() {
                 <div
                   key={order.rawId || order.id}
                   className="bg-white rounded-2xl shadow-sm overflow-hidden"
-                  style={{ border: "1px solid #d9e4f2" }}
+                  style={{ border: "1px solid var(--market-primary-border-color)" }}
                 >
                   <div
                     className="px-4 pt-4 pb-3"
@@ -431,7 +431,7 @@ export function MyOrdersScreen() {
                             style={{
                               width: "8px",
                               height: "8px",
-                              backgroundColor: "#2f5b93",
+                              backgroundColor: "var(--market-secondary-color)",
                             }}
                           />
                         )}
@@ -479,7 +479,7 @@ export function MyOrdersScreen() {
                             style={{
                               width: "44px",
                               height: "44px",
-                              backgroundColor: "#eef4fb",
+                              backgroundColor: "var(--market-primary-soft-color)",
                             }}
                           >
                             <span
@@ -545,8 +545,8 @@ export function MyOrdersScreen() {
                         <span
                           className="rounded-full px-2.5 py-1"
                           style={{
-                            backgroundColor: "#eef4fb",
-                            color: "#122a4c",
+                            backgroundColor: "var(--market-primary-soft-color)",
+                            color: "var(--market-primary-color)",
                             fontSize: "11px",
                             fontWeight: 700,
                           }}
@@ -564,7 +564,7 @@ export function MyOrdersScreen() {
                       style={{
                         fontSize: "16px",
                         fontWeight: 800,
-                        color: "#122a4c",
+                        color: "var(--market-primary-color)",
                       }}
                     >
                       {formatCurrency(order.total)}
@@ -577,19 +577,19 @@ export function MyOrdersScreen() {
                         title={canRepeat ? "Repetir pedido" : "Itens do pedido não vieram na listagem"}
                         className="flex items-center gap-1.5 rounded-xl px-3 py-2 disabled:cursor-not-allowed"
                         style={{
-                          backgroundColor: "#eef4fb",
+                          backgroundColor: "var(--market-primary-soft-color)",
                           opacity: canRepeat && !isRepeating ? 1 : 0.55,
                         }}
                       >
                         {isRepeating ? (
-                          <Loader2 className="animate-spin" size={13} color="#122a4c" />
+                          <Loader2 className="animate-spin" size={13} color="var(--market-primary-color)" />
                         ) : (
-                          <RefreshCw size={13} color="#122a4c" />
+                          <RefreshCw size={13} color="var(--market-primary-color)" />
                         )}
                         <span
                           style={{
                             fontSize: "12px",
-                            color: "#122a4c",
+                            color: "var(--market-primary-color)",
                             fontWeight: 600,
                           }}
                         >

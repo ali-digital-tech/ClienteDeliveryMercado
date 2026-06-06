@@ -47,7 +47,7 @@ function AlertDialogOverlay({
     <AlertDialogPrimitive.Overlay
       data-slot="alert-dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-[#122a4c]/35 backdrop-blur-[2px]",
+        "fixed inset-0 z-50 bg-[var(--market-primary-color)]/35 backdrop-blur-[2px]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         className,
@@ -69,7 +69,7 @@ function AlertDialogContent({
         className={cn(
           "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)]",
           "translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border bg-white p-6 shadow-xl duration-200 sm:max-w-lg",
-          "border-[#d9e4f2]",
+          "border-[var(--market-primary-border-color)]",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -121,7 +121,7 @@ function AlertDialogTitle({
     <AlertDialogPrimitive.Title
       data-slot="alert-dialog-title"
       className={cn(
-        "text-lg font-semibold text-[#122a4c]",
+        "text-lg font-semibold text-[var(--market-primary-color)]",
         className,
       )}
       {...props}
@@ -155,7 +155,7 @@ function AlertDialogAction({
     <AlertDialogPrimitive.Action
       className={cn(
         buttonVariants(),
-        "bg-[#122a4c] text-white hover:bg-[#1b3d6d]",
+        "bg-[var(--market-primary-color)] text-white hover:bg-[var(--market-secondary-color)]",
         className,
       )}
       {...props}
@@ -171,7 +171,7 @@ function AlertDialogCancel({
     <AlertDialogPrimitive.Cancel
       className={cn(
         buttonVariants({ variant: "outline" }),
-        "border-[#d9e4f2] bg-white text-[#122a4c] hover:bg-[#eef4fb] hover:text-[#122a4c]",
+        "border-[var(--market-primary-border-color)] bg-white text-[var(--market-primary-color)] hover:bg-[var(--market-primary-soft-color)] hover:text-[var(--market-primary-color)]",
         className,
       )}
       {...props}

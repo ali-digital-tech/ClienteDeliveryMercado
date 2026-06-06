@@ -12,11 +12,11 @@ export function HomePage() {
         <div className="mb-8">
           <div
             className="mb-4 flex items-center justify-center rounded-2xl"
-            style={{ width: '48px', height: '48px', background: '#122a4c' }}
+            style={{ width: '48px', height: '48px', background: 'var(--market-primary-color)' }}
           >
             <ShoppingCart size={24} color="white" />
           </div>
-          <h1 style={{ color: '#122a4c', fontSize: '28px', fontWeight: 800, lineHeight: 1.1 }}>
+          <h1 style={{ color: 'var(--market-primary-color)', fontSize: '28px', fontWeight: 800, lineHeight: 1.1 }}>
             Escolha seu mercado
           </h1>
           <p className="mt-2 max-w-xl" style={{ color: '#64748b', fontSize: '14px', lineHeight: 1.6 }}>
@@ -49,7 +49,7 @@ export function HomePage() {
               <div className="p-4">
                 <p style={{ color: '#475569', fontSize: '13px', lineHeight: 1.5 }}>{market.description}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: '#eef4fb', color: '#122a4c', fontSize: '11px', fontWeight: 700 }}>
+                  <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'var(--market-primary-soft-color)', color: 'var(--market-primary-color)', fontSize: '11px', fontWeight: 700 }}>
                     <MapPin size={12} />
                     {market.neighborhood}
                   </span>

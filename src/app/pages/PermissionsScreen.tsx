@@ -26,7 +26,7 @@ import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
 type PushPermission = NotificationPermission | "unsupported";
 type LocationPermission = PermissionState | "unknown" | "unsupported";
 
-const PRIMARY = "#122a4c";
+const PRIMARY = "var(--market-primary-color)";
 
 const statusConfig = {
   granted: { label: "Permitida", color: "#15803d", background: "#dcfce7" },
@@ -325,7 +325,7 @@ export function PermissionsScreen() {
       <div
         className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 flex items-center gap-3"
         style={{
-          background: "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)",
+          background: "linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)",
         }}
       >
         <button
@@ -346,12 +346,12 @@ export function PermissionsScreen() {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         <section
           className="rounded-2xl bg-white p-4 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <div className="flex items-start gap-3">
             <div
               className="rounded-xl flex h-10 w-10 flex-shrink-0 items-center justify-center"
-              style={{ backgroundColor: "#eef4fb" }}
+              style={{ backgroundColor: "var(--market-primary-soft-color)" }}
             >
               <Bell size={19} color={PRIMARY} />
             </div>
@@ -436,7 +436,7 @@ export function PermissionsScreen() {
 
         <section
           className="rounded-2xl bg-white p-4 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <h2 style={{ fontSize: 14, fontWeight: 800, color: PRIMARY }}>
             O que receber por push
@@ -511,12 +511,12 @@ export function PermissionsScreen() {
 
         <section
           className="rounded-2xl bg-white p-4 shadow-sm"
-          style={{ border: "1px solid #d9e4f2" }}
+          style={{ border: "1px solid var(--market-primary-border-color)" }}
         >
           <div className="flex items-start gap-3">
             <div
               className="rounded-xl flex h-10 w-10 flex-shrink-0 items-center justify-center"
-              style={{ backgroundColor: "#eef4fb" }}
+              style={{ backgroundColor: "var(--market-primary-soft-color)" }}
             >
               <MapPin size={19} color={PRIMARY} />
             </div>
@@ -541,7 +541,7 @@ export function PermissionsScreen() {
             disabled={checkingLocation || locationPermission === "unsupported"}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 disabled:opacity-50"
             style={{
-              borderColor: "#bfd3ee",
+              borderColor: "var(--market-primary-border-color)",
               color: PRIMARY,
               fontSize: 13,
               fontWeight: 800,

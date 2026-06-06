@@ -26,7 +26,7 @@ export function DesktopSidebar() {
 
   const isActive = (path: string) => location.pathname === tenantPath(path);
   const showLogo = currentMarket.logo && !logoFailed;
-  const primaryColor = currentMarket?.primaryColor || '#122a4c';
+  const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
 
   return (
@@ -37,7 +37,7 @@ export function DesktopSidebar() {
       {/* Logo */}
       <div
         className="flex items-center gap-3 px-4 py-3 border-b border-gray-100"
-        style={{ background: 'linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)' }}
+        style={{ background: 'linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)' }}
       >
         <div
           className="rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
@@ -56,7 +56,7 @@ export function DesktopSidebar() {
         </div>
         <div className="min-w-0">
           <p className="truncate text-white" style={{ fontSize: '14px', fontWeight: 800, lineHeight: 1.1 }}>{currentMarket.name}</p>
-          <p style={{ fontSize: '10px', color: '#c7d7ee', fontWeight: 500 }}>Supermercado Digital</p>
+          <p style={{ fontSize: '10px', color: 'var(--market-primary-muted-color)', fontWeight: 500 }}>Supermercado Digital</p>
         </div>
       </div>
 

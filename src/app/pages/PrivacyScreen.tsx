@@ -179,7 +179,7 @@ export function PrivacyScreen() {
     <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#f8fafc" }}>
       <div
         className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 flex items-center gap-3"
-        style={{ background: "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)" }}
+        style={{ background: "linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)" }}
       >
         <button
           onClick={() => navigate(-1)}
@@ -201,17 +201,17 @@ export function PrivacyScreen() {
           <p className="mb-2 px-1" style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
             Dados fiscais
           </p>
-          <div className="rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+          <div className="rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>
             <div className="mb-3 flex items-center gap-2">
-              <ReceiptText size={16} color="#122a4c" />
-              <h2 style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }}>CPF na nota</h2>
+              <ReceiptText size={16} color="var(--market-primary-color)" />
+              <h2 style={{ fontSize: "14px", fontWeight: 800, color: "var(--market-primary-color)" }}>CPF na nota</h2>
             </div>
 
             {isLoggedIn ? (
               <>
                 <input
                   className="w-full rounded-xl border px-3 py-3 text-sm outline-none"
-                  style={{ borderColor: "#d9e4f2", color: "#334155" }}
+                  style={{ borderColor: "var(--market-primary-border-color)", color: "#334155" }}
                   placeholder="000.000.000-00"
                   inputMode="numeric"
                   value={cpf}
@@ -244,7 +244,7 @@ export function PrivacyScreen() {
                   onClick={handleSaveCpfPreference}
                   disabled={isSavingCpf}
                   className="mt-3 w-full rounded-xl px-4 py-3 text-white disabled:opacity-60"
-                  style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}
+                  style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}
                 >
                   {isSavingCpf ? "Salvando..." : "Salvar preferência"}
                 </button>
@@ -253,7 +253,7 @@ export function PrivacyScreen() {
               <button
                 onClick={() => navigate(tenantPath("login"), { state: { redirectTo: tenantPath("privacy") } })}
                 className="w-full rounded-xl px-4 py-3 text-white"
-                style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}
+                style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}
               >
                 Entrar para configurar CPF
               </button>
@@ -265,14 +265,14 @@ export function PrivacyScreen() {
           <p className="mb-2 px-1" style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
             Privacidade de dados
           </p>
-          <div className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #d9e4f2" }}>
+          <div className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid var(--market-primary-border-color)" }}>
             <button
               onClick={() => navigate(tenantPath("privacy/permissions"))}
               className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50"
               style={{ borderBottom: "1px solid #eef2f7" }}
             >
-              <div className="rounded-xl flex items-center justify-center flex-shrink-0" style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}>
-                <AlertTriangle size={18} color="#122a4c" />
+              <div className="rounded-xl flex items-center justify-center flex-shrink-0" style={{ width: "38px", height: "38px", backgroundColor: "var(--market-primary-soft-color)" }}>
+                <AlertTriangle size={18} color="var(--market-primary-color)" />
               </div>
               <span className="flex-1 text-left" style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
                 Gerenciar permissões
@@ -284,8 +284,8 @@ export function PrivacyScreen() {
               onClick={() => navigate(tenantPath("privacy/policy"))}
               className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50"
             >
-              <div className="rounded-xl flex items-center justify-center flex-shrink-0" style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}>
-                <Shield size={18} color="#122a4c" />
+              <div className="rounded-xl flex items-center justify-center flex-shrink-0" style={{ width: "38px", height: "38px", backgroundColor: "var(--market-primary-soft-color)" }}>
+                <Shield size={18} color="var(--market-primary-color)" />
               </div>
               <span className="flex-1 text-left" style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
                 Termos e política de privacidade
@@ -299,7 +299,7 @@ export function PrivacyScreen() {
           <p className="mb-2 px-1" style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
             Credenciais
           </p>
-          <div className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #d9e4f2" }}>
+          <div className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid var(--market-primary-border-color)" }}>
             <button
               onClick={() => {
                 if (!isLoggedIn) {
@@ -312,8 +312,8 @@ export function PrivacyScreen() {
               className="w-full flex items-center gap-3 px-4 py-3.5 transition-all active:bg-slate-50"
               style={{ borderBottom: "1px solid #eef2f7" }}
             >
-              <div className="rounded-xl flex items-center justify-center flex-shrink-0" style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}>
-                <Key size={18} color="#122a4c" />
+              <div className="rounded-xl flex items-center justify-center flex-shrink-0" style={{ width: "38px", height: "38px", backgroundColor: "var(--market-primary-soft-color)" }}>
+                <Key size={18} color="var(--market-primary-color)" />
               </div>
               <span className="flex-1 text-left" style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
                 Alterar senha
@@ -333,7 +333,7 @@ export function PrivacyScreen() {
                 <p style={{ fontSize: "12px", lineHeight: 1.45, color: "#64748b" }}>
                   Escolha uma nova senha com no mínimo 6 caracteres.
                 </p>
-                <div className="flex items-center gap-2 rounded-xl bg-white px-3" style={{ border: "1px solid #d9e4f2" }}>
+                <div className="flex items-center gap-2 rounded-xl bg-white px-3" style={{ border: "1px solid var(--market-primary-border-color)" }}>
                   <Key size={16} color="#64748b" />
                   <input
                     type={showPassword ? "text" : "password"}
@@ -347,7 +347,7 @@ export function PrivacyScreen() {
                     {showPassword ? <EyeOff size={16} color="#64748b" /> : <Eye size={16} color="#64748b" />}
                   </button>
                 </div>
-                <div className="flex items-center gap-2 rounded-xl bg-white px-3" style={{ border: "1px solid #d9e4f2" }}>
+                <div className="flex items-center gap-2 rounded-xl bg-white px-3" style={{ border: "1px solid var(--market-primary-border-color)" }}>
                   <Key size={16} color="#64748b" />
                   <input
                     type={showPassword ? "text" : "password"}
@@ -362,7 +362,7 @@ export function PrivacyScreen() {
                   type="submit"
                   disabled={isChangingPassword}
                   className="w-full rounded-xl px-4 py-3 text-white disabled:opacity-60"
-                  style={{ backgroundColor: "#122a4c", fontSize: "13px", fontWeight: 800 }}
+                  style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}
                 >
                   {isChangingPassword ? "Alterando..." : "Salvar nova senha"}
                 </button>
@@ -450,8 +450,8 @@ export function PrivacyScreen() {
           </div>
         </div>
 
-        <div className="rounded-2xl p-4 flex items-start gap-3" style={{ backgroundColor: "#eef4fb", border: "1px solid #d9e4f2" }}>
-          <Check size={16} color="#122a4c" className="flex-shrink-0 mt-0.5" />
+        <div className="rounded-2xl p-4 flex items-start gap-3" style={{ backgroundColor: "var(--market-primary-soft-color)", border: "1px solid var(--market-primary-border-color)" }}>
+          <Check size={16} color="var(--market-primary-color)" className="flex-shrink-0 mt-0.5" />
           <p style={{ fontSize: "12px", color: "#334155", lineHeight: 1.5 }}>
             Seus dados são criptografados e protegidos de acordo com a <span style={{ fontWeight: 700 }}>LGPD</span>.
           </p>

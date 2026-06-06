@@ -110,7 +110,7 @@ export function PwaInstallBanner() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installStatus, setInstallStatus] = useState<"idle" | "accepted" | "dismissed" | "installed">("idle");
 
-  const primaryColor = currentMarket?.primaryColor || "#122a4c";
+  const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const isAndroidPromptAvailable = platform === "android" && Boolean(installPrompt);
   const steps = useMemo(
     () => getSteps(platform, isAndroidPromptAvailable),
@@ -207,7 +207,7 @@ export function PwaInstallBanner() {
       >
         <div
           className="rounded-2xl bg-white p-3 shadow-lg"
-          style={{ border: "1px solid #d9e4f2", boxShadow: "0 18px 42px rgba(15,23,42,0.18)" }}
+          style={{ border: "1px solid var(--market-primary-border-color)", boxShadow: "0 18px 42px rgba(15,23,42,0.18)" }}
         >
           <div className="flex items-center gap-3">
             <button
@@ -222,7 +222,7 @@ export function PwaInstallBanner() {
                 <Smartphone size={22} color="#16a34a" />
               </span>
               <span className="min-w-0">
-                <span className="block truncate" style={{ color: "#122a4c", fontSize: "13px", fontWeight: 900 }}>
+                <span className="block truncate" style={{ color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 900 }}>
                   Instale o app no {platformLabel}
                 </span>
                 <span className="block truncate" style={{ color: "#64748b", fontSize: "12px", fontWeight: 700 }}>
@@ -255,7 +255,7 @@ export function PwaInstallBanner() {
         >
           <div
             className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
-            style={{ border: "1px solid #d9e4f2" }}
+            style={{ border: "1px solid var(--market-primary-border-color)" }}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -263,7 +263,7 @@ export function PwaInstallBanner() {
                 <p style={{ color: "#64748b", fontSize: "12px", fontWeight: 800 }}>
                   Passo {Math.min(stepIndex + 1, steps.length)} de {steps.length}
                 </p>
-                <h2 id="pwa-install-title" style={{ color: "#122a4c", fontSize: "18px", fontWeight: 900 }}>
+                <h2 id="pwa-install-title" style={{ color: "var(--market-primary-color)", fontSize: "18px", fontWeight: 900 }}>
                   Instalar app no {platformLabel}
                 </h2>
               </div>
@@ -295,7 +295,7 @@ export function PwaInstallBanner() {
               >
                 <CurrentStepIcon size={24} color="#16a34a" />
               </div>
-              <h3 style={{ color: "#122a4c", fontSize: "16px", fontWeight: 900 }}>
+              <h3 style={{ color: "var(--market-primary-color)", fontSize: "16px", fontWeight: 900 }}>
                 {currentStep.title}
               </h3>
               <p className="mt-1" style={{ color: "#475569", fontSize: "13px", lineHeight: 1.5, fontWeight: 600 }}>
@@ -333,7 +333,7 @@ export function PwaInstallBanner() {
                 type="button"
                 onClick={closeBanner}
                 className="w-full rounded-2xl px-4 py-3"
-                style={{ backgroundColor: "#eef4fb", color: "#122a4c", fontSize: "13px", fontWeight: 900 }}
+                style={{ backgroundColor: "var(--market-primary-soft-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 900 }}
               >
                 Não mostrar novamente
               </button>

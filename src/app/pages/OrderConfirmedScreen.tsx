@@ -89,7 +89,7 @@ export function OrderConfirmedScreen() {
       className="flex-1 flex flex-col"
       style={{
         background:
-          "linear-gradient(180deg, #eef4fb 0%, #ffffff 60%)",
+          "linear-gradient(180deg, var(--market-primary-soft-color) 0%, #ffffff 60%)",
       }}
     >
       <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-5">
@@ -100,8 +100,8 @@ export function OrderConfirmedScreen() {
             width: "100px",
             height: "100px",
             background:
-              "linear-gradient(135deg, #1b3d6d, #122a4c)",
-            boxShadow: "0 20px 60px rgba(18,42,76,0.35)",
+              "linear-gradient(135deg, var(--market-secondary-color), var(--market-primary-color))",
+            boxShadow: "0 20px 60px color-mix(in srgb, var(--market-primary-color) 35%, transparent)",
             transform: show ? "scale(1)" : "scale(0)",
             transition:
               "transform 0.5s cubic-bezier(0.34,1.56,0.64,1)",
@@ -128,7 +128,7 @@ export function OrderConfirmedScreen() {
               fontSize: "26px",
               fontWeight: 800,
               lineHeight: 1.2,
-              color: "#122a4c",
+              color: "var(--market-primary-color)",
             }}
           >
             Pedido confirmado!
@@ -156,7 +156,7 @@ export function OrderConfirmedScreen() {
               ? "translateY(0)"
               : "translateY(20px)",
             transition: "all 0.5s ease 0.5s",
-            border: "1px solid #d9e4f2",
+            border: "1px solid var(--market-primary-border-color)",
           }}
         >
           <div className="flex flex-col gap-3">
@@ -170,7 +170,7 @@ export function OrderConfirmedScreen() {
                 style={{
                   fontSize: "15px",
                   fontWeight: 800,
-                  color: "#122a4c",
+                  color: "var(--market-primary-color)",
                 }}
               >
                 {orderId}
@@ -184,14 +184,14 @@ export function OrderConfirmedScreen() {
 
             {displayedReceiptKey && (
               <>
-                <div className="rounded-xl px-3 py-3 text-left" style={{ backgroundColor: "#eef4fb" }}>
+                <div className="rounded-xl px-3 py-3 text-left" style={{ backgroundColor: "var(--market-primary-soft-color)" }}>
                   <div className="flex items-center gap-2">
-                    <KeyRound size={17} color="#122a4c" />
-                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#122a4c" }}>
+                    <KeyRound size={17} color="var(--market-primary-color)" />
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--market-primary-color)" }}>
                       Chave de recebimento
                     </span>
                   </div>
-                  <p className="mt-1" style={{ fontSize: "24px", fontWeight: 800, letterSpacing: "0.28em", color: "#122a4c" }}>
+                  <p className="mt-1" style={{ fontSize: "24px", fontWeight: 800, letterSpacing: "0.28em", color: "var(--market-primary-color)" }}>
                     {displayedReceiptKey}
                   </p>
                   <p className="mt-1" style={{ fontSize: "11px", color: "#64748b" }}>
@@ -273,7 +273,7 @@ export function OrderConfirmedScreen() {
                 style={{
                   fontSize: "18px",
                   fontWeight: 800,
-                  color: "#122a4c",
+                  color: "var(--market-primary-color)",
                 }}
               >
                 R$ {displayedTotal.toFixed(2).replace('.', ',')}
@@ -291,7 +291,7 @@ export function OrderConfirmedScreen() {
               ? "translateY(0)"
               : "translateY(20px)",
             transition: "all 0.5s ease 0.7s",
-            border: "1px solid #d9e4f2",
+            border: "1px solid var(--market-primary-border-color)",
           }}
         >
           <p
@@ -321,7 +321,7 @@ export function OrderConfirmedScreen() {
                       width: "24px",
                       height: "24px",
                       backgroundColor:
-                        isDone ? "#122a4c" : "#e2e8f0",
+                        isDone ? "var(--market-primary-color)" : "#e2e8f0",
                     }}
                   >
                     {isDone ? (
@@ -348,7 +348,7 @@ export function OrderConfirmedScreen() {
                   <span
                     style={{
                       fontSize: "8px",
-                      color: isDone ? "#122a4c" : "#94a3b8",
+                      color: isDone ? "var(--market-primary-color)" : "#94a3b8",
                       fontWeight: isDone ? 700 : 400,
                       textAlign: "center",
                     }}
@@ -360,7 +360,7 @@ export function OrderConfirmedScreen() {
                 {i < 4 && (
                   <div
                     className="h-0.5 flex-1 -mt-4"
-                    style={{ backgroundColor: i < currentStepIndex ? "#122a4c" : "#e2e8f0" }}
+                    style={{ backgroundColor: i < currentStepIndex ? "var(--market-primary-color)" : "#e2e8f0" }}
                   />
                 )}
               </div>
@@ -381,7 +381,7 @@ export function OrderConfirmedScreen() {
         <button
           onClick={handleTrackOrder}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-          style={{ backgroundColor: "#122a4c" }}
+          style={{ backgroundColor: "var(--market-primary-color)" }}
         >
           <Eye size={18} color="white" />
           <span style={{ fontSize: "15px", fontWeight: 700 }}>
@@ -392,14 +392,14 @@ export function OrderConfirmedScreen() {
         <button
           onClick={() => navigate(tenantPath(), { replace: true })}
           className="w-full rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-          style={{ backgroundColor: "#eef4fb" }}
+          style={{ backgroundColor: "var(--market-primary-soft-color)" }}
         >
-          <Home size={18} color="#122a4c" />
+          <Home size={18} color="var(--market-primary-color)" />
           <span
             style={{
               fontSize: "14px",
               fontWeight: 600,
-              color: "#122a4c",
+              color: "var(--market-primary-color)",
             }}
           >
             Voltar ao início
@@ -408,7 +408,7 @@ export function OrderConfirmedScreen() {
       </div>
       <PostPaymentPushPrompt
         isLoggedIn={isLoggedIn}
-        primaryColor={currentMarket.primaryColor || "#122a4c"}
+        primaryColor={currentMarket.primaryColor || "var(--market-primary-color)"}
         delayMs={900}
       />
     </div>

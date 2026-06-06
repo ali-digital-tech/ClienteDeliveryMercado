@@ -197,7 +197,7 @@ export function SupportScreen() {
       {/* Header */}
       <div
         className="flex-shrink-0 px-4 pt-8 md:pt-4 pb-3 flex items-center gap-3"
-        style={{ background: "linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)" }}
+        style={{ background: "linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)" }}
       >
         <button
           onClick={() => navigate(-1)}
@@ -295,7 +295,7 @@ export function SupportScreen() {
           </p>
           <div
             className="rounded-2xl bg-white shadow-sm overflow-hidden"
-            style={{ border: "1px solid #d9e4f2" }}
+            style={{ border: "1px solid var(--market-primary-border-color)" }}
           >
             {/* E-mail */}
             {supportEmail ? (
@@ -305,9 +305,9 @@ export function SupportScreen() {
               >
                 <div
                   className="rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}
+                  style={{ width: "38px", height: "38px", backgroundColor: "var(--market-primary-soft-color)" }}
                 >
-                  <Mail size={18} color="#122a4c" />
+                  <Mail size={18} color="var(--market-primary-color)" />
                 </div>
                 <div className="flex-1">
                   <p style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
@@ -323,9 +323,9 @@ export function SupportScreen() {
               <div className="flex items-center gap-3 px-4 py-3.5">
                 <div
                   className="rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ width: "38px", height: "38px", backgroundColor: "#eef4fb" }}
+                  style={{ width: "38px", height: "38px", backgroundColor: "var(--market-primary-soft-color)" }}
                 >
-                  <Mail size={18} color="#122a4c" />
+                  <Mail size={18} color="var(--market-primary-color)" />
                 </div>
                 <div className="flex-1">
                   <p style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
@@ -343,9 +343,9 @@ export function SupportScreen() {
         {/* Horário */}
         <div
           className="rounded-2xl p-4 flex items-start gap-3"
-          style={{ backgroundColor: "#eef4fb", border: "1px solid #d9e4f2" }}
+          style={{ backgroundColor: "var(--market-primary-soft-color)", border: "1px solid var(--market-primary-border-color)" }}
         >
-          <Clock size={16} color="#122a4c" className="flex-shrink-0 mt-0.5" />
+          <Clock size={16} color="var(--market-primary-color)" className="flex-shrink-0 mt-0.5" />
           <div>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
               Horário de atendimento
@@ -374,7 +374,7 @@ export function SupportScreen() {
           {/* Search */}
           <div
             className="flex items-center gap-2 rounded-2xl px-4 py-2.5 mb-3 bg-white"
-            style={{ border: "1px solid #d9e4f2" }}
+            style={{ border: "1px solid var(--market-primary-border-color)" }}
           >
             <Search size={16} color="#94a3b8" />
             <input
@@ -389,7 +389,7 @@ export function SupportScreen() {
 
           <div
             className="rounded-2xl bg-white shadow-sm overflow-hidden"
-            style={{ border: "1px solid #d9e4f2" }}
+            style={{ border: "1px solid var(--market-primary-border-color)" }}
           >
             {filteredFaqs.length === 0 ? (
               <div className="flex flex-col items-center py-8 gap-2">
@@ -413,9 +413,9 @@ export function SupportScreen() {
                   >
                     <div
                       className="rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ width: "32px", height: "32px", backgroundColor: "#eef4fb" }}
+                      style={{ width: "32px", height: "32px", backgroundColor: "var(--market-primary-soft-color)" }}
                     >
-                      <HelpCircle size={15} color="#122a4c" />
+                      <HelpCircle size={15} color="var(--market-primary-color)" />
                     </div>
                     <span
                       className="flex-1"

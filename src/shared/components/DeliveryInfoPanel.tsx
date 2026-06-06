@@ -9,14 +9,14 @@ export function DeliveryInfoPanel() {
       {/* Delivery info card */}
       <div
         className="rounded-2xl p-4 text-white"
-        style={{ background: 'linear-gradient(160deg, #1b3d6d 0%, #122a4c 100%)' }}
+        style={{ background: 'linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)' }}
       >
         <div className="flex items-center gap-2 mb-3">
           <div
             className="rounded-full flex-shrink-0"
             style={{ width: '8px', height: '8px', backgroundColor: '#4ade80' }}
           />
-          <p style={{ fontSize: '11px', color: '#c7d7ee', fontWeight: 600 }}>ENTREGA ATIVA</p>
+          <p style={{ fontSize: '11px', color: 'var(--market-primary-muted-color)', fontWeight: 600 }}>ENTREGA ATIVA</p>
         </div>
         <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
           <Clock size={13} color="#4ade80" />

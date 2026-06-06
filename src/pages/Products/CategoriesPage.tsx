@@ -12,7 +12,7 @@ export function CategoriesPage() {
   const { cartCount, tenantPath, currentMarket } = useApp();
   const { categories: departments } = useCategories(marketId, { level: 1 });
   const { banners } = useBanners(marketId, 'categories');
-  const primaryColor = currentMarket?.primaryColor || '#122a4c';
+  const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

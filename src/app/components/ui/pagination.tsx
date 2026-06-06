@@ -70,9 +70,9 @@ function PaginationLink({
           size,
         }),
         !isActive &&
-          "text-[#64748b] hover:bg-[#eef4fb] hover:text-[#122a4c]",
+          "text-[#64748b] hover:bg-[var(--market-primary-soft-color)] hover:text-[var(--market-primary-color)]",
         isActive &&
-          "bg-[#122a4c] text-white hover:bg-[#1b3d6d]",
+          "bg-[var(--market-primary-color)] text-white hover:bg-[var(--market-secondary-color)]",
         className,
       )}
       {...props}

@@ -20,7 +20,7 @@ export function ProductCard({ product, compact = false, fluid = false }: Product
   const discount = product.originalPrice
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : 0;
-  const primaryColor = currentMarket?.primaryColor || '#122a4c';
+  const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
   const handleIncrement = () => {
     if (qty === 0) {

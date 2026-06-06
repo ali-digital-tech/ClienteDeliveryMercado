@@ -192,7 +192,7 @@ function CardBrandLogo({ paymentMethodId }: { paymentMethodId: string }) {
     return (
       <span
         className="rounded-md bg-white/95 px-2.5 py-1"
-        style={{ color: "#122a4c", fontSize: brand === "hipercard" ? "11px" : "13px", fontWeight: 900, letterSpacing: "0.04em" }}
+        style={{ color: "var(--market-primary-color)", fontSize: brand === "hipercard" ? "11px" : "13px", fontWeight: 900, letterSpacing: "0.04em" }}
         aria-label={label}
       >
         {label}
@@ -376,7 +376,7 @@ export function PaymentScreen() {
     ]);
   }, [storedSelection.installments]);
 
-  const primaryColor = currentMarket?.primaryColor || "#122a4c";
+  const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
   const isCardPayment = selected !== "pix";
   const selectedSavedCard = savedCards.find((card) => card.id === selectedSavedCardId) || null;
@@ -844,19 +844,19 @@ export function PaymentScreen() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <div
         className="flex-shrink-0 bg-white px-4 pt-8 md:pt-4 pb-3 border-b"
-        style={{ borderColor: "#d9e4f2" }}
+        style={{ borderColor: "var(--market-primary-border-color)" }}
       >
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => navigate(-1)}
             className="rounded-full p-2"
-            style={{ backgroundColor: "#eef4fb" }}
+            style={{ backgroundColor: "var(--market-primary-soft-color)" }}
           >
-            <ChevronLeft size={20} color="#122a4c" />
+            <ChevronLeft size={20} color="var(--market-primary-color)" />
           </button>
 
-          <h1 style={{ fontSize: "18px", fontWeight: 800, color: "#122a4c" }}>
+          <h1 style={{ fontSize: "18px", fontWeight: 800, color: "var(--market-primary-color)" }}>
             {isProfilePaymentMethods ? "Adicionar cartão" : "Forma de pagamento"}
           </h1>
         </div>
@@ -870,7 +870,7 @@ export function PaymentScreen() {
               type="button"
               onClick={() => handleSelectMethod(id)}
               className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 border-2 text-left transition-all"
-              style={{ borderColor: selected === id ? primaryColor : "#d9e4f2" }}
+              style={{ borderColor: selected === id ? primaryColor : "var(--market-primary-border-color)" }}
             >
               <div
                 className="rounded-2xl flex items-center justify-center flex-shrink-0"
@@ -928,10 +928,10 @@ export function PaymentScreen() {
         </div>
 
         {isCardPayment && (
-          <div ref={cardFormRef} className="mb-4 rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid #d9e4f2" }}>
+          <div ref={cardFormRef} className="mb-4 rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
-                <h2 style={{ fontSize: "14px", fontWeight: 800, color: "#122a4c" }}>
+                <h2 style={{ fontSize: "14px", fontWeight: 800, color: "var(--market-primary-color)" }}>
                   {isUsingSavedCard ? "Cartão salvo" : "Informe os dados do cartão"}
                 </h2>
                 <p style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.45 }}>
@@ -957,7 +957,7 @@ export function PaymentScreen() {
             {!isProfilePaymentMethods && savedCardsForSelectedMethod.length > 0 && (
               <div className="mb-4">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p style={{ fontSize: "12px", fontWeight: 900, color: "#122a4c" }}>
+                  <p style={{ fontSize: "12px", fontWeight: 900, color: "var(--market-primary-color)" }}>
                     Cartões salvos
                   </p>
                   {selectedSavedCardId && (
@@ -968,7 +968,7 @@ export function PaymentScreen() {
                         resetCardMetadata();
                       }}
                       className="rounded-lg px-2 py-1"
-                      style={{ backgroundColor: "#eef4fb", color: "#122a4c", fontSize: "11px", fontWeight: 800 }}
+                      style={{ backgroundColor: "var(--market-primary-soft-color)", color: "var(--market-primary-color)", fontSize: "11px", fontWeight: 800 }}
                     >
                       Usar novo
                     </button>
@@ -986,12 +986,12 @@ export function PaymentScreen() {
                         onClick={() => applySavedCardSelection(card)}
                         className="flex items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left"
                         style={{
-                          borderColor: isSelectedCard ? primaryColor : "#d9e4f2",
+                          borderColor: isSelectedCard ? primaryColor : "var(--market-primary-border-color)",
                           backgroundColor: isSelectedCard ? primarySoftColor : "#fff",
                         }}
                       >
                         <div className="min-w-0">
-                          <p className="truncate" style={{ fontSize: "13px", fontWeight: 900, color: "#122a4c" }}>
+                          <p className="truncate" style={{ fontSize: "13px", fontWeight: 900, color: "var(--market-primary-color)" }}>
                             •••• {card.ultimos_quatro} · {card.nome_impresso || "Cartão cadastrado"}
                           </p>
                           <p style={{ fontSize: "11px", color: "#64748b", fontWeight: 700 }}>
@@ -1021,7 +1021,7 @@ export function PaymentScreen() {
                   style={{
                     maxWidth: "360px",
                     minHeight: "174px",
-                    background: `linear-gradient(135deg, ${primaryColor} 0%, #122a4c 100%)`,
+                    background: `linear-gradient(135deg, ${primaryColor} 0%, var(--market-primary-color) 100%)`,
                   }}
                 >
                   <div className="relative flex min-h-[142px] flex-col justify-between">
@@ -1063,7 +1063,7 @@ export function PaymentScreen() {
                     <div
                       id={SECURE_FIELD_IDS.savedSecurityCode}
                       className="mp-secure-field rounded-xl border bg-white px-3"
-                      style={{ borderColor: "#d9e4f2" }}
+                      style={{ borderColor: "var(--market-primary-border-color)" }}
                     />
                   </div>
                   <button
@@ -1073,7 +1073,7 @@ export function PaymentScreen() {
                       resetCardMetadata();
                     }}
                     className="rounded-xl px-3 py-3"
-                    style={{ backgroundColor: "#eef4fb", color: "#122a4c", fontSize: "13px", fontWeight: 800 }}
+                    style={{ backgroundColor: "var(--market-primary-soft-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}
                   >
                     Usar outro cartão
                   </button>
@@ -1086,7 +1086,7 @@ export function PaymentScreen() {
                   style={{
                     maxWidth: "360px",
                     minHeight: "174px",
-                    background: `linear-gradient(135deg, ${primaryColor} 0%, #122a4c 100%)`,
+                    background: `linear-gradient(135deg, ${primaryColor} 0%, var(--market-primary-color) 100%)`,
                   }}
                 >
                   <div className="relative flex min-h-[142px] flex-col justify-between">
@@ -1149,7 +1149,7 @@ export function PaymentScreen() {
                     <div
                       id={SECURE_FIELD_IDS.cardNumber}
                       className="mp-secure-field rounded-xl border bg-white px-3"
-                      style={{ borderColor: "#d9e4f2" }}
+                      style={{ borderColor: "var(--market-primary-border-color)" }}
                     />
                   </div>
 
@@ -1160,7 +1160,7 @@ export function PaymentScreen() {
                     <div
                       id={SECURE_FIELD_IDS.expirationDate}
                       className="mp-secure-field rounded-xl border bg-white px-3"
-                      style={{ borderColor: "#d9e4f2" }}
+                      style={{ borderColor: "var(--market-primary-border-color)" }}
                     />
                   </div>
 
@@ -1171,7 +1171,7 @@ export function PaymentScreen() {
                     <div
                       id={SECURE_FIELD_IDS.securityCode}
                       className="mp-secure-field rounded-xl border bg-white px-3"
-                      style={{ borderColor: "#d9e4f2" }}
+                      style={{ borderColor: "var(--market-primary-border-color)" }}
                     />
                   </div>
 
@@ -1227,7 +1227,7 @@ export function PaymentScreen() {
                 {!isProfilePaymentMethods && savedCards.length === 0 && (
                   <label
                     className="mt-4 flex items-start gap-3 rounded-xl px-3 py-3"
-                    style={{ backgroundColor: "#f8fafc", border: "1px solid #d9e4f2" }}
+                    style={{ backgroundColor: "#f8fafc", border: "1px solid var(--market-primary-border-color)" }}
                   >
                     <input
                       type="checkbox"
@@ -1265,7 +1265,7 @@ export function PaymentScreen() {
         )}
       </div>
 
-      <div className="flex-shrink-0 bg-white px-4 py-4 border-t" style={{ borderColor: "#d9e4f2" }}>
+      <div className="flex-shrink-0 bg-white px-4 py-4 border-t" style={{ borderColor: "var(--market-primary-border-color)" }}>
         <button
           type="button"
           onClick={handleConfirm}
