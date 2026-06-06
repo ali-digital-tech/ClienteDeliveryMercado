@@ -5,6 +5,7 @@ export interface OrderPayment {
   method: 'pix' | 'cartao_credito' | 'cartao_debito' | string;
   status: string;
   value: number;
+  applicationFee?: number;
   gatewayPaymentId?: string | null;
   qrCode?: string | null;
   qrCodeBase64?: string | null;

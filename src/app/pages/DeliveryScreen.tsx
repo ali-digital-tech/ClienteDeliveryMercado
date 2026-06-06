@@ -22,12 +22,18 @@ import {
   setStoredCheckoutMode,
   type CheckoutOrderType,
 } from '@/features/orders/services/checkoutModeService';
+import {
+  calculatePlatformServiceFee,
+  getMercadoPagoCheckoutConfig,
+  type MercadoPagoCheckoutConfig,
+} from '@/features/payments';
 
 export function DeliveryScreen() {
   const navigate = useNavigate();
   const { cartTotal, discount, currentMarket, currentUser, marketId, tenantPath } = useApp();
   const [mode, setMode] = useState<CheckoutOrderType>(() => getStoredCheckoutMode(marketId));
   const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
+  const [checkoutConfig, setCheckoutConfig] = useState<MercadoPagoCheckoutConfig | null>(null);
 
   const discountedSubtotal = Math.max(cartTotal - discount, 0);
   const deliveryFee = Math.max(0, currentMarket.deliveryFee || 0);
@@ -37,10 +43,28 @@ export function DeliveryScreen() {
 
 
   const total = discountedSubtotal + (mode === "delivery" ? deliveryFee : 0);
+  const serviceFee = calculatePlatformServiceFee(total, checkoutConfig?.platform_split);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
 
   useEffect(() => {
     setMode(getStoredCheckoutMode(marketId));
+  }, [marketId]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    getMercadoPagoCheckoutConfig(marketId)
+      .then((config) => {
+        if (isActive) setCheckoutConfig(config);
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar taxa de serviço:', error);
+        if (isActive) setCheckoutConfig(null);
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, [marketId]);
 
   const handleContinueToCheckout = () => {
@@ -355,6 +379,25 @@ export function DeliveryScreen() {
                 : `R$ ${deliveryFee.toFixed(2).replace('.', ',')}`}
             </span>
           </div>
+
+          {serviceFee > 0 && (
+            <div className="flex justify-between mb-1">
+              <span
+                style={{ fontSize: "13px", color: "#64748b" }}
+              >
+                Taxa de serviço
+              </span>
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "#334155",
+                }}
+              >
+                R$ {serviceFee.toFixed(2).replace('.', ',')}
+              </span>
+            </div>
+          )}
 
           <div
             className="pt-2 flex justify-between"

@@ -86,19 +86,25 @@ export function OrderConfirmedScreen() {
 
   return (
     <div
-      className="flex-1 flex flex-col"
+      className="flex-1 flex flex-col overflow-hidden"
       style={{
         background:
           "linear-gradient(180deg, var(--market-primary-soft-color) 0%, #ffffff 60%)",
       }}
     >
-      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-5">
+      <div
+        className="flex-1 min-h-0 flex flex-col items-center justify-start px-5 text-center"
+        style={{
+          gap: "clamp(6px, 1dvh, 12px)",
+          paddingTop: "clamp(6px, 1.2dvh, 12px)",
+        }}
+      >
         {/* Success icon */}
         <div
           className="rounded-full flex items-center justify-center"
           style={{
-            width: "100px",
-            height: "100px",
+            width: "clamp(64px, 9dvh, 84px)",
+            height: "clamp(64px, 9dvh, 84px)",
             background:
               "linear-gradient(135deg, var(--market-secondary-color), var(--market-primary-color))",
             boxShadow: "0 20px 60px color-mix(in srgb, var(--market-primary-color) 35%, transparent)",
@@ -108,7 +114,7 @@ export function OrderConfirmedScreen() {
           }}
         >
           <CheckCircle2
-            size={52}
+            size={44}
             color="white"
             strokeWidth={2}
           />
@@ -125,7 +131,7 @@ export function OrderConfirmedScreen() {
         >
           <h1
             style={{
-              fontSize: "26px",
+              fontSize: "clamp(22px, 3.4dvh, 26px)",
               fontWeight: 800,
               lineHeight: 1.2,
               color: "var(--market-primary-color)",
@@ -134,22 +140,20 @@ export function OrderConfirmedScreen() {
             Pedido confirmado!
           </h1>
           <p
-            className="mt-2"
+            className="mt-1"
             style={{
-              fontSize: "14px",
-              lineHeight: 1.6,
+              fontSize: "13px",
+              lineHeight: 1.35,
               color: "#64748b",
             }}
           >
-            Seu pedido foi recebido e
-            <br />
-            está sendo processado
+            Seu pedido foi recebido e está sendo processado
           </p>
         </div>
 
         {/* Order card */}
         <div
-          className="bg-white rounded-3xl p-6 w-full shadow-lg"
+          className="bg-white rounded-[20px] p-3.5 w-full shadow-lg"
           style={{
             opacity: show ? 1 : 0,
             transform: show
@@ -159,18 +163,22 @@ export function OrderConfirmedScreen() {
             border: "1px solid var(--market-primary-border-color)",
           }}
         >
-          <div className="flex flex-col gap-3">
-            <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-start gap-3">
               <span
-                style={{ fontSize: "13px", color: "#64748b" }}
+                style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.25 }}
               >
                 Número do pedido
               </span>
               <span
                 style={{
-                  fontSize: "15px",
+                  fontSize: "14px",
                   fontWeight: 800,
+                  lineHeight: 1.2,
                   color: "var(--market-primary-color)",
+                  maxWidth: "190px",
+                  overflowWrap: "anywhere",
+                  textAlign: "right",
                 }}
               >
                 {orderId}
@@ -184,17 +192,17 @@ export function OrderConfirmedScreen() {
 
             {displayedReceiptKey && (
               <>
-                <div className="rounded-xl px-3 py-3 text-left" style={{ backgroundColor: "var(--market-primary-soft-color)" }}>
+                <div className="rounded-xl px-3 py-1.5 text-left" style={{ backgroundColor: "var(--market-primary-soft-color)" }}>
                   <div className="flex items-center gap-2">
-                    <KeyRound size={17} color="var(--market-primary-color)" />
+                    <KeyRound size={16} color="var(--market-primary-color)" />
                     <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--market-primary-color)" }}>
                       Chave de recebimento
                     </span>
                   </div>
-                  <p className="mt-1" style={{ fontSize: "24px", fontWeight: 800, letterSpacing: "0.28em", color: "var(--market-primary-color)" }}>
+                  <p className="mt-1" style={{ fontSize: "21px", fontWeight: 800, letterSpacing: "0.24em", lineHeight: 1.05, color: "var(--market-primary-color)" }}>
                     {displayedReceiptKey}
                   </p>
-                  <p className="mt-1" style={{ fontSize: "11px", color: "#64748b" }}>
+                  <p className="mt-1" style={{ fontSize: "10px", lineHeight: 1.25, color: "#64748b" }}>
                     Informe esta chave somente ao entregador no momento da entrega.
                   </p>
                 </div>
@@ -208,7 +216,7 @@ export function OrderConfirmedScreen() {
 
             <div className="flex justify-between items-center">
               <span
-                style={{ fontSize: "13px", color: "#64748b" }}
+                style={{ fontSize: "12px", color: "#64748b" }}
               >
                 Entrega
               </span>
@@ -216,6 +224,7 @@ export function OrderConfirmedScreen() {
                 style={{
                   fontSize: "12px",
                   fontWeight: 600,
+                  lineHeight: 1.25,
                   color: "#334155",
                   textAlign: "right",
                   maxWidth: "180px",
@@ -228,8 +237,8 @@ export function OrderConfirmedScreen() {
             </div>
 
             {displayedScheduledFor && (
-              <div className="rounded-xl px-3 py-2 text-left" style={{ backgroundColor: "#fffbeb" }}>
-                <p style={{ fontSize: "12px", color: "#92400e", lineHeight: 1.4, fontWeight: 600 }}>
+              <div className="rounded-xl px-3 py-1.5 text-left" style={{ backgroundColor: "#fffbeb" }}>
+                <p style={{ fontSize: "11px", color: "#92400e", lineHeight: 1.25, fontWeight: 600 }}>
                   Pedido feito fora do horário. A entrega será no próximo dia de mercado aberto.
                 </p>
               </div>
@@ -237,7 +246,7 @@ export function OrderConfirmedScreen() {
 
             <div className="flex justify-between items-center">
               <span
-                style={{ fontSize: "13px", color: "#64748b" }}
+                style={{ fontSize: "12px", color: "#64748b" }}
               >
                 Status
               </span>
@@ -262,7 +271,7 @@ export function OrderConfirmedScreen() {
             <div className="flex justify-between items-center">
               <span
                 style={{
-                  fontSize: "14px",
+                  fontSize: "13px",
                   fontWeight: 700,
                   color: "#334155",
                 }}
@@ -271,7 +280,7 @@ export function OrderConfirmedScreen() {
               </span>
               <span
                 style={{
-                  fontSize: "18px",
+                  fontSize: "17px",
                   fontWeight: 800,
                   color: "var(--market-primary-color)",
                 }}
@@ -284,7 +293,7 @@ export function OrderConfirmedScreen() {
 
         {/* Progress indicator */}
         <div
-          className="bg-white rounded-2xl p-4 w-full shadow-sm"
+          className="bg-white rounded-2xl px-4 py-2.5 w-full shadow-sm"
           style={{
             opacity: show ? 1 : 0,
             transform: show
@@ -295,9 +304,9 @@ export function OrderConfirmedScreen() {
           }}
         >
           <p
-            className="mb-3 text-left"
+            className="mb-2 text-left"
             style={{
-              fontSize: "13px",
+              fontSize: "12px",
               fontWeight: 700,
               color: "#334155",
             }}
@@ -305,7 +314,7 @@ export function OrderConfirmedScreen() {
             Status atual
           </p>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {progressSteps.map((step, i) => {
               const isDone = i <= currentStepIndex;
 
@@ -318,8 +327,8 @@ export function OrderConfirmedScreen() {
                   <div
                     className="rounded-full flex items-center justify-center"
                     style={{
-                      width: "24px",
-                      height: "24px",
+                      width: "22px",
+                      height: "22px",
                       backgroundColor:
                         isDone ? "var(--market-primary-color)" : "#e2e8f0",
                     }}
@@ -347,7 +356,7 @@ export function OrderConfirmedScreen() {
 
                   <span
                     style={{
-                      fontSize: "8px",
+                      fontSize: "7px",
                       color: isDone ? "var(--market-primary-color)" : "#94a3b8",
                       fontWeight: isDone ? 700 : 400,
                       textAlign: "center",
@@ -372,15 +381,16 @@ export function OrderConfirmedScreen() {
 
       {/* Actions */}
       <div
-        className="flex-shrink-0 px-6 pb-10 pt-4 flex flex-col gap-3"
+        className="flex-shrink-0 px-5 pt-2 flex flex-col gap-2"
         style={{
+          paddingBottom: "max(8px, env(safe-area-inset-bottom))",
           opacity: show ? 1 : 0,
           transition: "opacity 0.5s ease 0.9s",
         }}
       >
         <button
           onClick={handleTrackOrder}
-          className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+          className="w-full rounded-2xl py-3 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           style={{ backgroundColor: "var(--market-primary-color)" }}
         >
           <Eye size={18} color="white" />
@@ -391,7 +401,7 @@ export function OrderConfirmedScreen() {
 
         <button
           onClick={() => navigate(tenantPath(), { replace: true })}
-          className="w-full rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+          className="w-full rounded-2xl py-2.5 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           style={{ backgroundColor: "var(--market-primary-soft-color)" }}
         >
           <Home size={18} color="var(--market-primary-color)" />

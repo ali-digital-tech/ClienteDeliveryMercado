@@ -61,6 +61,8 @@ export interface MercadoPagoCheckoutConfig {
   } | null;
 }
 
+export type PlatformSplitConfig = NonNullable<MercadoPagoCheckoutConfig['platform_split']>;
+
 export interface MercadoPagoPaymentResult {
   payment: {
     id: string;
@@ -68,6 +70,7 @@ export interface MercadoPagoPaymentResult {
     status: string;
     forma_pagamento: string;
     valor: string | number;
+    application_fee?: string | number | null;
     gateway_pagamento_id?: string | null;
   };
   mp_payment_id: string | number;
@@ -95,6 +98,33 @@ export interface LocalPayment {
   criado_em?: string | null;
   status_detalhado?: string | null;
   status_gateway_raw?: string | null;
+  application_fee?: string | number | null;
+}
+
+function normalizeAmount(value: string | number | null | undefined) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+export function calculatePlatformServiceFee(
+  totalAmount: number,
+  platformSplit?: PlatformSplitConfig | null,
+) {
+  const amount = Math.max(0, normalizeAmount(totalAmount));
+  if (amount <= 0 || !platformSplit) return 0;
+
+  const value = normalizeAmount(platformSplit.valor);
+  let fee = 0;
+
+  if (platformSplit.tipo_valor === 'percentual') {
+    const percent = normalizeAmount(platformSplit.percentual ?? platformSplit.valor);
+    fee = (amount * percent) / 100;
+  } else if (platformSplit.tipo_valor === 'fixo') {
+    fee = value;
+  }
+
+  const normalizedFee = Number(fee.toFixed(2));
+  return Math.max(0, Math.min(normalizedFee, amount));
 }
 
 export function resolvePixExpiration(

@@ -402,6 +402,7 @@ export function MyOrdersScreen() {
               const isRepeating = repeatingOrderId === (order.rawId || order.id);
               const hasDiscount = Boolean(order.discount && order.discount > 0);
               const hasDeliveryFee = Boolean(order.deliveryFee && order.deliveryFee > 0);
+              const serviceFee = order.payment?.applicationFee || 0;
 
               return (
                 <div
@@ -539,6 +540,19 @@ export function MyOrdersScreen() {
                           }}
                         >
                           Desconto {formatCurrency(order.discount)}
+                        </span>
+                      )}
+                      {serviceFee > 0 && (
+                        <span
+                          className="rounded-full px-2.5 py-1"
+                          style={{
+                            backgroundColor: "#f1f5f9",
+                            color: "#64748b",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Serviço {formatCurrency(serviceFee)}
                         </span>
                       )}
                       {order.cpfNaNota && (

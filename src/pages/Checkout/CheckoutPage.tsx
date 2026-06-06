@@ -35,6 +35,7 @@ import { getStoredCheckoutMode } from '@/features/orders/services/checkoutModeSe
 import { apiRequest, getAuthToken } from '@/shared/lib/api';
 import {
   cancelPayment,
+  calculatePlatformServiceFee,
   createCardPayment,
   createPixPayment,
   getMercadoPagoCheckoutConfig,
@@ -146,11 +147,6 @@ function formatPixCountdown(seconds: number) {
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
-}
-
-function formatPercentage(value: number) {
-  const rounded = Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
-  return `${rounded.replace('.', ',')}%`;
 }
 
 function unwrapBusinessHours(payload: any): BusinessHour[] {
@@ -484,10 +480,7 @@ export function CheckoutPage() {
     ? Math.max(0, Math.min(100, (pixSecondsRemaining / PIX_PAYMENT_WINDOW_SECONDS) * 100))
     : 0;
   const effectiveCustomerProfile = customerProfile || currentUser;
-  const splitPercent = Number(checkoutConfig?.platform_split?.percentual);
-  const splitDisclosure = Number.isFinite(splitPercent) && splitPercent > 0
-    ? `Valor do serviço: ${formatPercentage(splitPercent)}`
-    : "";
+  const serviceFee = calculatePlatformServiceFee(total, checkoutConfig?.platform_split);
   const selectedSavedCardForCvv = useMemo(() => {
     if (!pendingCvvSelection?.saved_card_id) return null;
 
@@ -1501,6 +1494,25 @@ export function CheckoutPage() {
               </span>
             </div>
 
+            {serviceFee > 0 && (
+              <div className="flex justify-between">
+                <span
+                  style={{ fontSize: "13px", color: "#64748b" }}
+                >
+                  Taxa de serviço
+                </span>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#334155",
+                  }}
+                >
+                  R$ {serviceFee.toFixed(2).replace('.', ',')}
+                </span>
+              </div>
+            )}
+
             <div
               className="pt-2 flex justify-between"
               style={{ borderTop: "1px solid #e2e8f0" }}
@@ -1524,12 +1536,6 @@ export function CheckoutPage() {
                 R$ {total.toFixed(2).replace('.', ',')}
               </span>
             </div>
-
-            {splitDisclosure && (
-              <p className="pt-1" style={{ fontSize: "11px", color: "#94a3b8", lineHeight: 1.45 }}>
-                {splitDisclosure}
-              </p>
-            )}
           </div>
         </div>
 

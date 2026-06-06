@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { ChevronLeft, Plus, Minus, Trash2, Tag, Truck, ShoppingCart } from 'lucide-react';
@@ -6,6 +6,11 @@ import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { BannerRenderer, useBanners } from '@/features/banners';
 import { formatCartQuantity } from '@/features/cart';
+import {
+  calculatePlatformServiceFee,
+  getMercadoPagoCheckoutConfig,
+  type MercadoPagoCheckoutConfig,
+} from '@/features/payments';
 import { ProductCard, ProductImage, useProducts } from '@/features/products';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
@@ -82,12 +87,31 @@ export function CartPage() {
   const [couponInput, setCouponInput] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [checkoutConfig, setCheckoutConfig] = useState<MercadoPagoCheckoutConfig | null>(null);
   const suggestedProductsDrag = useHorizontalDragScroll<HTMLDivElement>();
 
   const deliveryFee = Math.max(0, currentMarket?.deliveryFee || 0);
   const total = Math.max(cartTotal - discount + deliveryFee, 0);
+  const serviceFee = calculatePlatformServiceFee(total, checkoutConfig?.platform_split);
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
+
+  useEffect(() => {
+    let isActive = true;
+
+    getMercadoPagoCheckoutConfig(marketId)
+      .then((config) => {
+        if (isActive) setCheckoutConfig(config);
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar taxa de serviço:', error);
+        if (isActive) setCheckoutConfig(null);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [marketId]);
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
   const minimumOrder = Math.max(0, currentMarket?.minimumOrder || 0);
   const missingMinimumOrder = Math.max(0, minimumOrder - cartTotal);
@@ -340,6 +364,14 @@ export function CartPage() {
                     {deliveryFee === 0 ? 'Grátis' : `R$ ${deliveryFee.toFixed(2).replace('.', ',')}`}
                   </span>
                 </div>
+                {serviceFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500" style={{ fontSize: '13px' }}>Taxa de serviço</span>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+                      R$ {serviceFee.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                )}
                 <div className="border-t border-gray-100 pt-2 flex justify-between">
                   <span className="text-gray-800" style={{ fontSize: '15px', fontWeight: 700 }}>Total</span>
                   <span style={{ fontSize: '17px', fontWeight: 800, color: primaryColor }}>R$ {total.toFixed(2).replace('.', ',')}</span>

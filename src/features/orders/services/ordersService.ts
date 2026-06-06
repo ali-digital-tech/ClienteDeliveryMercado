@@ -71,6 +71,7 @@ interface ApiOrder {
     forma_pagamento?: string | null;
     valor?: string | number | null;
     status?: string | null;
+    application_fee?: string | number | null;
     gateway_pagamento_id?: string | null;
     qr_code?: string | null;
     qr_code_base64?: string | null;
@@ -353,6 +354,7 @@ function mapOrder(order: ApiOrder): Order {
       method: order.pagamento.forma_pagamento || '',
       status: order.pagamento.status || '',
       value: toNumber(order.pagamento.valor),
+      applicationFee: toNumber(order.pagamento.application_fee),
       gatewayPaymentId: order.pagamento.gateway_pagamento_id || null,
       qrCode: order.pagamento.qr_code || null,
       qrCodeBase64: order.pagamento.qr_code_base64 || null,

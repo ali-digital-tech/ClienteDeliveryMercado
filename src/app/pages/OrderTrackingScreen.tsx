@@ -395,6 +395,7 @@ export function OrderTrackingScreen() {
   const steps = buildSteps(selectedOrder);
   const hasDiscount = Boolean(selectedOrder.discount && selectedOrder.discount > 0);
   const hasDeliveryFee = Boolean(selectedOrder.deliveryFee && selectedOrder.deliveryFee > 0);
+  const serviceFee = selectedOrder.payment?.applicationFee || 0;
   const isFinished = ["entregue", "nao_entregue", "cancelado"].includes(selectedOrder.status);
   const assignedDriver = selectedOrder.type === "delivery" ? selectedOrder.deliveryInfo?.driver : null;
   const assignedVehicle = selectedOrder.type === "delivery" ? formatVehicle(selectedOrder) : null;
@@ -895,6 +896,15 @@ export function OrderTrackingScreen() {
                 <span style={{ fontSize: "13px", color: "#64748b" }}>CPF na nota</span>
                 <span style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
                   {selectedOrder.cpfNaNotaCpf || "Solicitado"}
+                </span>
+              </div>
+            )}
+
+            {serviceFee > 0 && (
+              <div className="flex justify-between">
+                <span style={{ fontSize: "13px", color: "#64748b" }}>Taxa de serviço</span>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
+                  {formatCurrency(serviceFee)}
                 </span>
               </div>
             )}
