@@ -184,10 +184,7 @@ export function MarketPage() {
 
           <div className="flex items-center gap-3">
             <button
-              className="home-header-icon-button relative rounded-full p-1.5"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.14)",
-              }}
+              className="home-header-icon-button relative rounded-full"
               onClick={() => navigate(tenantPath("notifications-feed"))}
               aria-label="Abrir notificações"
             >
@@ -206,14 +203,11 @@ export function MarketPage() {
             </button>
 
             <button
-              className={`home-header-icon-button relative rounded-full p-1.5 ${activeCartPulseKey > 0 ? "cart-added-bounce" : ""}`}
-              style={{
-                backgroundColor: "rgba(255,255,255,0.14)",
-              }}
+              className="home-header-icon-button relative rounded-full"
               onClick={() => navigate(tenantPath("carrinho"))}
               aria-label="Abrir carrinho"
             >
-              <span className="inline-flex">
+              <span className={`inline-flex ${activeCartPulseKey > 0 ? "cart-added-bounce" : ""}`}>
                 <ShoppingCart size={18} color="white" />
               </span>
               {activeCartPulseKey > 0 && (
