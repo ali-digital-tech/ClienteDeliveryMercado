@@ -70,9 +70,11 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
 
 export async function getMarkets(): Promise<Market[]> {
   const response = await apiRequest('/lojas', {
+    cache: 'no-store',
     params: {
       status: 'ativa',
       per_page: 100,
+      _fresh: Date.now(),
     },
   });
 
@@ -83,8 +85,14 @@ export async function getMarketById(marketId: string): Promise<Market | null> {
   if (!marketId) return null;
 
   const [storeResult, configResult] = await Promise.allSettled([
-    apiRequest<{ data: ApiStore }>(`/lojas/${marketId}`),
-    apiRequest<{ data: ApiStoreConfig }>(`/lojas/${marketId}/configuracoes`),
+    apiRequest<{ data: ApiStore }>(`/lojas/${marketId}`, {
+      cache: 'no-store',
+      params: { _fresh: Date.now() },
+    }),
+    apiRequest<{ data: ApiStoreConfig }>(`/lojas/${marketId}/configuracoes`, {
+      cache: 'no-store',
+      params: { _fresh: Date.now() },
+    }),
   ]);
 
   if (storeResult.status !== 'fulfilled') {

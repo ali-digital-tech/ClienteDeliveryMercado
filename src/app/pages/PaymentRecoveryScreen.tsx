@@ -28,6 +28,7 @@ import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
 
 const PAYMENT_POLL_INTERVAL_MS = 5000;
 const PENDING_STATUSES = new Set(["pendente", "em_processamento"]);
+type SubmittingPaymentAction = "pix" | "selected-method" | null;
 
 function matchesOrder(order: Order, orderId: string) {
   const normalized = orderId.replace(/^#/, "");
@@ -115,7 +116,7 @@ export function PaymentRecoveryScreen() {
   });
   const [payment, setPayment] = useState<OrderPayment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittingAction, setSubmittingAction] = useState<SubmittingPaymentAction>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(0);
@@ -151,7 +152,7 @@ export function PaymentRecoveryScreen() {
   );
   const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const payerValidation = validatePayerData(payer);
-  const paymentActionDisabled = isSubmitting || !payerValidation.isValid;
+  const paymentActionDisabled = Boolean(submittingAction) || !payerValidation.isValid;
 
   const openTracking = useCallback(() => {
     navigate(`${tenantPath("order-tracking")}?orderId=${encodeURIComponent(orderId)}`, { replace: true });
@@ -264,7 +265,7 @@ export function PaymentRecoveryScreen() {
       return;
     }
 
-    setIsSubmitting(true);
+    setSubmittingAction(forcePix ? "pix" : "selected-method");
     try {
       const payerData = resolvePayerData(payer);
       const selection = forcePix ? { method: "pix" as const } : paymentSelection;
@@ -296,7 +297,7 @@ export function PaymentRecoveryScreen() {
     } catch (error) {
       showSystemNotice(error || "Não foi possível iniciar o pagamento.");
     } finally {
-      setIsSubmitting(false);
+      setSubmittingAction(null);
     }
   };
 
@@ -414,7 +415,7 @@ export function PaymentRecoveryScreen() {
             </div>
 
             <button onClick={() => void createPayment(true)} disabled={paymentActionDisabled} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
-              {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <QrCode size={16} />}
+              {submittingAction === "pix" ? <Loader2 className="animate-spin" size={16} /> : <QrCode size={16} />}
               {payerValidation.isValid ? "Gerar novo PIX" : "Complete os dados do pagador"}
             </button>
             <button onClick={choosePaymentMethod} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3" style={{ backgroundColor: "var(--market-primary-soft-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
@@ -424,7 +425,7 @@ export function PaymentRecoveryScreen() {
 
             {selectedMethod !== "pix" && (
               <button onClick={() => void createPayment()} disabled={paymentActionDisabled} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 disabled:opacity-60" style={{ borderColor: "var(--market-primary-border-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
-                <CheckCircle2 size={16} />
+                {submittingAction === "selected-method" ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
                 {needsSavedCardCvv
                   ? "Informar CVV do cartão salvo"
                   : needsCardConfirmation

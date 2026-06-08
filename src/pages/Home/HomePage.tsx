@@ -4,7 +4,7 @@ import { useMarkets } from '@/features/markets';
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { markets } = useMarkets();
+  const { markets, isLoading, error } = useMarkets();
 
   return (
     <div className="min-h-full overflow-y-auto" style={{ background: '#f8fafc' }}>
@@ -24,44 +24,81 @@ export function HomePage() {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {markets.map(market => (
-            <button
-              key={market.id}
-              onClick={() => navigate(`/mercado/${market.id}`)}
-              className="overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-transform active:scale-[0.99]"
-              style={{ borderColor: '#e2e8f0' }}
-            >
-              <div className="relative h-32">
-                <img src={market.logo} alt={market.name} className="h-full w-full object-cover" />
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.55))' }} />
-                <span
-                  className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-white"
-                  style={{ background: market.status === 'open' ? '#16a34a' : '#64748b', fontSize: '11px', fontWeight: 700 }}
-                >
-                  {market.status === 'open' ? 'Aberto' : 'Fechado'}
-                </span>
-                <h2 className="absolute bottom-3 left-3 right-3 text-white" style={{ fontSize: '18px', fontWeight: 800 }}>
-                  {market.name}
-                </h2>
-              </div>
-
-              <div className="p-4">
-                <p style={{ color: '#475569', fontSize: '13px', lineHeight: 1.5 }}>{market.description}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'var(--market-primary-soft-color)', color: 'var(--market-primary-color)', fontSize: '11px', fontWeight: 700 }}>
-                    <MapPin size={12} />
-                    {market.neighborhood}
-                  </span>
-                  <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: '#f0fdf4', color: '#15803d', fontSize: '11px', fontWeight: 700 }}>
-                    <Timer size={12} />
-                    Por ordem de pedido
-                  </span>
+        {isLoading ? (
+          <div className="grid gap-4 md:grid-cols-2" aria-label="Carregando mercados">
+            {[0, 1].map((item) => (
+              <div
+                key={item}
+                className="overflow-hidden rounded-2xl border bg-white shadow-sm"
+                style={{ borderColor: '#e2e8f0' }}
+              >
+                <div className="h-32 animate-pulse bg-slate-200" />
+                <div className="space-y-3 p-4">
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+                  <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
+                  <div className="flex gap-2 pt-1">
+                    <div className="h-6 w-24 animate-pulse rounded-full bg-slate-100" />
+                    <div className="h-6 w-32 animate-pulse rounded-full bg-slate-100" />
+                  </div>
                 </div>
               </div>
-            </button>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: '#fecaca' }}>
+            <p style={{ color: '#991b1b', fontSize: '14px', fontWeight: 700 }}>
+              Não foi possível carregar os mercados ativos.
+            </p>
+            <p className="mt-1" style={{ color: '#64748b', fontSize: '13px', lineHeight: 1.5 }}>
+              Atualize a página ou tente novamente em alguns instantes.
+            </p>
+          </div>
+        ) : markets.length === 0 ? (
+          <div className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: '#e2e8f0' }}>
+            <p style={{ color: '#334155', fontSize: '14px', fontWeight: 700 }}>
+              Nenhum mercado ativo encontrado.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {markets.map(market => (
+              <button
+                key={market.id}
+                onClick={() => navigate(`/mercado/${market.id}`)}
+                className="overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-transform active:scale-[0.99]"
+                style={{ borderColor: '#e2e8f0' }}
+              >
+                <div className="relative h-32">
+                  <img src={market.logo} alt={market.name} className="h-full w-full object-cover" />
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.55))' }} />
+                  <span
+                    className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-white"
+                    style={{ background: market.status === 'open' ? '#16a34a' : '#64748b', fontSize: '11px', fontWeight: 700 }}
+                  >
+                    {market.status === 'open' ? 'Aberto' : 'Fechado'}
+                  </span>
+                  <h2 className="absolute bottom-3 left-3 right-3 text-white" style={{ fontSize: '18px', fontWeight: 800 }}>
+                    {market.name}
+                  </h2>
+                </div>
+
+                <div className="p-4">
+                  <p style={{ color: '#475569', fontSize: '13px', lineHeight: 1.5 }}>{market.description}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'var(--market-primary-soft-color)', color: 'var(--market-primary-color)', fontSize: '11px', fontWeight: 700 }}>
+                      <MapPin size={12} />
+                      {market.neighborhood}
+                    </span>
+                    <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: '#f0fdf4', color: '#15803d', fontSize: '11px', fontWeight: 700 }}>
+                      <Timer size={12} />
+                      Por ordem de pedido
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
