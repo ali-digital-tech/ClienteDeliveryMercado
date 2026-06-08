@@ -22,10 +22,38 @@ export function roundCartQuantity(quantity: number) {
   return Number(quantity.toFixed(3));
 }
 
+function toScaledQuantity(quantity: number) {
+  return Math.round(roundCartQuantity(quantity) * 1000);
+}
+
 export function getNextCartQuantity(product: Product, currentQuantity: number, direction: 1 | -1) {
   const step = getProductStepQty(product);
   const minimum = getProductMinQty(product);
-  const next = roundCartQuantity(currentQuantity + direction * step);
+  const currentInt = toScaledQuantity(Math.max(0, currentQuantity));
+  const minimumInt = toScaledQuantity(minimum);
+  const stepInt = toScaledQuantity(step);
+
+  if (stepInt <= 0) return 0;
+
+  if (direction === 1) {
+    const stepsFromMinimum = currentInt < minimumInt
+      ? 0
+      : Math.floor((currentInt - minimumInt) / stepInt) + 1;
+    const next = roundCartQuantity((minimumInt + stepsFromMinimum * stepInt) / 1000);
+
+    return isWeightProduct(product) ? next : Math.round(next);
+  }
+
+  if (currentInt <= minimumInt) return 0;
+
+  const diffFromMinimum = currentInt - minimumInt;
+  const stepsFromMinimum = diffFromMinimum % stepInt === 0
+    ? diffFromMinimum / stepInt - 1
+    : Math.floor(diffFromMinimum / stepInt);
+
+  if (stepsFromMinimum < 0) return 0;
+
+  const next = roundCartQuantity((minimumInt + stepsFromMinimum * stepInt) / 1000);
 
   if (next < minimum) return 0;
   return isWeightProduct(product) ? next : Math.round(next);

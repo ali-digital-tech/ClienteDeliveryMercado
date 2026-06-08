@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } 
 import type { Product } from '@/features/products';
 import { validateCoupon } from '../services/couponsService';
 import type { CartItem } from '../types/cart';
-import { getCartLineCount, isWeightProduct, roundCartQuantity } from '../utils/formatCartQuantity';
+import { getCartLineCount, getProductMinQty, roundCartQuantity } from '../utils/formatCartQuantity';
 
 const CART_STORAGE_KEY = 'cliente_delivery_cart_by_market_v1';
 
@@ -208,7 +208,7 @@ export function useCartStore(marketId: string, products: Product[] = []) {
     updateCartsByMarket(prevByMarket => {
       const currentCart = prevByMarket[marketId] || [];
       const existing = currentCart.find(item => item.product.id === product.id);
-      const quantityToAdd = roundCartQuantity(toPositiveQuantity(quantity) || (isWeightProduct(product) ? product.minQty : 1));
+      const quantityToAdd = roundCartQuantity(toPositiveQuantity(quantity) || getProductMinQty(product));
 
       if (existing) {
         return {
