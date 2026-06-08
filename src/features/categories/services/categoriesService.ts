@@ -91,7 +91,6 @@ export async function getCategoriesByMarketId(
   const firstResponse: any = await apiRequest(`/lojas/${marketId}/categorias`, {
     params: {
       ativa: true,
-      include_all: true,
       nivel: filters.level,
       categoria_pai_id: filters.parentId,
       page: 1,
@@ -109,7 +108,6 @@ export async function getCategoriesByMarketId(
         apiRequest(`/lojas/${marketId}/categorias`, {
           params: {
             ativa: true,
-            include_all: true,
             nivel: filters.level,
             categoria_pai_id: filters.parentId,
             page: index + 2,
