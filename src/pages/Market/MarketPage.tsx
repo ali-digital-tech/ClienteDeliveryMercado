@@ -203,7 +203,7 @@ export function MarketPage() {
             </button>
 
             <button
-              className="home-header-icon-button relative rounded-full"
+              className={`home-header-icon-button relative rounded-full ${cartCount > 0 ? "cart-status-pulse" : ""}`}
               onClick={() => navigate(tenantPath("carrinho"))}
               aria-label="Abrir carrinho"
             >
