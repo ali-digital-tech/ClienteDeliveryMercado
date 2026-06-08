@@ -9,6 +9,7 @@ interface UseProductsOptions {
   departmentId?: string | null;
   categoryId?: string | null;
   subcategoryId?: string | null;
+  categoryIds?: string[];
   search?: string;
   promotionActive?: boolean;
   featured?: boolean;
@@ -69,6 +70,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     departmentId = null,
     categoryId = null,
     subcategoryId = null,
+    categoryIds = [],
     search = '',
     promotionActive,
     featured,
@@ -81,13 +83,18 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     paginationMode = 'append',
   } = options;
   const normalizedSearch = search.trim();
-  const requestCategoryId = subcategoryId || categoryId || departmentId || null;
+  const requestCategoryIds = useMemo(
+    () => Array.from(new Set(categoryIds.filter(Boolean))),
+    [categoryIds],
+  );
+  const requestCategoryId = requestCategoryIds[0] || subcategoryId || categoryId || departmentId || null;
   const requestKey = useMemo(
     () => JSON.stringify({
       scope: 'market-products',
       marketId,
       departmentId,
       categoryId,
+      categoryIds: requestCategoryIds,
       subcategoryId: subcategoryId || 'all',
       search: normalizedSearch,
       promotionActive: promotionActive ?? null,
@@ -98,7 +105,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
       mode: useOffsetPagination ? 'offset-lookahead' : 'page',
       paginationMode,
     }),
-    [bestsellers, categoryId, departmentId, featured, immediateConsumption, marketId, normalizedSearch, paginationMode, perPage, promotionActive, subcategoryId, useOffsetPagination],
+    [bestsellers, categoryId, departmentId, featured, immediateConsumption, marketId, normalizedSearch, paginationMode, perPage, promotionActive, requestCategoryIds, subcategoryId, useOffsetPagination],
   );
   const latestRequestKeyRef = useRef(requestKey);
   const loadingMoreRef = useRef(false);
@@ -142,6 +149,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
 
     getProductsByMarketId(marketId, {
       categoryId: requestCategoryId,
+      categoryIds: requestCategoryIds,
       search: normalizedSearch,
       promotionActive,
       featured,
@@ -213,6 +221,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     try {
       const result = await getProductsByMarketId(marketId, {
         categoryId: requestCategoryId,
+        categoryIds: requestCategoryIds,
         search: normalizedSearch,
         promotionActive,
         featured,
@@ -262,7 +271,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
         setIsLoadingMore(false);
       }
     }
-  }, [allowGlobal, bestsellers, enabled, featured, hasNextPage, immediateConsumption, isLoading, marketId, normalizedSearch, page, paginationMode, perPage, products, promotionActive, requestCategoryId, useOffsetPagination]);
+  }, [allowGlobal, bestsellers, enabled, featured, hasNextPage, immediateConsumption, isLoading, marketId, normalizedSearch, page, paginationMode, perPage, products, promotionActive, requestCategoryId, requestCategoryIds, useOffsetPagination]);
 
   const loadPage = useCallback(async (targetPage: number) => {
     const safePage = Math.max(1, targetPage);
@@ -300,6 +309,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
     try {
       const result = await getProductsByMarketId(marketId, {
         categoryId: requestCategoryId,
+        categoryIds: requestCategoryIds,
         search: normalizedSearch,
         promotionActive,
         featured,
@@ -342,7 +352,7 @@ export function useProducts(marketId: string, options: UseProductsOptions = {}) 
         setIsLoadingMore(false);
       }
     }
-  }, [allowGlobal, bestsellers, enabled, featured, immediateConsumption, isLoading, marketId, normalizedSearch, paginationMode, perPage, promotionActive, requestCategoryId, useOffsetPagination]);
+  }, [allowGlobal, bestsellers, enabled, featured, immediateConsumption, isLoading, marketId, normalizedSearch, paginationMode, perPage, promotionActive, requestCategoryId, requestCategoryIds, useOffsetPagination]);
 
   return {
     products,

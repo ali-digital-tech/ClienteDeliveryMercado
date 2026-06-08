@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, UIEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
@@ -15,7 +15,7 @@ import { useMarketContext } from '@/contexts/MarketContext';
 import { BottomNav } from '@/shared/components/BottomNav';
 import { ProductCard, filterProducts, useProducts } from '@/features/products';
 import type { Product } from '@/features/products';
-import { getCategoriesByMarketId, useCategories } from '@/features/categories';
+import { getCategoriesByMarketId, getDepartmentCategoriesByMarketId, useCategories } from '@/features/categories';
 import type { Category } from '@/features/categories';
 import { BannerRenderer, getBannerProducts, useBanners } from '@/features/banners';
 import { normalizeSearchText } from '@/shared/utils/searchText';
@@ -220,6 +220,8 @@ export function ProductsPage() {
   const [isLoadingLevel3Categories, setIsLoadingLevel3Categories] = useState(false);
   const [level2CategoriesError, setLevel2CategoriesError] = useState<Error | null>(null);
   const [level3CategoriesError, setLevel3CategoriesError] = useState<Error | null>(null);
+  const [departmentProductCategories, setDepartmentProductCategories] = useState<Category[]>([]);
+  const [isLoadingDepartmentProductCategories, setIsLoadingDepartmentProductCategories] = useState(false);
   const [loadedLevel2DepartmentId, setLoadedLevel2DepartmentId] = useState<string | null>(null);
   const [loadedLevel3CategoryId, setLoadedLevel3CategoryId] = useState<string | null>(null);
   const selectedDepartment = departments.find((cat) => cat.id === selectedDepartmentId);
@@ -244,7 +246,23 @@ export function ProductsPage() {
   const hasSearchQuery = normalizedSubmittedQuery.length >= MIN_SEARCH_LENGTH;
   const canSubmitSearch = normalizedQuery.length >= MIN_SEARCH_LENGTH;
   const isAwaitingSearchSubmit = normalizedQuery.length > 0 && normalizedQuery !== normalizedSubmittedQuery;
-  const isLoadingCategories = isLoadingLevel2Categories || isLoadingLevel3Categories;
+  const selectedProductCategoryIds = useMemo(() => {
+    if (selectedSubcategoryId) return [selectedSubcategoryId];
+    if (selectedLevel2Id) {
+      return Array.from(new Set([
+        selectedLevel2Id,
+        ...level3Categories.map((category) => category.id),
+      ]));
+    }
+    if (selectedDepartmentId) {
+      return Array.from(new Set([
+        selectedDepartmentId,
+        ...departmentProductCategories.map((category) => category.id),
+      ]));
+    }
+    return [];
+  }, [departmentProductCategories, level3Categories, selectedDepartmentId, selectedLevel2Id, selectedSubcategoryId]);
+  const isLoadingCategories = isLoadingLevel2Categories || isLoadingLevel3Categories || isLoadingDepartmentProductCategories;
   const canLoadProducts = !bannerId && Boolean(
     marketId
     && (
@@ -266,6 +284,7 @@ export function ProductsPage() {
     departmentId: selectedDepartmentId || null,
     categoryId: selectedLevel2Id || null,
     subcategoryId: selectedSubcategoryId || null,
+    categoryIds: selectedProductCategoryIds,
     search: hasSearchQuery ? normalizedSubmittedQuery : '',
     perPage: PRODUCTS_PER_PAGE,
     enabled: canLoadProducts,
@@ -314,6 +333,7 @@ export function ProductsPage() {
 
     setLevel2Categories([]);
     setLevel3Categories([]);
+    setDepartmentProductCategories([]);
     setLevel2CategoriesError(null);
     setLevel3CategoriesError(null);
     setLoadedLevel2DepartmentId(null);
@@ -341,6 +361,34 @@ export function ProductsPage() {
       })
       .finally(() => {
         if (!ignore) setIsLoadingLevel2Categories(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [marketId, selectedDepartmentId]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    setDepartmentProductCategories([]);
+
+    if (!selectedDepartmentId) {
+      setIsLoadingDepartmentProductCategories(false);
+      return;
+    }
+
+    setIsLoadingDepartmentProductCategories(true);
+    getDepartmentCategoriesByMarketId(marketId, selectedDepartmentId)
+      .then((categories) => {
+        if (!ignore) setDepartmentProductCategories(categories);
+      })
+      .catch((error) => {
+        console.error('Erro ao carregar categorias do departamento:', error);
+        if (!ignore) setDepartmentProductCategories([]);
+      })
+      .finally(() => {
+        if (!ignore) setIsLoadingDepartmentProductCategories(false);
       });
 
     return () => {
