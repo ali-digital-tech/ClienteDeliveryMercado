@@ -32,7 +32,6 @@ interface ApiStoreProduct {
 
 export interface ProductListFilters {
   categoryId?: string | null;
-  categoryIds?: string[];
   search?: string;
   promotionActive?: boolean;
   featured?: boolean;
@@ -51,16 +50,6 @@ export interface ProductListResult {
   perPage: number;
   totalPages: number;
   hasNextPage: boolean;
-}
-
-function dedupeProducts(products: Product[]) {
-  const byId = new Map<string, Product>();
-
-  products.forEach((product) => {
-    byId.set(product.id || product.catalogProductId, product);
-  });
-
-  return Array.from(byId.values());
 }
 
 function toNumber(value: string | number | null | undefined, fallback = 0) {
@@ -112,39 +101,12 @@ export async function getProductsByMarketId(
 
   const page = Math.max(1, filters.page ?? 1);
   const perPage = Math.max(1, filters.perPage ?? PRODUCTS_PAGE_SIZE);
-
-  const categoryIds = Array.from(new Set((filters.categoryIds || []).filter(Boolean)));
-  if (categoryIds.length > 1) {
-    const perCategoryLimit = Math.max(perPage, 100);
-    const results = await Promise.all(
-      categoryIds.map((categoryId) => getProductsByMarketId(marketId, {
-        ...filters,
-        categoryId,
-        categoryIds: undefined,
-        page: 1,
-        perPage: perCategoryLimit,
-        offset: 0,
-        useOffsetPagination: false,
-      })),
-    );
-    const products = dedupeProducts(results.flatMap((result) => result.products));
-
-    return {
-      products,
-      total: products.length,
-      page: 1,
-      perPage: products.length || perPage,
-      totalPages: 1,
-      hasNextPage: false,
-    };
-  }
-
   const offset = Math.max(0, filters.offset ?? (page - 1) * perPage);
   const requestedLimit = filters.useOffsetPagination ? perPage + 1 : perPage;
   const response: any = await apiRequest(`/lojas/${marketId}/produtos`, {
     params: {
       ativo: true,
-      categoria_id: filters.categoryId || categoryIds[0] || undefined,
+      categoria_id: filters.categoryId || undefined,
       busca: filters.search?.trim() || undefined,
       promocao_ativa: filters.promotionActive,
       destaque: filters.featured,
