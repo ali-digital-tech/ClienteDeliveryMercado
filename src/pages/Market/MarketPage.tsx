@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { useNavigate } from "react-router";
 import {
@@ -81,6 +81,8 @@ export function MarketPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
   const { cartCount, cartPulseKey, currentMarket, tenantPath } = useApp();
+  const [activeCartPulseKey, setActiveCartPulseKey] = useState(0);
+  const lastCartPulseKeyRef = useRef(cartPulseKey);
   const categoryDrag = useHorizontalDragScroll<HTMLDivElement>();
   const promoDrag = useHorizontalDragScroll<HTMLDivElement>();
   const immediateConsumptionDrag = useHorizontalDragScroll<HTMLDivElement>();
@@ -120,6 +122,19 @@ export function MarketPage() {
     ? featured
     : (bestsellers.length > 0 ? bestsellers : fallbackProducts).slice(0, 6);
 
+  useEffect(() => {
+    if (cartPulseKey <= lastCartPulseKeyRef.current) return;
+
+    lastCartPulseKeyRef.current = cartPulseKey;
+    setActiveCartPulseKey(cartPulseKey);
+
+    const timeoutId = window.setTimeout(() => {
+      setActiveCartPulseKey((key) => (key === cartPulseKey ? 0 : key));
+    }, 760);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [cartPulseKey]);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
@@ -157,23 +172,24 @@ export function MarketPage() {
             </button>
 
             <button
-              className="relative rounded-full p-1.5"
+              className={`home-cart-button relative rounded-full p-1.5 ${activeCartPulseKey > 0 ? "cart-added-bounce" : ""}`}
               style={{
-                backgroundColor: "rgba(255,255,255,0.14)",
+                backgroundColor: "rgba(255,255,255,0.16)",
               }}
               onClick={() => navigate(tenantPath("carrinho"))}
+              aria-label="Abrir carrinho"
             >
-              <span key={cartPulseKey} className={cartPulseKey > 0 ? "cart-added-bounce inline-flex" : "inline-flex"}>
+              <span className="inline-flex">
                 <ShoppingCart size={18} color="white" />
               </span>
-              {cartPulseKey > 0 && (
+              {activeCartPulseKey > 0 && (
                 <span
-                  key={`cart-pop-${cartPulseKey}`}
+                  key={`cart-pop-${activeCartPulseKey}`}
                   className="cart-added-pop absolute -bottom-2 left-1/2 text-white"
                   style={{
                     fontSize: "10px",
                     fontWeight: 900,
-                    textShadow: "0 1px 3px rgba(0,0,0,0.28)",
+                    textShadow: "0 1px 2px rgba(0,0,0,0.18)",
                   }}
                   aria-hidden="true"
                 >
@@ -182,8 +198,8 @@ export function MarketPage() {
               )}
               {cartCount > 0 && (
                 <span
-                  key={`cart-badge-${cartPulseKey}`}
-                  className={`absolute -top-1 -right-1 text-white rounded-full flex items-center justify-center ${cartPulseKey > 0 ? "cart-badge-pop" : ""}`}
+                  key={`cart-badge-${activeCartPulseKey || "idle"}`}
+                  className={`absolute -top-1 -right-1 text-white rounded-full flex items-center justify-center ${activeCartPulseKey > 0 ? "cart-badge-pop" : ""}`}
                   style={{
                     width: "18px",
                     height: "18px",

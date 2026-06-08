@@ -353,8 +353,13 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
       return;
     }
 
+    const currentItem = cart.find(item => item.product.id === productId);
+    const currentQty = currentItem?.qty || 0;
     updateLocalQty(productId, qty);
-  }, [isAuthenticatedForAction, requireCustomerLogin, updateLocalQty]);
+    if (qty > currentQty) {
+      setCartPulseKey((key) => key + 1);
+    }
+  }, [cart, isAuthenticatedForAction, requireCustomerLogin, updateLocalQty]);
 
   const applyCoupon = useCallback(async (code: string) => {
     if (!isAuthenticatedForAction()) {
