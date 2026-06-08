@@ -14,6 +14,7 @@ import { useMarketContext } from '@/contexts/MarketContext';
 import { useCategories } from '@/features/categories';
 import { ProductCard, useProducts } from '@/features/products';
 import { BannerRenderer, useBanners } from '@/features/banners';
+import { fetchCustomerNotifications } from '@/features/notifications';
 import { BottomNav } from '@/shared/components/BottomNav';
 
 function useHorizontalDragScroll<T extends HTMLElement>() {
@@ -80,8 +81,9 @@ function useHorizontalDragScroll<T extends HTMLElement>() {
 export function MarketPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
-  const { cartCount, cartPulseKey, currentMarket, tenantPath } = useApp();
+  const { cartCount, cartPulseKey, currentMarket, isLoggedIn, tenantPath } = useApp();
   const [activeCartPulseKey, setActiveCartPulseKey] = useState(0);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const lastCartPulseKeyRef = useRef(cartPulseKey);
   const categoryDrag = useHorizontalDragScroll<HTMLDivElement>();
   const promoDrag = useHorizontalDragScroll<HTMLDivElement>();
@@ -135,6 +137,34 @@ export function MarketPage() {
     return () => window.clearTimeout(timeoutId);
   }, [cartPulseKey]);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadUnreadNotifications = async () => {
+      if (!isLoggedIn) {
+        setUnreadNotificationCount(0);
+        return;
+      }
+
+      try {
+        const notifications = await fetchCustomerNotifications();
+        if (active) {
+          setUnreadNotificationCount(notifications.filter((item) => !item.read_at).length);
+        }
+      } catch {
+        if (active) setUnreadNotificationCount(0);
+      }
+    };
+
+    void loadUnreadNotifications();
+    window.addEventListener("notification-received", loadUnreadNotifications);
+
+    return () => {
+      active = false;
+      window.removeEventListener("notification-received", loadUnreadNotifications);
+    };
+  }, [isLoggedIn]);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
@@ -154,27 +184,31 @@ export function MarketPage() {
 
           <div className="flex items-center gap-3">
             <button
-              className="relative rounded-full p-1.5"
+              className="home-header-icon-button relative rounded-full p-1.5"
               style={{
                 backgroundColor: "rgba(255,255,255,0.14)",
               }}
               onClick={() => navigate(tenantPath("notifications-feed"))}
+              aria-label="Abrir notificações"
             >
               <Bell size={18} color="white" />
-              <span
-                className="absolute -top-1 -right-1 rounded-full"
-                style={{
-                  width: "8px",
-                  height: "8px",
-                  backgroundColor: "#ef4444",
-                }}
-              />
+              {unreadNotificationCount > 0 && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 rounded-full"
+                  style={{
+                    width: "8px",
+                    height: "8px",
+                    backgroundColor: "#ef4444",
+                    boxShadow: "0 0 0 2px rgba(49, 46, 129, 0.92)",
+                  }}
+                />
+              )}
             </button>
 
             <button
-              className={`home-cart-button relative rounded-full p-1.5 ${activeCartPulseKey > 0 ? "cart-added-bounce" : ""}`}
+              className={`home-header-icon-button relative rounded-full p-1.5 ${activeCartPulseKey > 0 ? "cart-added-bounce" : ""}`}
               style={{
-                backgroundColor: "rgba(255,255,255,0.16)",
+                backgroundColor: "rgba(255,255,255,0.14)",
               }}
               onClick={() => navigate(tenantPath("carrinho"))}
               aria-label="Abrir carrinho"
