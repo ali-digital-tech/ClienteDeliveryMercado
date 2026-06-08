@@ -33,7 +33,7 @@ const RECENT_SEARCHES_CACHE_KEY = 'cliente_delivery_recent_searches_by_market';
 const DEFAULT_SEARCH_SUGGESTIONS = ["Leite", "Pão", "Frango", "Café", "Ovos"];
 const MAX_RECENT_SEARCHES = 8;
 const MIN_SEARCH_LENGTH = 3;
-const PRODUCTS_PER_PAGE = 30;
+const PRODUCTS_PER_PAGE = 20;
 const DESKTOP_PAGINATION_QUERY = "(min-width: 768px)";
 
 function readRecentSearches(marketId: string): string[] {
@@ -245,6 +245,13 @@ export function ProductsPage() {
   const canSubmitSearch = normalizedQuery.length >= MIN_SEARCH_LENGTH;
   const isAwaitingSearchSubmit = normalizedQuery.length > 0 && normalizedQuery !== normalizedSubmittedQuery;
   const isLoadingCategories = isLoadingLevel2Categories || isLoadingLevel3Categories;
+  const level3CategoriesLoadedForSelected = Boolean(
+    selectedLevel2Id
+    && loadedLevel3CategoryId === selectedLevel2Id
+    && !isLoadingLevel3Categories
+    && !level3CategoriesError
+  );
+  const selectedLevel2HasNoSubcategories = level3CategoriesLoadedForSelected && level3Categories.length === 0;
   const canLoadProducts = !bannerId && Boolean(
     marketId
     && (
@@ -252,7 +259,10 @@ export function ProductsPage() {
       || (
         selectedDepartmentId
         && selectedLevel2
-        && (!selectedSubcategoryId || selectedSubcategory)
+        && (
+          (selectedSubcategoryId && selectedSubcategory)
+          || selectedLevel2HasNoSubcategories
+        )
       )
     ),
   );
@@ -274,7 +284,7 @@ export function ProductsPage() {
     perPage: PRODUCTS_PER_PAGE,
     enabled: canLoadProducts,
     allowGlobal: hasSearchQuery,
-    paginationMode: isDesktopPagination ? 'paged' : 'append',
+    paginationMode: 'append',
   });
 
   const submitSearch = useCallback(() => {
@@ -416,14 +426,20 @@ export function ProductsPage() {
 
   useEffect(() => {
     if (
-      !selectedSubcategoryId
+      !selectedLevel2Id
       || loadedLevel3CategoryId !== selectedLevel2Id
       || isLoadingLevel3Categories
       || level3CategoriesError
     ) return;
-    if (level3Categories.some((category) => category.id === selectedSubcategoryId)) return;
+    if (level3Categories.length === 0) {
+      if (selectedSubcategoryId) {
+        updateNavigation({ subcategoria: null });
+      }
+      return;
+    }
+    if (selectedSubcategoryId && level3Categories.some((category) => category.id === selectedSubcategoryId)) return;
 
-    updateNavigation({ subcategoria: null });
+    updateNavigation({ subcategoria: level3Categories[0].id });
   }, [
     isLoadingLevel3Categories,
     level3Categories,
@@ -465,15 +481,13 @@ export function ProductsPage() {
   }, [bannerId, marketId]);
 
   const handleContentScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
-    if (isDesktopPagination) return;
-
     const target = event.currentTarget;
     const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
 
     if (distanceToBottom < 360 && hasNextPage && !isLoadingProducts && !isLoadingMore) {
       void loadMore();
     }
-  }, [hasNextPage, isDesktopPagination, isLoadingMore, isLoadingProducts, loadMore]);
+  }, [hasNextPage, isLoadingMore, isLoadingProducts, loadMore]);
 
   const sourceProducts = bannerProducts ?? products;
 
@@ -496,7 +510,7 @@ export function ProductsPage() {
   const displayedProducts = bannerId && isDesktopPagination
     ? filtered.slice((currentPage - 1) * PRODUCTS_PER_PAGE, currentPage * PRODUCTS_PER_PAGE)
     : filtered;
-  const shouldShowDesktopPagination = isDesktopPagination && visibleResultCount > PRODUCTS_PER_PAGE;
+  const shouldShowDesktopPagination = false;
   const paginationItems = getPaginationItems(currentPage, totalPages);
 
   useEffect(() => {
@@ -697,7 +711,7 @@ export function ProductsPage() {
           </div>
         )}
 
-        {selectedLevel2 && (
+        {selectedLevel2 && level3Categories.length > 0 && (
           <div
             className="relative -mt-0.5 rounded-2xl px-2 py-2"
             style={{
@@ -710,20 +724,6 @@ export function ProductsPage() {
               {...subcategoryDrag}
               className="flex cursor-grab gap-1.5 overflow-x-auto scrollbar-hide"
             >
-              <button
-                onClick={() => updateNavigation({ subcategoria: null })}
-                className="flex-shrink-0 rounded-full px-3 py-1.5 transition-all duration-200"
-                style={{
-                  backgroundColor: !selectedSubcategoryId ? primaryColor : "#ffffff",
-                  border: `1px solid ${!selectedSubcategoryId ? primaryColor : categoryBorder}`,
-                  boxShadow: !selectedSubcategoryId ? `0 4px 10px ${categoryShadow}` : "0 1px 2px rgba(15, 23, 42, 0.04)",
-                  color: !selectedSubcategoryId ? "#ffffff" : primaryColor,
-                  fontSize: "11px",
-                  fontWeight: !selectedSubcategoryId ? 800 : 700,
-                }}
-              >
-                Todos
-              </button>
               {level3Categories.map((subcategory) => {
                 const isActive = selectedSubcategoryId === subcategory.id;
                 return (
