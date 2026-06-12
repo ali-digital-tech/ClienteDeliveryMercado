@@ -1130,79 +1130,6 @@ export function CheckoutPage() {
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              {isPickup ? <Store size={15} color="var(--market-primary-color)" /> : <MapPin size={15} color="var(--market-primary-color)" />}
-              <span
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  color: "#334155",
-                }}
-              >
-                {isPickup ? "Retirada no mercado" : "Endereço de entrega"}
-              </span>
-            </div>
-
-            <button
-              onClick={() => navigate(isPickup ? tenantPath("delivery") : tenantPath("addresses"))}
-              style={{
-                fontSize: "12px",
-                color: "var(--market-primary-color)",
-                fontWeight: 600,
-              }}
-            >
-              Alterar
-            </button>
-          </div>
-
-          {isPickup ? (
-            <p
-              style={{
-                fontSize: "13px",
-                lineHeight: 1.5,
-                color: "#64748b",
-              }}
-            >
-              {currentMarket.name}
-              <br />
-              {currentMarket.address || "Endereço do mercado não informado"}
-            </p>
-          ) : selectedAddress ? (
-            <>
-              <p
-                style={{
-                  fontSize: "13px",
-                  lineHeight: 1.5,
-                  color: "#64748b",
-                }}
-              >
-                {formatAddressLine(selectedAddress)}
-                <br />
-                {formatAddressLocation(selectedAddress)}
-              </p>
-              {selectedCoordinates && (
-                <p style={{ fontSize: "11px", color: "#16a34a", marginTop: "4px", fontWeight: 700 }}>
-                  GPS: {selectedCoordinates.latitude.toFixed(5)}, {selectedCoordinates.longitude.toFixed(5)}
-                </p>
-              )}
-            </>
-          ) : (
-            <button
-              onClick={() => navigate(tenantPath("addresses"))}
-              className="rounded-xl px-4 py-3 text-white"
-              style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 700 }}
-            >
-              Cadastrar endereço
-            </button>
-          )}
-        </div>
-
-        {/* Entrega */}
-        <div
-          className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-          style={{ border: "1px solid var(--market-primary-border-color)" }}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
               <Truck size={15} color="var(--market-primary-color)" />
               <span
                 style={{
@@ -1228,6 +1155,47 @@ export function CheckoutPage() {
           </div>
 
           <div className="space-y-2">
+            <div
+              className="rounded-xl px-3 py-2"
+              style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0" }}
+            >
+              <div className="mb-1 flex items-center gap-2">
+                {isPickup ? <Store size={14} color="var(--market-primary-color)" /> : <MapPin size={14} color="var(--market-primary-color)" />}
+                <p style={{ fontSize: "12px", fontWeight: 800, color: "#334155" }}>
+                  {isPickup ? "Retirada no mercado" : "Endereço de entrega"}
+                </p>
+              </div>
+
+              {isPickup ? (
+                <p style={{ fontSize: "13px", lineHeight: 1.5, color: "#64748b" }}>
+                  {currentMarket.name}
+                  <br />
+                  {currentMarket.address || "Endereço do mercado não informado"}
+                </p>
+              ) : selectedAddress ? (
+                <>
+                  <p style={{ fontSize: "13px", lineHeight: 1.5, color: "#64748b" }}>
+                    {formatAddressLine(selectedAddress)}
+                    <br />
+                    {formatAddressLocation(selectedAddress)}
+                  </p>
+                  {selectedCoordinates && (
+                    <p style={{ fontSize: "11px", color: "#16a34a", marginTop: "4px", fontWeight: 700 }}>
+                      GPS: {selectedCoordinates.latitude.toFixed(5)}, {selectedCoordinates.longitude.toFixed(5)}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <button
+                  onClick={() => navigate(tenantPath("addresses"))}
+                  className="rounded-xl px-4 py-3 text-white"
+                  style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 700 }}
+                >
+                  Cadastrar endereço
+                </button>
+              )}
+            </div>
+
             <div
               className="rounded-xl px-3 py-2"
               style={{
