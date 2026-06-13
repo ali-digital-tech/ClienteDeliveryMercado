@@ -14,6 +14,8 @@ import { formatCartQuantity } from "@/features/cart";
 import { ProductImage } from "@/features/products";
 import { loadOrderItems, type Order } from "@/features/orders";
 
+const ORDERS_BATCH_SIZE = 20;
+
 const statusConfig: Record<Order["status"], { label: string; color: string; bg: string }> = {
   pendente: {
     label: "Pendente",
@@ -227,11 +229,14 @@ export function MyOrdersScreen() {
   const { orders, addToCart, cartCount, isLoggedIn, refreshOrders, tenantPath } = useApp();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [repeatingOrderId, setRepeatingOrderId] = useState<string | null>(null);
+  const [visibleOrderCount, setVisibleOrderCount] = useState(ORDERS_BATCH_SIZE);
+  const visibleOrders = orders.slice(0, visibleOrderCount);
 
   useEffect(() => {
     if (!isLoggedIn) return;
 
     let isActive = true;
+    setVisibleOrderCount(ORDERS_BATCH_SIZE);
     setIsLoadingOrders(true);
 
     refreshOrders().finally(() => {
@@ -385,7 +390,7 @@ export function MyOrdersScreen() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {orders.map((order) => {
+            {visibleOrders.map((order) => {
               const defaultStatus = statusConfig[order.status] ?? statusConfig.recebido;
               const status = order.status === "cancelado"
                 ? defaultStatus
@@ -634,6 +639,22 @@ export function MyOrdersScreen() {
                 </div>
               );
             })}
+            {visibleOrderCount < orders.length && (
+              <button
+                type="button"
+                onClick={() => setVisibleOrderCount((count) => count + ORDERS_BATCH_SIZE)}
+                className="mt-2 w-full rounded-2xl px-4 py-3"
+                style={{
+                  border: "1px solid var(--market-primary-border-color)",
+                  backgroundColor: "var(--market-primary-soft-color)",
+                  color: "var(--market-primary-color)",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                }}
+              >
+                Carregar mais
+              </button>
+            )}
           </div>
         )}
       </div>

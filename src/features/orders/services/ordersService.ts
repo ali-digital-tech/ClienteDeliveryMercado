@@ -7,6 +7,7 @@ import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
 const ORDER_ITEMS_CACHE_KEY = 'cliente_delivery_order_items_by_cart_v1';
 const ORDER_ITEMS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const ORDERS_PAGE_SIZE = 100;
 
 interface ApiOrder {
   id: string;
@@ -117,6 +118,14 @@ interface ApiCartItem {
   quantidade?: string | number | null;
   produto?: any;
   produto_loja?: any;
+}
+
+interface ApiOrdersPage {
+  data?: ApiOrder[];
+  total?: number;
+  page?: number;
+  per_page?: number;
+  total_pages?: number;
 }
 
 interface CachedOrderItems {
@@ -433,9 +442,30 @@ function mapOrder(order: ApiOrder): Order {
 export async function getOrdersByMarketId(marketId: string): Promise<Order[]> {
   if (!getAuthToken()) return [];
 
-  const response = await apiRequest('/pedidos/me');
+  const ordersById = new Map<string, ApiOrder>();
+  let page = 1;
+  let totalPages: number | null = null;
 
-  return unwrapList<ApiOrder>(response)
+  while (totalPages === null || page <= totalPages) {
+    const response = await apiRequest<{ data?: ApiOrdersPage | ApiOrder[] }>('/pedidos/me', {
+      params: { page, per_page: ORDERS_PAGE_SIZE },
+    });
+    const pageOrders = unwrapList<ApiOrder>(response);
+    const pageData = !Array.isArray(response.data) ? response.data : undefined;
+    const previousSize = ordersById.size;
+
+    pageOrders.forEach((order) => ordersById.set(order.id, order));
+
+    if (typeof pageData?.total_pages === 'number') {
+      totalPages = pageData.total_pages;
+    }
+
+    const hasNoNewOrders = ordersById.size === previousSize;
+    if (!pageOrders.length || hasNoNewOrders || pageOrders.length < ORDERS_PAGE_SIZE) break;
+    page += 1;
+  }
+
+  return Array.from(ordersById.values())
     .filter(order => !marketId || order.loja_id === marketId)
     .map(mapOrder);
 }
