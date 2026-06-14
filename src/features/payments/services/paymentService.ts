@@ -2,7 +2,6 @@ import { apiRequest } from '@/shared/lib/api';
 
 const PAYMENT_SELECTION_STORAGE_KEY = 'cliente_delivery_payment_selection';
 const PAYER_STORAGE_KEY = 'cliente_delivery_payer_data';
-export const PIX_PAYMENT_WINDOW_MS = 5 * 60 * 1000;
 const CARD_TOKEN_TTL_MS = 20 * 60 * 1000;
 
 export type PaymentMethod = 'pix' | 'cartao_credito' | 'cartao_debito';
@@ -130,18 +129,12 @@ export function calculatePlatformServiceFee(
 
 export function resolvePixExpiration(
   expiresAt?: string | null,
-  createdAt?: string | null,
-  fallbackIssuedAt = Date.now(),
+  _createdAt?: string | null,
 ) {
   const providerExpiration = expiresAt ? new Date(expiresAt).getTime() : Number.NaN;
-  const parsedCreatedAt = createdAt ? new Date(createdAt).getTime() : Number.NaN;
-  const issuedAt = Number.isFinite(parsedCreatedAt) ? parsedCreatedAt : fallbackIssuedAt;
-  const appExpiration = issuedAt + PIX_PAYMENT_WINDOW_MS;
-  const expiration = Number.isFinite(providerExpiration)
-    ? Math.min(providerExpiration, appExpiration)
-    : appExpiration;
-
-  return new Date(expiration).toISOString();
+  return Number.isFinite(providerExpiration)
+    ? new Date(providerExpiration).toISOString()
+    : null;
 }
 
 export function onlyDigits(value: string | number | null | undefined) {

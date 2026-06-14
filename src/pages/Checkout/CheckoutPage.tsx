@@ -56,7 +56,6 @@ import {
 } from '@/features/payments';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
-const PIX_PAYMENT_WINDOW_SECONDS = 5 * 60;
 const PIX_POLL_INTERVAL_MS = 5000;
 const PIX_TERMINAL_STATUSES = new Set(['rejeitado', 'cancelado', 'expirado', 'estornado']);
 const BRASILIA_TIME_ZONE = 'America/Sao_Paulo';
@@ -432,7 +431,8 @@ export function CheckoutPage() {
   const [paymentResult, setPaymentResult] = useState<MercadoPagoPaymentResult | null>(null);
   const [pendingOrder, setPendingOrder] = useState<PendingCheckoutOrder | null>(null);
   const [pixExpiresAt, setPixExpiresAt] = useState<number | null>(null);
-  const [pixSecondsRemaining, setPixSecondsRemaining] = useState(PIX_PAYMENT_WINDOW_SECONDS);
+  const [pixSecondsRemaining, setPixSecondsRemaining] = useState(0);
+  const [pixInitialSeconds, setPixInitialSeconds] = useState(1);
   const [pixStatus, setPixStatus] = useState<'idle' | 'waiting' | 'expired' | 'failed'>('idle');
   const [isCancellingPix, setIsCancellingPix] = useState(false);
   const [pixCodeCopied, setPixCodeCopied] = useState(false);
@@ -447,6 +447,7 @@ export function CheckoutPage() {
   const [checkoutConfig, setCheckoutConfig] = useState<MercadoPagoCheckoutConfig | null>(null);
   const [savedPaymentCards, setSavedPaymentCards] = useState<SavedPaymentCard[]>([]);
   const [pendingCvvSelection, setPendingCvvSelection] = useState<StoredPaymentSelection | null>(null);
+  const pixExpirationCheckedRef = useRef(false);
 
   const orderType = getStoredCheckoutMode(marketId);
   const isPickup = orderType === 'pickup';
@@ -477,7 +478,7 @@ export function CheckoutPage() {
   const isPixWaiting = Boolean(paymentResult?.qr_code && pixStatus === 'waiting');
   const canChooseAnotherPayment = Boolean(paymentResult?.qr_code && ['expired', 'failed'].includes(pixStatus));
   const pixProgress = paymentResult?.qr_code
-    ? Math.max(0, Math.min(100, (pixSecondsRemaining / PIX_PAYMENT_WINDOW_SECONDS) * 100))
+    ? Math.max(0, Math.min(100, (pixSecondsRemaining / pixInitialSeconds) * 100))
     : 0;
   const effectiveCustomerProfile = customerProfile || currentUser;
   const serviceFee = calculatePlatformServiceFee(total, checkoutConfig?.platform_split);
@@ -701,7 +702,9 @@ export function CheckoutPage() {
     setPaymentResult(null);
     setPendingOrder(null);
     setPixExpiresAt(null);
-    setPixSecondsRemaining(PIX_PAYMENT_WINDOW_SECONDS);
+    setPixSecondsRemaining(0);
+    setPixInitialSeconds(1);
+    pixExpirationCheckedRef.current = false;
     setPixStatus('idle');
     setPixCodeCopied(false);
     setPixFailureMessage('');
@@ -804,12 +807,11 @@ export function CheckoutPage() {
       setPixSecondsRemaining(remaining);
 
       if (remaining <= 0) {
-        setPixStatus('expired');
-        setPixFailureMessage('O tempo para pagamento deste PIX expirou. Escolha uma forma de pagamento e tente novamente.');
-        showSystemNotice('O tempo para pagamento deste PIX expirou. Escolha uma forma de pagamento e tente novamente.');
-        if (paymentResult.payment.id) {
+        setPixFailureMessage('A validade exibida terminou. Estamos consultando o Mercado Pago antes de atualizar o pagamento.');
+        if (paymentResult.payment.id && !pixExpirationCheckedRef.current) {
+          pixExpirationCheckedRef.current = true;
           void refreshPaymentById(paymentResult.payment.id).catch((error) => {
-            console.error('Erro ao expirar pagamento PIX:', error);
+            console.error('Erro ao revalidar pagamento PIX:', error);
           });
         }
       }
@@ -846,7 +848,7 @@ export function CheckoutPage() {
         }
 
         if (PIX_TERMINAL_STATUSES.has(payment.status)) {
-          setPixStatus('failed');
+          setPixStatus(payment.status === 'expirado' ? 'expired' : 'failed');
           setPixFailureMessage('O pagamento PIX não foi aprovado. Escolha uma forma de pagamento e tente novamente.');
           showSystemNotice('O pagamento PIX não foi aprovado. Escolha uma forma de pagamento e tente novamente.');
         }
@@ -970,9 +972,16 @@ export function CheckoutPage() {
 
       if (selection.method === 'pix') {
         setPendingOrder(order);
-        const expiration = new Date(resolvePixExpiration(result.date_of_expiration)).getTime();
+        const resolvedExpiration = resolvePixExpiration(result.date_of_expiration);
+        if (!resolvedExpiration) {
+          throw new Error('O Mercado Pago não retornou a validade do PIX.');
+        }
+        const expiration = new Date(resolvedExpiration).getTime();
+        const remainingSeconds = Math.max(0, Math.ceil((expiration - Date.now()) / 1000));
         setPixExpiresAt(expiration);
-        setPixSecondsRemaining(Math.max(0, Math.ceil((expiration - Date.now()) / 1000)));
+        setPixSecondsRemaining(remainingSeconds);
+        setPixInitialSeconds(Math.max(1, remainingSeconds));
+        pixExpirationCheckedRef.current = false;
         setPixStatus('waiting');
         await refreshOrders();
         return;
@@ -1561,7 +1570,9 @@ export function CheckoutPage() {
               <div className="mb-2 flex items-center justify-between gap-3">
                 <span style={{ fontSize: "12px", fontWeight: 800, color: pixStatus === 'waiting' ? "#15803d" : "#b45309" }}>
                   {pixStatus === 'waiting'
-                    ? "Aguardando confirmação do PIX"
+                    ? pixSecondsRemaining > 0
+                      ? "Aguardando confirmação do PIX"
+                      : "Confirmando status do PIX"
                     : pixStatus === 'expired'
                       ? "Tempo do PIX expirado"
                       : "Pagamento não aprovado"}
@@ -1581,7 +1592,9 @@ export function CheckoutPage() {
               </div>
               <p className="mt-2" style={{ fontSize: "11px", lineHeight: 1.5, color: pixStatus === 'waiting' ? "#166534" : "#92400e" }}>
                 {pixStatus === 'waiting'
-                  ? `Você tem ${formatPixCountdown(pixSecondsRemaining)} para realizar o pagamento. Estamos verificando se você já fez o pagamento.`
+                  ? pixSecondsRemaining > 0
+                    ? `Você tem ${formatPixCountdown(pixSecondsRemaining)} para realizar o pagamento. Estamos verificando se você já fez o pagamento.`
+                    : 'A validade exibida terminou. O pedido continuará pendente até o Mercado Pago confirmar o resultado.'
                   : pixFailureMessage}
               </p>
             </div>

@@ -129,13 +129,12 @@ export function PaymentRecoveryScreen() {
   const hasValidPix = Boolean(
     payment?.method === "pix"
       && payment.qrCode
-      && isPending
-      && expiresAt > Date.now(),
+      && isPending,
   );
   const hasExpiredPix = Boolean(
     payment?.method === "pix"
       && payment.qrCode
-      && (!expiresAt || expiresAt <= Date.now() || !isPending),
+      && !isPending,
   );
   const selectedMethod = paymentSelection.method;
   const selectedMethodLabel =
@@ -233,7 +232,9 @@ export function PaymentRecoveryScreen() {
       return;
     }
 
-    const tick = () => setSecondsRemaining(Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
+    const tick = () => setSecondsRemaining(
+      expiresAt ? Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)) : 0
+    );
     tick();
     const intervalId = window.setInterval(tick, 1000);
     return () => window.clearInterval(intervalId);
