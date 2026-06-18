@@ -6,6 +6,7 @@ import { getFriendlyMessage } from '@/shared/lib/userMessages';
 
 export interface CustomerNotification {
   id: string;
+  loja_id?: string | null;
   type: string;
   title: string;
   body: string;
@@ -28,6 +29,26 @@ function getActiveMarketId() {
   if (typeof window === 'undefined') return undefined;
   const marketId = window.location.pathname.match(/\/mercado\/([^/]+)/)?.[1];
   return marketId && UUID_REGEX.test(marketId) ? marketId : undefined;
+}
+
+function getPayloadMarketId(data: Record<string, unknown> | undefined | null) {
+  const marketId = String(data?.loja_id || data?.tenant_id || '');
+  return UUID_REGEX.test(marketId) ? marketId : undefined;
+}
+
+function belongsToMarket(data: Record<string, unknown> | undefined | null, marketId: string | undefined) {
+  if (!marketId) return true;
+  const notificationMarketId = getPayloadMarketId(data);
+  return !notificationMarketId || notificationMarketId === marketId;
+}
+
+function filterNotificationsByMarket(notifications: CustomerNotification[], marketId: string | undefined) {
+  if (!marketId) return notifications;
+
+  return notifications.filter((notification) => {
+    if (notification.loja_id && notification.loja_id !== marketId) return false;
+    return belongsToMarket(notification.data, marketId);
+  });
 }
 
 export function hasCustomerPushRegistration() {
@@ -178,14 +199,20 @@ export async function listenForCustomerPush(callback: (payload: MessagePayload) 
   const messaging = await getWebMessaging();
   if (!messaging) return () => {};
   return onMessage(messaging, (payload) => {
+    if (!belongsToMarket(payload.data, getActiveMarketId())) return;
     window.dispatchEvent(new CustomEvent('notification-received', { detail: payload.data }));
     callback(payload);
   });
 }
 
-export async function fetchCustomerNotifications() {
-  const response = await apiRequest<{ data: CustomerNotification[] }>('/notifications');
-  return response.data || [];
+export async function fetchCustomerNotifications(marketId = getActiveMarketId()) {
+  const query = marketId ? `?loja_id=${encodeURIComponent(marketId)}` : '';
+  const response = await apiRequest<{ data: CustomerNotification[] }>(`/notifications${query}`);
+  return filterNotificationsByMarket(response.data || [], marketId);
+}
+
+export function isCustomerNotificationForMarket(notification: CustomerNotification, marketId = getActiveMarketId()) {
+  return filterNotificationsByMarket([notification], marketId).length > 0;
 }
 
 export async function readCustomerNotification(id: string) {

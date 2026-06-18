@@ -4,6 +4,7 @@ import { Bell, ChevronLeft, ChevronRight, Package, RotateCcw, ShieldCheck, Tag, 
 import { useApp } from '@/app/providers/AppProvider';
 import {
   fetchCustomerNotifications,
+  isCustomerNotificationForMarket,
   readCustomerNotification,
   type CustomerNotification,
 } from '@/features/notifications';
@@ -24,9 +25,13 @@ function formatDate(value: string) {
   });
 }
 
+function getRouteMarketId(route: string | undefined) {
+  return route?.match(/^\/mercado\/([^/]+)/)?.[1] || null;
+}
+
 export function NotificationsFeedScreen() {
   const navigate = useNavigate();
-  const { isLoggedIn, tenantPath } = useApp();
+  const { isLoggedIn, marketId, tenantPath } = useApp();
   const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +41,7 @@ export function NotificationsFeedScreen() {
       return;
     }
     try {
-      const items = await fetchCustomerNotifications();
+      const items = await fetchCustomerNotifications(marketId);
       setNotifications(items);
     } catch (error: any) {
       showSystemNotice(error?.message || 'Não foi possível carregar notificações.');
@@ -50,17 +55,31 @@ export function NotificationsFeedScreen() {
     const refresh = () => void load();
     window.addEventListener('notification-received', refresh);
     return () => window.removeEventListener('notification-received', refresh);
-  }, [isLoggedIn]);
+  }, [isLoggedIn, marketId]);
 
   const openNotification = async (notification: CustomerNotification) => {
     try {
+      if (!isCustomerNotificationForMarket(notification, marketId)) {
+        setNotifications((items) => items.filter((item) => item.id !== notification.id));
+        showSystemNotice('Esta notificação pertence a outro estabelecimento.');
+        return;
+      }
+
       if (!notification.read_at) {
         const updated = await readCustomerNotification(notification.id);
         setNotifications((items) => items.map((item) => item.id === updated.id ? updated : item));
       }
 
-      if (notification.data?.route) {
-        navigate(notification.data.route.startsWith('/mercado/') ? notification.data.route : tenantPath(notification.data.route));
+      const route = notification.data?.route;
+      const routeMarketId = getRouteMarketId(route);
+      if (routeMarketId && routeMarketId !== marketId) {
+        setNotifications((items) => items.filter((item) => item.id !== notification.id));
+        showSystemNotice('Esta notificação pertence a outro estabelecimento.');
+        return;
+      }
+
+      if (route) {
+        navigate(route.startsWith('/mercado/') ? route : tenantPath(route));
       }
     } catch (error: any) {
       showSystemNotice(error?.message || 'Não foi possível abrir a notificação.');

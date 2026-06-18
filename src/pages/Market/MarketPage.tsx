@@ -156,7 +156,7 @@ export function MarketPage() {
       }
 
       try {
-        const notifications = await fetchCustomerNotifications();
+        const notifications = await fetchCustomerNotifications(marketId);
         if (active) {
           setUnreadNotificationCount(notifications.filter((item) => !item.read_at).length);
         }
