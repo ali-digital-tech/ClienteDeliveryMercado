@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Zap,
   PackageSearch,
+  Store,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
@@ -86,6 +87,7 @@ export function MarketPage() {
   const establishmentLabels = getEstablishmentLabels(currentMarket.establishmentType);
   const [activeCartPulseKey, setActiveCartPulseKey] = useState(0);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [logoFailed, setLogoFailed] = useState(false);
   const lastCartPulseKeyRef = useRef(cartPulseKey);
   const categoryDrag = useHorizontalDragScroll<HTMLDivElement>();
   const promoDrag = useHorizontalDragScroll<HTMLDivElement>();
@@ -121,10 +123,15 @@ export function MarketPage() {
   const { categories } = useCategories(marketId);
   const { banners } = useBanners(marketId, 'home');
   const departments = categories.filter((category) => category.level === 1);
+  const showMarketLogo = Boolean(currentMarket.logo && !logoFailed);
 
   const visibleFeatured = featured.length > 0
     ? featured
     : (bestsellers.length > 0 ? bestsellers : fallbackProducts).slice(0, 6);
+
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [currentMarket.logo]);
 
   useEffect(() => {
     if (cartPulseKey <= lastCartPulseKeyRef.current) return;
@@ -178,8 +185,23 @@ export function MarketPage() {
         }}
       >
         <div className="flex items-center justify-between mb-2">
-          <div>
-            <p className="text-white" style={{ fontSize: "15px", fontWeight: 800 }}>
+          <div className="flex min-w-0 items-center gap-2">
+            <div
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15"
+              style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.28)" }}
+            >
+              {showMarketLogo ? (
+                <img
+                  src={currentMarket.logo}
+                  alt={currentMarket.name}
+                  className="h-full w-full object-cover"
+                  onError={() => setLogoFailed(true)}
+                />
+              ) : (
+                <Store size={18} color="white" />
+              )}
+            </div>
+            <p className="min-w-0 truncate text-white" style={{ fontSize: "15px", fontWeight: 800 }}>
               {currentMarket.name}
             </p>
           </div>
@@ -202,6 +224,15 @@ export function MarketPage() {
                   }}
                 />
               )}
+            </button>
+
+            <button
+              className="home-header-icon-button relative rounded-full"
+              onClick={() => navigate("/")}
+              aria-label="Alternar estabelecimento"
+              title="Alternar estabelecimento"
+            >
+              <Store size={18} color="white" />
             </button>
 
             <button

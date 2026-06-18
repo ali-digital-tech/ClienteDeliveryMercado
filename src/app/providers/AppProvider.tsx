@@ -237,14 +237,14 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   }, [cart, cartTotal, clearCart, createOrder, discount]);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
-    const session = await authService.login({ ...credentials, loja_id: credentials.loja_id || storeId });
+    const session = await authService.login(credentials);
     const user = authService.persistSession(session);
     sessionExpiredHandledRef.current = false;
     setCurrentUser(user);
     void refreshOrders();
     void refreshCustomerPushIfGranted().catch(() => {});
     return user;
-  }, [refreshOrders, storeId]);
+  }, [refreshOrders]);
 
   const logout = useCallback(() => {
     void disableCustomerPush().catch(() => {});

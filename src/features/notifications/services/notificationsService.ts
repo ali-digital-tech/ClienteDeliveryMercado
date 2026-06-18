@@ -22,6 +22,13 @@ export interface CustomerNotificationPreferences {
 const DEVICE_TOKEN_STORAGE_KEY = 'customer_notification_fcm_token';
 const PUSH_SERVICE_WORKER_URL = '/sw.js';
 const SERVICE_WORKER_READY_TIMEOUT_MS = 30000;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function getActiveMarketId() {
+  if (typeof window === 'undefined') return undefined;
+  const marketId = window.location.pathname.match(/\/mercado\/([^/]+)/)?.[1];
+  return marketId && UUID_REGEX.test(marketId) ? marketId : undefined;
+}
 
 export function hasCustomerPushRegistration() {
   return Boolean(localStorage.getItem(DEVICE_TOKEN_STORAGE_KEY));
@@ -91,10 +98,12 @@ async function getPushServiceWorkerRegistration() {
 }
 
 async function saveToken(token: string) {
+  const lojaId = getActiveMarketId();
   try {
     await apiRequest('/notifications/register-device', {
       method: 'POST',
       body: {
+        ...(lojaId ? { loja_id: lojaId } : {}),
         fcm_token: token,
         platform: 'web',
         app_type: 'customer_app',
@@ -187,16 +196,22 @@ export async function readCustomerNotification(id: string) {
 }
 
 export async function fetchCustomerNotificationPreferences() {
-  const response = await apiRequest<{ data: CustomerNotificationPreferences }>('/notifications/preferences');
+  const lojaId = getActiveMarketId();
+  const query = lojaId ? `?loja_id=${encodeURIComponent(lojaId)}` : '';
+  const response = await apiRequest<{ data: CustomerNotificationPreferences }>(`/notifications/preferences${query}`);
   return response.data;
 }
 
 export async function updateCustomerNotificationPreferences(
   preferences: Partial<Pick<CustomerNotificationPreferences, 'orders_enabled' | 'campaigns_enabled'>>
 ) {
+  const lojaId = getActiveMarketId();
   const response = await apiRequest<{ data: CustomerNotificationPreferences }>('/notifications/preferences', {
     method: 'PATCH',
-    body: preferences as unknown as BodyInit,
+    body: {
+      ...preferences,
+      ...(lojaId ? { loja_id: lojaId } : {}),
+    } as unknown as BodyInit,
   });
   return response.data;
 }

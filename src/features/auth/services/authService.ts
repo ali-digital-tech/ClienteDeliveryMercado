@@ -47,43 +47,38 @@ function persistUser(user: AuthUser) {
 
 export const authService = {
   async login(credentials: LoginCredentials) {
-    const lojaId = requireStoreId(credentials.loja_id);
-
     return apiRequest<LoginResponse>('/auth/login', {
       method: 'POST',
       body: {
         email: credentials.email,
         password: credentials.password,
         userType: 'cliente',
-        loja_id: lojaId,
       } as any,
     });
   },
 
   async registerCustomer(payload: RegisterCustomerPayload) {
-    const lojaId = requireStoreId(payload.loja_id);
-
     return apiRequest('/clientes', {
       method: 'POST',
       body: {
         ...payload,
-        loja_id: lojaId,
       } as any,
     });
   },
 
   async forgotPassword(email: string, storeId: string | undefined) {
-    const lojaId = requireStoreId(storeId);
+    const lojaId = normalizeStoreId(storeId);
 
     return apiRequest<ForgotPasswordResponse>('/auth/forgot-password', {
       method: 'POST',
       body: {
         email,
         userType: 'cliente',
-        loja_id: lojaId,
+        ...(lojaId ? { loja_id: lojaId } : {}),
         redirectUrl: (() => {
           const baseUrl = getPasswordResetRedirectBaseUrl();
-          return baseUrl ? `${baseUrl}/mercado/${lojaId}/reset-password` : undefined;
+          if (!baseUrl) return undefined;
+          return lojaId ? `${baseUrl}/mercado/${lojaId}/reset-password` : `${baseUrl}/reset-password`;
         })(),
       } as any,
     });

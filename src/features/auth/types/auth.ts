@@ -15,7 +15,6 @@ export interface AuthUser {
 export interface LoginCredentials {
   email: string;
   password: string;
-  loja_id?: string;
 }
 
 export interface RegisterCustomerPayload {
@@ -23,7 +22,6 @@ export interface RegisterCustomerPayload {
   email: string;
   telefone: string;
   senha: string;
-  loja_id?: string;
   privacy_policy_accepted?: boolean;
   accepted_privacy_policy_id?: string;
 }

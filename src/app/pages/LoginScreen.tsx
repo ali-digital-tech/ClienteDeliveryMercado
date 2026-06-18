@@ -156,13 +156,12 @@ export function LoginScreen() {
           email: email.trim(),
           telefone: phone.trim(),
           senha: password,
-          loja_id: storeId,
           privacy_policy_accepted: privacyAccepted,
           accepted_privacy_policy_id: privacyPolicy?.id,
         });
       }
 
-      await login({ email: email.trim(), password, loja_id: storeId });
+      await login({ email: email.trim(), password });
 
       const navigationState = location.state as {
         redirectTo?: string;
