@@ -814,8 +814,8 @@ export function OrderTrackingScreen() {
             </div>
           ) : orderItems.length > 0 ? (
             <div className="flex flex-col gap-3">
-              {orderItems.map(({ product, qty }) => (
-                <div key={product.id} className="flex items-center gap-3">
+              {orderItems.map(({ product, qty, variationName, selections, notes, lineId }) => (
+                <div key={lineId || product.id} className="flex items-start gap-3">
                   <ProductImage
                     src={product.image}
                     alt={product.name}
@@ -835,6 +835,15 @@ export function OrderTrackingScreen() {
                     <p style={{ fontSize: "12px", color: "#64748b" }}>
                       {formatCartQuantity(qty)} {qty === 1 ? "item" : "itens"} · {formatCurrency(product.price)}
                     </p>
+                    {variationName && <p style={{ fontSize: "11px", color: "#64748b" }}>Tamanho: {variationName}</p>}
+                    {(selections || []).map(selection => (
+                      <p key={`${selection.groupId}:${selection.optionId}`} style={{ fontSize: "11px", color: "#64748b" }}>
+                        {selection.groupName}: {selection.optionName}
+                        {selection.quantity > 1 ? ` x${selection.quantity}` : ''}
+                        {selection.fraction ? ` (${Math.round(selection.fraction * 100)}%)` : ''}
+                      </p>
+                    ))}
+                    {notes && <p style={{ fontSize: "11px", color: "#64748b", fontStyle: "italic" }}>Obs.: {notes}</p>}
                   </div>
 
                   <p style={{ fontSize: "13px", fontWeight: 800, color: "var(--market-primary-color)" }}>

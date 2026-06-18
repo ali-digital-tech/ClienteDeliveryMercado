@@ -10,7 +10,7 @@ import {
 import { useCategories, type Category } from '@/features/categories';
 import { useMarkets, type Market } from '@/features/markets';
 import { useOrdersStore, type Order } from '@/features/orders';
-import type { Product } from '@/features/products';
+import { isConfigurableProduct, type Product } from '@/features/products';
 import { disableCustomerPush, listenForCustomerPush, refreshCustomerPushIfGranted } from '@/features/notifications';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 import { getAuthToken, onSessionExpired } from '@/shared/lib/api';
@@ -78,8 +78,10 @@ interface AppState {
   discount: number;
   currentScreen: string;
   addToCart: (product: Product, quantity?: number) => Promise<void>;
-  removeFromCart: (productId: string) => Promise<void>;
-  updateQty: (productId: string, qty: number) => Promise<void>;
+  addConfiguredItem: (item: Omit<CartItem, 'lineId'> & { lineId?: string }) => Promise<void>;
+  updateConfiguredItem: (lineId: string, item: Omit<CartItem, 'lineId'>) => Promise<void>;
+  removeFromCart: (lineIdOrProductId: string) => Promise<void>;
+  updateQty: (lineIdOrProductId: string, qty: number) => Promise<void>;
   clearCart: () => void;
   toggleFavorite: (productId: string) => void;
   isFavorite: (productId: string) => boolean;
@@ -137,6 +139,8 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     cartCount,
     cartTotal,
     addToCart: addToLocalCart,
+    addConfiguredItem: addConfiguredItemToLocalCart,
+    updateConfiguredItem: updateConfiguredItemInLocalCart,
     removeFromCart: removeFromLocalCart,
     updateQty: updateLocalQty,
     clearCart,
@@ -325,6 +329,11 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   }, [currentUser, navigate, refreshOrders, tenantPath]);
 
   const addToCart = useCallback(async (product: Product, quantity?: number) => {
+    if (isConfigurableProduct(product)) {
+      showSystemNotice('Escolha as opções deste item antes de adicionar ao carrinho.');
+      return;
+    }
+
     if (!isAuthenticatedForAction()) {
       requireCustomerLogin({
         pendingCartProductId: product.id,
@@ -337,6 +346,23 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     addToLocalCart(product, quantity);
     setCartPulseKey((key) => key + 1);
   }, [addToLocalCart, isAuthenticatedForAction, marketId, requireCustomerLogin]);
+
+  const addConfiguredItem = useCallback(async (item: Omit<CartItem, 'lineId'> & { lineId?: string }) => {
+    if (!isAuthenticatedForAction()) {
+      requireCustomerLogin({ pendingCartProductId: item.product.id });
+      return;
+    }
+    addConfiguredItemToLocalCart(item);
+    setCartPulseKey((key) => key + 1);
+  }, [addConfiguredItemToLocalCart, isAuthenticatedForAction, requireCustomerLogin]);
+
+  const updateConfiguredItem = useCallback(async (lineId: string, item: Omit<CartItem, 'lineId'>) => {
+    if (!isAuthenticatedForAction()) {
+      requireCustomerLogin();
+      return;
+    }
+    updateConfiguredItemInLocalCart(lineId, item);
+  }, [isAuthenticatedForAction, requireCustomerLogin, updateConfiguredItemInLocalCart]);
 
   const removeFromCart = useCallback(async (productId: string) => {
     if (!isAuthenticatedForAction()) {
@@ -383,7 +409,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
       marketId, currentMarket, markets, products, categories,
       cart, favorites, orders, isLoggedIn, currentUser, coupon, couponId, discount,
       currentScreen: '',
-      addToCart, removeFromCart, updateQty, clearCart,
+      addToCart, addConfiguredItem, updateConfiguredItem, removeFromCart, updateQty, clearCart,
       toggleFavorite, isFavorite, applyCoupon, placeOrder,
       cartCount, cartTotal, cartPulseKey, login, logout, updateCurrentUser, refreshOrders, tenantPath,
     }}>

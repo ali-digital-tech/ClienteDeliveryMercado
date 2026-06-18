@@ -11,7 +11,7 @@ import { useApp } from "@/app/providers/AppProvider";
 import { BottomNav } from "@/shared/components/BottomNav";
 import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
 import { formatCartQuantity } from "@/features/cart";
-import { ProductImage } from "@/features/products";
+import { isConfigurableProduct, ProductImage } from "@/features/products";
 import { loadOrderItems, type Order } from "@/features/orders";
 
 const ORDERS_BATCH_SIZE = 20;
@@ -226,7 +226,7 @@ function CompactOrderTimeline({ order }: { order: Order }) {
 
 export function MyOrdersScreen() {
   const navigate = useNavigate();
-  const { orders, addToCart, cartCount, isLoggedIn, refreshOrders, tenantPath } = useApp();
+  const { orders, addToCart, addConfiguredItem, cartCount, isLoggedIn, refreshOrders, tenantPath } = useApp();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [repeatingOrderId, setRepeatingOrderId] = useState<string | null>(null);
   const [visibleOrderCount, setVisibleOrderCount] = useState(ORDERS_BATCH_SIZE);
@@ -262,8 +262,19 @@ export function MyOrdersScreen() {
         return;
       }
 
-      for (const { product, qty } of items) {
-        await addToCart(product, qty);
+      for (const item of items) {
+        if (isConfigurableProduct(item.product) && item.selections?.length) {
+          await addConfiguredItem({
+            product: item.product,
+            qty: item.qty,
+            productStoreVariationId: item.productStoreVariationId,
+            variationName: item.variationName,
+            selections: item.selections,
+            notes: item.notes,
+          });
+        } else {
+          await addToCart(item.product, item.qty);
+        }
       }
 
       const repeatedQuantity = items.reduce((sum, item) => sum + item.qty, 0);

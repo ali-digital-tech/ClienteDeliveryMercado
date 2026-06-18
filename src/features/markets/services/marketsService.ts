@@ -1,5 +1,5 @@
 import { apiRequest, unwrapList } from '@/shared/lib/api';
-import type { Market } from '../types/market';
+import type { EstablishmentType, Market } from '../types/market';
 
 interface ApiStore {
   id: string;
@@ -22,6 +22,8 @@ interface ApiStore {
   email?: string | null;
   horario_abertura?: string | null;
   horario_fechamento?: string | null;
+  tipo_estabelecimento?: EstablishmentType | null;
+  cardapio_configuravel_ativo?: boolean | null;
 }
 
 interface ApiStoreConfig {
@@ -39,6 +41,28 @@ function unwrapData<T>(payload: any): T {
   return (payload?.data || payload || {}) as T;
 }
 
+function resolveEstablishmentType(store: ApiStore): EstablishmentType {
+  if (store.tipo_estabelecimento) return store.tipo_estabelecimento;
+
+  const searchableText = `${store.nome || ''} ${store.descricao || ''}`.toLowerCase();
+  if (/lanchonete|hamburguer|burger|pizza|pastel|salgado/.test(searchableText)) return 'lanchonete';
+  if (/restaurante|marmita|almoço|jantar|prato/.test(searchableText)) return 'restaurante';
+
+  return 'mercado';
+}
+
+function getDigitalLabel(establishmentType: EstablishmentType) {
+  const labels: Record<EstablishmentType, string> = {
+    mercado: 'Supermercado Digital',
+    lanchonete: 'Lanchonete Digital',
+    restaurante: 'Restaurante Digital',
+    hibrido: 'Delivery Digital',
+    outro: 'Loja Digital',
+  };
+
+  return labels[establishmentType];
+}
+
 function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market {
   const street = store.endereco || store.rua || store.logradouro;
   const address = [
@@ -46,11 +70,15 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
     store.bairro,
     [store.cidade, store.estado].filter(Boolean).join(' - '),
   ].filter(Boolean).join(' · ');
+  const establishmentType = resolveEstablishmentType(store);
 
   return {
     id: store.id,
     name: store.nome || 'Mercado',
     description: store.descricao || 'Mercado com entrega de produtos selecionados.',
+    establishmentType,
+    configurableMenuEnabled: store.cardapio_configuravel_ativo === true,
+    digitalLabel: getDigitalLabel(establishmentType),
     neighborhood: store.bairro || store.cidade || 'Sua região',
     address: address || store.bairro || store.cidade || 'Endereço da loja não informado',
     deliveryEstimate: '35-50 min',

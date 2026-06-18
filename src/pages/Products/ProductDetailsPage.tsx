@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, useSearchParams } from 'react-router';
 import { ChevronLeft, ChevronRight, Heart, Home, Share2, ShoppingCart, Plus, Minus, ShieldCheck, Store } from 'lucide-react';
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { formatCartQuantity, getNextCartQuantity, isWeightProduct } from '@/features/cart';
 import { useCategories } from '@/features/categories';
-import { getProductById, ProductCard, ProductImage, WeightQuantityModal, useProducts } from '@/features/products';
+import { getProductById, isConfigurableProduct, ProductCard, ProductConfigurator, ProductImage, WeightQuantityModal, useProducts } from '@/features/products';
 import type { Product } from '@/features/products';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
@@ -74,8 +74,20 @@ function useHorizontalDragScroll<T extends HTMLElement>() {
 export function ProductDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { marketId } = useMarketContext();
-  const { addToCart, updateQty, cart, toggleFavorite, isFavorite, cartCount, tenantPath, currentMarket } = useApp();
+  const {
+    addToCart,
+    addConfiguredItem,
+    updateConfiguredItem,
+    updateQty,
+    cart,
+    toggleFavorite,
+    isFavorite,
+    cartCount,
+    tenantPath,
+    currentMarket,
+  } = useApp();
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
   const [showWeightSelector, setShowWeightSelector] = useState(false);
@@ -121,7 +133,14 @@ export function ProductDetailsPage() {
     </div>
   );
 
-  const cartItem = cart.find(item => item.product.id === product.id);
+  const editLineId = searchParams.get('editLineId');
+  const isConfigurable = isConfigurableProduct(product);
+  const editableItem = editLineId
+    ? cart.find(item => item.lineId === editLineId && item.product.id === product.id)
+    : undefined;
+  const cartItem = cart.find(item =>
+    !isConfigurableProduct(item.product) && item.product.id === product.id
+  );
   const qty = cartItem?.qty || 0;
   const favorite = isFavorite(product.id);
   const discount = product.originalPrice
@@ -368,7 +387,7 @@ export function ProductDetailsPage() {
           </div>
 
           <section className="mt-4 rounded-2xl bg-white p-4" style={{ border: '1px solid #e2e8f0' }}>
-            <div className="flex items-center gap-2">
+            {!isConfigurable && <div className="flex items-center gap-2">
               <div className="flex items-center justify-between rounded-xl p-1" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                 <button
                   onClick={handleRemove}
@@ -395,7 +414,7 @@ export function ProductDetailsPage() {
               >
                 {qty === 0 ? 'Adicionar' : `Ver carrinho (${formatCartQuantity(qty, product)})`}
               </button>
-            </div>
+            </div>}
 
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div className="flex items-center gap-2 rounded-xl px-2.5 py-2.5" style={{ backgroundColor: '#eff6ff' }}>
@@ -482,7 +501,7 @@ export function ProductDetailsPage() {
               )}
             </div>
 
-            <div className="mt-6 rounded-2xl p-3" style={{ backgroundColor: '#f8fafc', border: '1px solid #eef2f7' }}>
+            {!isConfigurable && <div className="mt-6 rounded-2xl p-3" style={{ backgroundColor: '#f8fafc', border: '1px solid #eef2f7' }}>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="flex items-center justify-between rounded-xl bg-white p-1 sm:w-[132px]" style={{ border: '1px solid #e2e8f0' }}>
                   <button
@@ -511,7 +530,7 @@ export function ProductDetailsPage() {
                   {qty === 0 ? 'Adicionar ao carrinho' : `Ver carrinho (${formatCartQuantity(qty, product)})`}
                 </button>
               </div>
-            </div>
+            </div>}
 
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               <div className="flex items-center gap-2.5 rounded-xl px-3 py-3" style={{ backgroundColor: '#eff6ff' }}>
@@ -536,6 +555,25 @@ export function ProductDetailsPage() {
             </div>
           </section>
         </div>
+
+        {isConfigurable && product.configuration && (
+          <ProductConfigurator
+            product={product}
+            primaryColor={primaryColor}
+            initialItem={editableItem}
+            onConfirm={(configuredItem) => {
+              const action = editableItem
+                ? updateConfiguredItem(editableItem.lineId, configuredItem)
+                : addConfiguredItem(configuredItem);
+              void action
+                .then(() => navigate(tenantPath('carrinho')))
+                .catch(error => {
+                  console.error('Erro ao salvar configuração do produto:', error);
+                  showSystemNotice('Não foi possível salvar esta configuração.');
+                });
+            }}
+          />
+        )}
 
         {related.length > 0 && (
           <section className="mt-7 rounded-3xl bg-white px-4 py-5 md:px-6" style={{ border: '1px solid #e2e8f0' }}>

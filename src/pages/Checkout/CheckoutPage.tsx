@@ -991,7 +991,13 @@ export function CheckoutPage() {
       await refreshOrders();
       navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(order.id)}`);
     } catch (err) {
-      showSystemNotice(err || 'Não foi possível finalizar o pedido.');
+      const payload = (err as Error & { payload?: any })?.payload;
+      const code = payload?.error?.code || payload?.code;
+      showSystemNotice(
+        code === 'CART_REPRICE_REQUIRED'
+          ? 'O cardápio ou os preços mudaram. Revise o carrinho antes de pagar.'
+          : err || 'Não foi possível finalizar o pedido.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -1066,8 +1072,8 @@ export function CheckoutPage() {
           <div className="flex flex-col gap-2">
             {cart.slice(0, 3).map((item) => (
               <div
-                key={item.product.id}
-                className="flex items-center gap-3"
+                key={item.lineId}
+                className="flex items-start gap-3"
               >
                 <ProductImage
                   src={item.product.image}
@@ -1096,6 +1102,12 @@ export function CheckoutPage() {
                   >
                     Qtd: {formatCartQuantity(item.qty, item.product)}
                   </p>
+                  {item.variationName && <p className="text-[11px] text-slate-500">Tamanho: {item.variationName}</p>}
+                  {item.selections.map(selection => (
+                    <p key={`${selection.groupId}:${selection.optionId}`} className="text-[11px] text-slate-500">
+                      {selection.groupName}: {selection.optionName}
+                    </p>
+                  ))}
                 </div>
 
                 <p

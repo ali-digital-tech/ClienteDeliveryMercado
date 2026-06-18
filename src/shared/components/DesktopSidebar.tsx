@@ -56,7 +56,9 @@ export function DesktopSidebar() {
         </div>
         <div className="min-w-0">
           <p className="truncate text-white" style={{ fontSize: '14px', fontWeight: 800, lineHeight: 1.1 }}>{currentMarket.name}</p>
-          <p style={{ fontSize: '10px', color: 'var(--market-primary-muted-color)', fontWeight: 500 }}>Supermercado Digital</p>
+          <p style={{ fontSize: '10px', color: 'var(--market-primary-muted-color)', fontWeight: 500 }}>
+            {currentMarket.digitalLabel}
+          </p>
         </div>
       </div>
 

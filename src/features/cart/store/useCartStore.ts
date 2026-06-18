@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { isConfigurableProduct } from '@/features/products';
 import type { Product } from '@/features/products';
 import { validateCoupon } from '../services/couponsService';
 import type { CartItem } from '../types/cart';
@@ -7,10 +8,25 @@ import { getCartLineCount, getProductMinQty, roundCartQuantity } from '../utils/
 const CART_STORAGE_KEY = 'cliente_delivery_cart_by_market_v1';
 
 interface StoredCartItem {
+  lineId?: string;
   productId: string;
   catalogProductId: string;
   qty: number;
   productSnapshot: Product;
+  productStoreVariationId?: string;
+  variationName?: string;
+  selections?: CartItem['selections'];
+  notes?: string;
+  configurationSignature?: string;
+  configurationVersion?: number;
+  basePrice?: number;
+  optionsPrice?: number;
+}
+
+function createLineId(productId: string) {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${productId}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 }
 
 function toPositiveQuantity(quantity: unknown) {
@@ -59,10 +75,19 @@ function readStoredCarts(): Record<string, StoredCartItem[]> {
                 }
 
                 return {
+                  lineId: candidate.lineId,
                   productId: candidate.productId,
                   catalogProductId: candidate.catalogProductId,
                   qty,
                   productSnapshot: candidate.productSnapshot,
+                  productStoreVariationId: candidate.productStoreVariationId,
+                  variationName: candidate.variationName,
+                  selections: Array.isArray(candidate.selections) ? candidate.selections : [],
+                  notes: candidate.notes,
+                  configurationSignature: candidate.configurationSignature,
+                  configurationVersion: candidate.configurationVersion,
+                  basePrice: candidate.basePrice,
+                  optionsPrice: candidate.optionsPrice,
                 };
               })
               .filter((item): item is StoredCartItem => item !== null)
@@ -83,12 +108,32 @@ function findCurrentProduct(storedItem: StoredCartItem, products: Product[]) {
 }
 
 function cartItemFromStored(storedItem: StoredCartItem, products: Product[]): CartItem | null {
-  const product = findCurrentProduct(storedItem, products) ?? storedItem.productSnapshot;
+  const currentProduct = findCurrentProduct(storedItem, products);
+  const product = isConfigurableProduct(storedItem.productSnapshot)
+    ? storedItem.productSnapshot
+    : currentProduct ?? storedItem.productSnapshot;
   const qty = toPositiveQuantity(storedItem.qty);
 
   if (!isProductSnapshot(product) || qty <= 0) return null;
 
-  return { product, qty };
+  return {
+    lineId: storedItem.lineId || `simple:${product.id}`,
+    product: {
+      ...product,
+      purchaseMode: product.purchaseMode || 'simples',
+      stockMode: product.stockMode || 'quantidade',
+      hasVariations: Boolean(product.hasVariations),
+    },
+    qty,
+    productStoreVariationId: storedItem.productStoreVariationId,
+    variationName: storedItem.variationName,
+    selections: Array.isArray(storedItem.selections) ? storedItem.selections : [],
+    notes: storedItem.notes,
+    configurationSignature: storedItem.configurationSignature,
+    configurationVersion: storedItem.configurationVersion,
+    basePrice: storedItem.basePrice,
+    optionsPrice: storedItem.optionsPrice,
+  };
 }
 
 function serializeCartItem(item: CartItem): StoredCartItem | null {
@@ -96,10 +141,19 @@ function serializeCartItem(item: CartItem): StoredCartItem | null {
   if (!isProductSnapshot(item.product) || qty <= 0) return null;
 
   return {
+    lineId: item.lineId,
     productId: item.product.id,
     catalogProductId: item.product.catalogProductId,
     qty,
     productSnapshot: item.product,
+    productStoreVariationId: item.productStoreVariationId,
+    variationName: item.variationName,
+    selections: item.selections,
+    notes: item.notes,
+    configurationSignature: item.configurationSignature,
+    configurationVersion: item.configurationVersion,
+    basePrice: item.basePrice,
+    optionsPrice: item.optionsPrice,
   };
 }
 
@@ -135,15 +189,16 @@ function reconcileCart(cart: CartItem[], products: Product[]) {
   return cart
     .map((item): CartItem | null => {
       const qty = toPositiveQuantity(item.qty);
-      const product =
-        products.find(candidate =>
+      const product = isConfigurableProduct(item.product)
+        ? item.product
+        : products.find(candidate =>
           candidate.id === item.product.id ||
           candidate.catalogProductId === item.product.catalogProductId
         ) ?? item.product;
 
       if (!isProductSnapshot(product) || qty <= 0) return null;
 
-      return { product, qty };
+      return { ...item, product, qty };
     })
     .filter((item): item is CartItem => item !== null);
 }
@@ -207,34 +262,47 @@ export function useCartStore(marketId: string, products: Product[] = []) {
 
     updateCartsByMarket(prevByMarket => {
       const currentCart = prevByMarket[marketId] || [];
-      const existing = currentCart.find(item => item.product.id === product.id);
+      const existing = currentCart.find(item =>
+        !isConfigurableProduct(item.product) && item.product.id === product.id
+      );
       const quantityToAdd = roundCartQuantity(toPositiveQuantity(quantity) || getProductMinQty(product));
 
       if (existing) {
         return {
           ...prevByMarket,
           [marketId]: currentCart.map(item =>
-            item.product.id === product.id
+            item.lineId === existing.lineId
               ? { ...item, product, qty: roundCartQuantity(item.qty + quantityToAdd) }
               : item
           ),
         };
       }
 
-      return { ...prevByMarket, [marketId]: [...currentCart, { product, qty: quantityToAdd }] };
+      return {
+        ...prevByMarket,
+        [marketId]: [...currentCart, {
+          lineId: `simple:${product.id}`,
+          product,
+          qty: quantityToAdd,
+          selections: [],
+        }],
+      };
     });
     clearCouponState(marketId, setCouponByMarket, setDiscountByMarket, setCouponIdByMarket);
   }, [marketId, updateCartsByMarket]);
 
-  const removeFromCart = useCallback((productId: string) => {
+  const removeFromCart = useCallback((lineIdOrProductId: string) => {
     updateCartsByMarket(prevByMarket => ({
       ...prevByMarket,
-      [marketId]: (prevByMarket[marketId] || []).filter(item => item.product.id !== productId),
+        [marketId]: (prevByMarket[marketId] || []).filter(item =>
+          item.lineId !== lineIdOrProductId
+        && !(!isConfigurableProduct(item.product) && item.product.id === lineIdOrProductId)
+        ),
     }));
     clearCouponState(marketId, setCouponByMarket, setDiscountByMarket, setCouponIdByMarket);
   }, [marketId, updateCartsByMarket]);
 
-  const updateQty = useCallback((productId: string, qty: number) => {
+  const updateQty = useCallback((lineIdOrProductId: string, qty: number) => {
     updateCartsByMarket(prevByMarket => {
       const currentCart = prevByMarket[marketId] || [];
       const nextQuantity = toPositiveQuantity(qty);
@@ -242,10 +310,42 @@ export function useCartStore(marketId: string, products: Product[] = []) {
       return {
         ...prevByMarket,
         [marketId]: nextQuantity <= 0
-          ? currentCart.filter(item => item.product.id !== productId)
-          : currentCart.map(item => item.product.id === productId ? { ...item, qty: roundCartQuantity(nextQuantity) } : item),
+          ? currentCart.filter(item =>
+              item.lineId !== lineIdOrProductId
+              && !(!isConfigurableProduct(item.product) && item.product.id === lineIdOrProductId)
+            )
+          : currentCart.map(item =>
+              item.lineId === lineIdOrProductId
+              || (!isConfigurableProduct(item.product) && item.product.id === lineIdOrProductId)
+                ? { ...item, qty: roundCartQuantity(nextQuantity) }
+                : item
+            ),
       };
     });
+    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket, setCouponIdByMarket);
+  }, [marketId, updateCartsByMarket]);
+
+  const addConfiguredItem = useCallback((item: Omit<CartItem, 'lineId'> & { lineId?: string }) => {
+    if (item.product.marketId !== marketId || !isConfigurableProduct(item.product)) return;
+    const configuredItem: CartItem = {
+      ...item,
+      lineId: item.lineId || createLineId(item.product.id),
+      selections: item.selections || [],
+    };
+    updateCartsByMarket(prevByMarket => ({
+      ...prevByMarket,
+      [marketId]: [...(prevByMarket[marketId] || []), configuredItem],
+    }));
+    clearCouponState(marketId, setCouponByMarket, setDiscountByMarket, setCouponIdByMarket);
+  }, [marketId, updateCartsByMarket]);
+
+  const updateConfiguredItem = useCallback((lineId: string, item: Omit<CartItem, 'lineId'>) => {
+    updateCartsByMarket(prevByMarket => ({
+      ...prevByMarket,
+      [marketId]: (prevByMarket[marketId] || []).map(current =>
+        current.lineId === lineId ? { ...item, lineId, selections: item.selections || [] } : current
+      ),
+    }));
     clearCouponState(marketId, setCouponByMarket, setDiscountByMarket, setCouponIdByMarket);
   }, [marketId, updateCartsByMarket]);
 
@@ -274,6 +374,8 @@ export function useCartStore(marketId: string, products: Product[] = []) {
     cartCount,
     cartTotal,
     addToCart,
+    addConfiguredItem,
+    updateConfiguredItem,
     setCart,
     removeFromCart,
     updateQty,

@@ -1,4 +1,15 @@
+import type { CartItemSelection } from '@/features/cart';
 import type { Product } from '@/features/products';
+
+export interface OrderItem {
+  lineId?: string;
+  product: Product;
+  qty: number;
+  variationName?: string;
+  productStoreVariationId?: string;
+  selections?: CartItemSelection[];
+  notes?: string;
+}
 
 export interface OrderPayment {
   id: string;
@@ -59,7 +70,7 @@ export interface Order {
   canceledAt?: string | null;
   deliveredAt?: string | null;
   receiptKey?: string | null;
-  items: { product: Product; qty: number }[];
+  items: OrderItem[];
   itemCount?: number;
   subtotal?: number;
   discount?: number;

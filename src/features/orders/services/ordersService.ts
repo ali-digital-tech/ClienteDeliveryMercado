@@ -5,7 +5,7 @@ import { resolvePixExpiration } from '@/features/payments';
 import type { Order } from '../types/order';
 import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
-const ORDER_ITEMS_CACHE_KEY = 'cliente_delivery_order_items_by_cart_v1';
+const ORDER_ITEMS_CACHE_KEY = 'cliente_delivery_order_items_by_order_v2';
 const ORDER_ITEMS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const ORDERS_PAGE_SIZE = 100;
 
@@ -118,6 +118,25 @@ interface ApiCartItem {
   quantidade?: string | number | null;
   produto?: any;
   produto_loja?: any;
+  produto_loja_id?: string;
+  client_line_id?: string;
+  nome_produto?: string;
+  nome_variacao?: string | null;
+  variacao_produto_loja_id?: string | null;
+  unidade_medida?: string | null;
+  tipo_venda?: 'unidade' | 'peso' | null;
+  preco_unitario?: string | number | null;
+  observacoes?: string | null;
+  selecoes?: Array<{
+    grupo_id: string;
+    opcao_id: string;
+    quantidade: string | number;
+    fracao?: string | number | null;
+    nome_grupo: string;
+    nome_opcao: string;
+    preco_unitario?: string | number;
+    preco_contribuicao?: string | number;
+  }>;
 }
 
 interface ApiOrdersPage {
@@ -251,10 +270,13 @@ function unwrapCartItems(payload: any): ApiCartItem[] {
   return [];
 }
 
-async function fetchCartItemsPayload(cartId: string) {
+async function fetchOrderItemsPayload(order: Order) {
   const attempts = [
-    () => apiRequest(`/carrinhos/${cartId}/itens`),
-    () => apiRequest('/itens_carrinho', { params: { carrinho_id: cartId, per_page: 100 } }),
+    ...(order.rawId ? [() => apiRequest(`/pedidos/${order.rawId}/itens`)] : []),
+    ...(order.cartId ? [
+      () => apiRequest(`/carrinhos/${order.cartId}/itens`),
+      () => apiRequest('/itens_carrinho', { params: { carrinho_id: order.cartId, per_page: 100 } }),
+    ] : []),
   ];
 
   for (const attempt of attempts) {
@@ -292,23 +314,68 @@ async function mapCartItemToOrderItem(item: ApiCartItem, marketId: string): Prom
   const qty = toNumber(item.quantidade);
   if (qty <= 0) return null;
 
+  const selections = (item.selecoes || []).map(selection => ({
+    groupId: selection.grupo_id,
+    optionId: selection.opcao_id,
+    groupName: selection.nome_grupo,
+    optionName: selection.nome_opcao,
+    quantity: toNumber(selection.quantidade) || 1,
+    fraction: selection.fracao == null ? undefined : toNumber(selection.fracao),
+    unitPrice: toNumber(selection.preco_unitario),
+    contribution: toNumber(selection.preco_contribuicao),
+  }));
+  const metadata = {
+    lineId: item.client_line_id,
+    productStoreVariationId: item.variacao_produto_loja_id || undefined,
+    variationName: item.nome_variacao || undefined,
+    selections,
+    notes: item.observacoes || undefined,
+  };
   const embeddedProduct = resolveProductFromCartItem(item, marketId);
-  if (isSellableStoreProduct(embeddedProduct, marketId)) return { product: embeddedProduct as Product, qty };
+  if (isSellableStoreProduct(embeddedProduct, marketId)) {
+    return { product: { ...(embeddedProduct as Product), price: toNumber(item.preco_unitario) || embeddedProduct!.price }, qty, ...metadata };
+  }
+
+  if (item.nome_produto) {
+    return {
+      product: {
+        id: item.produto_loja_id || item.produto_id || item.client_line_id || item.nome_produto,
+        catalogProductId: item.produto_id || item.produto_loja_id || '',
+        marketId,
+        name: item.nome_produto,
+        brand: '',
+        price: toNumber(item.preco_unitario),
+        saleType: item.tipo_venda || 'unidade',
+        minQty: 1,
+        stepQty: 1,
+        priceUnit: item.unidade_medida || 'un',
+        image: '',
+        category: 'pedido',
+        unit: item.unidade_medida || 'un',
+        description: '',
+        purchaseMode: selections.length || item.nome_variacao ? 'configuravel' : 'simples',
+        stockMode: 'disponibilidade',
+        hasVariations: Boolean(item.nome_variacao),
+      },
+      qty,
+      ...metadata,
+    };
+  }
 
   if (!item.produto_id) return null;
 
   try {
     const product = await getProductById(marketId, item.produto_id);
-    return isSellableStoreProduct(product, marketId) ? { product: product as Product, qty } : null;
+    return isSellableStoreProduct(product, marketId) ? { product: product as Product, qty, ...metadata } : null;
   } catch {
     return null;
   }
 }
 
 async function getOrderItemsFromCart(order: Order): Promise<Order['items']> {
-  if (!order.cartId || !order.marketId) return [];
+  if (!order.marketId || (!order.rawId && !order.cartId)) return [];
 
-  const cartItems = await fetchCartItemsPayload(order.cartId);
+  const cartItems = await fetchOrderItemsPayload(order);
   const mappedItems = await Promise.all(
     cartItems.map(item => mapCartItemToOrderItem(item, order.marketId)),
   );

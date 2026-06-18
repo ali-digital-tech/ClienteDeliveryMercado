@@ -14,6 +14,7 @@ interface ApiCartItem {
   carrinho_id: string;
   produto_id: string;
   quantidade: number | string;
+  client_line_id?: string;
 }
 
 async function getOrCreateActiveCart(marketId: string) {
@@ -32,15 +33,22 @@ export async function syncCartItemsBatch(marketId: string, items: CartItem[]) {
       carrinho_id?: string;
       itens: ApiCartItem[];
     };
-  }>('/itens_carrinho/bulk', {
-    method: 'POST',
+  }>(`/carrinhos/${cart.id}/itens/sync`, {
+    method: 'PUT',
     body: {
-      carrinho_id: cart.id,
       itens: items
         .filter(item => toCartQuantityNumber(item.qty) > 0)
         .map(item => ({
-          produto_id: item.product.catalogProductId,
+          client_line_id: item.lineId,
+          produto_loja_id: item.product.storeProductId || item.product.id,
+          variacao_produto_loja_id: item.productStoreVariationId || null,
           quantidade: toCartQuantityNumber(item.qty),
+          observacoes: item.notes || null,
+          selecoes: item.selections.map(selection => ({
+            grupo_id: selection.groupId,
+            opcao_id: selection.optionId,
+            quantidade: selection.quantity,
+          })),
         })),
     },
   });

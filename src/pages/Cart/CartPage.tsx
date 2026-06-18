@@ -11,7 +11,7 @@ import {
   getMercadoPagoCheckoutConfig,
   type MercadoPagoCheckoutConfig,
 } from '@/features/payments';
-import { ProductCard, ProductImage, useProducts } from '@/features/products';
+import { isConfigurableProduct, ProductCard, ProductImage, useProducts } from '@/features/products';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
 function useHorizontalDragScroll<T extends HTMLElement>() {
@@ -238,7 +238,7 @@ export function CartPage() {
             {/* Items */}
             <div className="flex flex-col gap-3 mb-4">
               {cart.map(item => (
-                <div key={item.product.id} className="bg-white rounded-2xl p-3 flex items-center gap-3 shadow-sm">
+                <div key={item.lineId} className="bg-white rounded-2xl p-3 flex items-center gap-3 shadow-sm">
                   <ProductImage
                     src={item.product.image}
                     alt={item.product.name}
@@ -249,6 +249,24 @@ export function CartPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-gray-400 truncate" style={{ fontSize: '10px' }}>{item.product.brand}</p>
                     <p className="text-gray-800 truncate" style={{ fontSize: '13px', fontWeight: 600 }}>{item.product.name}</p>
+                    {item.variationName && <p className="text-xs font-semibold text-slate-600">Tamanho: {item.variationName}</p>}
+                    {item.selections.map(selection => (
+                      <p key={`${selection.groupId}:${selection.optionId}`} className="text-xs text-slate-500">
+                        {selection.groupName}: {selection.optionName}
+                        {selection.quantity > 1 ? ` x${selection.quantity}` : ''}
+                        {selection.fraction ? ` (${Math.round(selection.fraction * 100)}%)` : ''}
+                      </p>
+                    ))}
+                    {item.notes && <p className="text-xs italic text-slate-500">Obs.: {item.notes}</p>}
+                    {isConfigurableProduct(item.product) && (
+                      <button
+                        onClick={() => navigate(tenantPath(`product/${item.product.id}?editLineId=${encodeURIComponent(item.lineId)}`))}
+                        className="mt-1 text-xs font-bold"
+                        style={{ color: primaryColor }}
+                      >
+                        Editar configuração
+                      </button>
+                    )}
                     <p style={{ fontSize: '14px', fontWeight: 700, color: primaryColor }}>
                       R$ {(item.product.price * item.qty).toFixed(2).replace('.', ',')}
                     </p>
@@ -256,7 +274,7 @@ export function CartPage() {
                   <div className="flex flex-col items-center gap-2">
                     <button
                       onClick={() => {
-                        void removeFromCart(item.product.id).catch(error => {
+                        void removeFromCart(item.lineId).catch(error => {
                           console.error('Erro ao remover produto do carrinho:', error);
                         });
                       }}
@@ -267,7 +285,7 @@ export function CartPage() {
                     <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1">
                       <button
                         onClick={() => {
-                        void updateQty(item.product.id, getNextCartQuantity(item.product, item.qty, -1)).catch(error => {
+                        void updateQty(item.lineId, getNextCartQuantity(item.product, item.qty, -1)).catch(error => {
                             console.error('Erro ao atualizar quantidade do produto:', error);
                           });
                         }}
@@ -281,7 +299,7 @@ export function CartPage() {
                       </span>
                       <button
                         onClick={() => {
-                          void updateQty(item.product.id, getNextCartQuantity(item.product, item.qty, 1)).catch(error => {
+                          void updateQty(item.lineId, getNextCartQuantity(item.product, item.qty, 1)).catch(error => {
                             console.error('Erro ao atualizar quantidade do produto:', error);
                           });
                         }}

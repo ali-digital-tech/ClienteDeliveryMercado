@@ -1,10 +1,17 @@
 import { apiRequest, unwrapList } from '@/shared/lib/api';
-import type { Product } from '../types/product';
+import type {
+  Product,
+  ProductConfiguration,
+  ProductOption,
+  ProductOptionGroup,
+  ProductVariation,
+} from '../types/product';
 
 export const PRODUCTS_PAGE_SIZE = 30;
 
 interface ApiStoreProduct {
   id: string;
+  produto_loja_id_origem?: string | null;
   loja_id?: string;
   produto_id?: string;
   nome?: string;
@@ -28,6 +35,78 @@ interface ApiStoreProduct {
   quantidade_vendida?: string | number | null;
   ativo_na_loja?: boolean | null;
   produto_ativo?: boolean | null;
+  modo_compra?: 'simples' | 'configuravel' | null;
+  modo_estoque?: 'quantidade' | 'disponibilidade' | null;
+  tem_variacoes?: boolean | null;
+  preco_a_partir_de?: string | number | null;
+  configuracao?: ApiProductConfiguration | null;
+  produto_virtual_opcao?: boolean | null;
+  card_montagem_destaque?: boolean | null;
+  opcao_grupo_produto_id?: string | null;
+  variacao_produto_loja_id_padrao?: string | null;
+  selecoes_padrao?: Array<{ grupo_id: string; opcao_id: string; quantidade?: number }> | null;
+}
+
+interface ApiProductVariation {
+  id: string;
+  variacao_produto_id: string;
+  nome: string;
+  preco: string | number;
+  preco_promocional?: string | number | null;
+  promocao_ate?: string | null;
+  ativa?: boolean;
+  ordem_exibicao?: number;
+}
+
+interface ApiVariationRule {
+  variacao_produto_loja_id: string;
+  minimo_selecoes: number;
+  maximo_selecoes: number;
+}
+
+interface ApiOptionVariationPrice {
+  variacao_produto_loja_id: string;
+  disponivel?: boolean;
+  preco_adicional?: string | number | null;
+  preco_promocional?: string | number | null;
+  promocao_ate?: string | null;
+}
+
+interface ApiProductOption {
+  id: string;
+  nome: string;
+  descricao?: string | null;
+  tipo_item?: 'adicional' | 'produto' | 'produto_e_adicional';
+  imagem_url?: string | null;
+  produto_categoria_id?: string | null;
+  preco_adicional?: string | number | null;
+  preco_promocional?: string | number | null;
+  promocao_ate?: string | null;
+  quantidade_maxima?: number;
+  ativa?: boolean;
+  ordem_exibicao?: number;
+  precos_variacao?: ApiOptionVariationPrice[];
+}
+
+interface ApiProductOptionGroup {
+  id: string;
+  nome: string;
+  descricao?: string | null;
+  tipo_selecao: 'unica' | 'multipla' | 'fracionada';
+  minimo_selecoes: number;
+  maximo_selecoes: number;
+  permite_quantidade?: boolean;
+  substitui_preco_base?: boolean;
+  ativo?: boolean;
+  ordem_exibicao?: number;
+  regras_variacao?: ApiVariationRule[];
+  opcoes?: ApiProductOption[];
+}
+
+interface ApiProductConfiguration {
+  versao: number;
+  variacoes?: ApiProductVariation[];
+  grupos?: ApiProductOptionGroup[];
 }
 
 export interface ProductListFilters {
@@ -57,22 +136,95 @@ function toNumber(value: string | number | null | undefined, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function mapVariation(variation: ApiProductVariation): ProductVariation {
+  return {
+    id: variation.id,
+    productVariationId: variation.variacao_produto_id,
+    name: variation.nome,
+    price: toNumber(variation.preco),
+    promotionalPrice: variation.preco_promocional == null ? undefined : toNumber(variation.preco_promocional),
+    promotionEndsAt: variation.promocao_ate || undefined,
+    active: variation.ativa !== false,
+    displayOrder: variation.ordem_exibicao || 0,
+  };
+}
+
+function mapOption(option: ApiProductOption): ProductOption {
+  return {
+    id: option.id,
+    name: option.nome,
+    description: option.descricao || undefined,
+    itemType: option.tipo_item || 'adicional',
+    image: option.imagem_url || undefined,
+    productCategoryId: option.produto_categoria_id || undefined,
+    additionalPrice: toNumber(option.preco_adicional),
+    promotionalPrice: option.preco_promocional == null ? undefined : toNumber(option.preco_promocional),
+    promotionEndsAt: option.promocao_ate || undefined,
+    maximumQuantity: option.quantidade_maxima || 1,
+    active: option.ativa !== false,
+    displayOrder: option.ordem_exibicao || 0,
+    variationPrices: (option.precos_variacao || []).map((price) => ({
+      productStoreVariationId: price.variacao_produto_loja_id,
+      available: price.disponivel !== false,
+      additionalPrice: price.preco_adicional == null ? undefined : toNumber(price.preco_adicional),
+      promotionalPrice: price.preco_promocional == null ? undefined : toNumber(price.preco_promocional),
+      promotionEndsAt: price.promocao_ate || undefined,
+    })),
+  };
+}
+
+function mapGroup(group: ApiProductOptionGroup): ProductOptionGroup {
+  return {
+    id: group.id,
+    name: group.nome,
+    description: group.descricao || undefined,
+    selectionType: group.tipo_selecao,
+    minimumSelections: group.minimo_selecoes,
+    maximumSelections: group.maximo_selecoes,
+    allowsQuantity: Boolean(group.permite_quantidade),
+    replacesBasePrice: Boolean(group.substitui_preco_base),
+    active: group.ativo !== false,
+    displayOrder: group.ordem_exibicao || 0,
+    variationRules: (group.regras_variacao || []).map((rule) => ({
+      productStoreVariationId: rule.variacao_produto_loja_id,
+      minimumSelections: rule.minimo_selecoes,
+      maximumSelections: rule.maximo_selecoes,
+    })),
+    options: (group.opcoes || []).map(mapOption),
+  };
+}
+
+function mapConfiguration(configuration?: ApiProductConfiguration | null): ProductConfiguration | undefined {
+  if (!configuration) return undefined;
+  return {
+    version: configuration.versao,
+    variations: (configuration.variacoes || []).map(mapVariation),
+    groups: (configuration.grupos || []).map(mapGroup),
+  };
+}
+
 export function mapStoreProduct(product: ApiStoreProduct): Product {
   const regularPrice = toNumber(product.preco);
   const promoPrice = product.preco_promocional === null ? 0 : toNumber(product.preco_promocional);
   const hasPromo = promoPrice > 0 && regularPrice > 0 && promoPrice < regularPrice;
+  const hasAnyPromo = hasPromo || promoPrice > 0;
   const category = product.categoria_final_id || product.categoria_id || product.categoria_nome || 'geral';
   const salesCount = toNumber(product.quantidade_vendida);
   const saleType = product.tipo_venda || (product.vendavel_por_peso ? 'peso' : 'unidade');
   const isWeight = saleType === 'peso';
 
+  const startingPrice = product.preco_a_partir_de == null
+    ? (hasPromo ? promoPrice : regularPrice)
+    : toNumber(product.preco_a_partir_de);
+
   return {
     id: product.id,
+    storeProductId: product.produto_loja_id_origem || product.id,
     catalogProductId: product.produto_id || product.id,
     marketId: product.loja_id || '',
     name: product.nome || 'Produto',
     brand: product.marca || 'Mercado',
-    price: hasPromo ? promoPrice : regularPrice,
+    price: startingPrice,
     originalPrice: hasPromo ? regularPrice : undefined,
     saleType,
     minQty: toNumber(product.quantidade_minima_compra, isWeight ? 0.1 : 1),
@@ -84,10 +236,24 @@ export function mapStoreProduct(product: ApiStoreProduct): Product {
     unit: product.unidade_medida || 'un',
     description: product.descricao || 'Produto disponível no mercado.',
     salesCount,
-    isPromo: hasPromo,
+    isPromo: hasAnyPromo,
     isFeatured: Boolean(product.destaque),
     isBestseller: salesCount > 0,
     isImmediateConsumption: Boolean(product.consumo_imediato) && hasPromo,
+    purchaseMode: product.modo_compra || 'simples',
+    stockMode: product.modo_estoque || 'quantidade',
+    hasVariations: Boolean(product.tem_variacoes),
+    startingPrice: product.modo_compra === 'configuravel' ? startingPrice : undefined,
+    configuration: mapConfiguration(product.configuracao),
+    defaultVariationId: product.variacao_produto_loja_id_padrao || undefined,
+    defaultSelections: (product.selecoes_padrao || []).map(selection => ({
+      groupId: selection.grupo_id,
+      optionId: selection.opcao_id,
+      quantity: selection.quantidade || 1,
+    })),
+    isVirtualOptionProduct: Boolean(product.produto_virtual_opcao),
+    isAssemblyShortcut: Boolean(product.card_montagem_destaque),
+    optionProductId: product.opcao_grupo_produto_id || undefined,
   };
 }
 

@@ -1,7 +1,12 @@
+export type EstablishmentType = 'mercado' | 'lanchonete' | 'restaurante' | 'hibrido' | 'outro';
+
 export interface Market {
   id: string;
   name: string;
   description: string;
+  establishmentType: EstablishmentType;
+  configurableMenuEnabled: boolean;
+  digitalLabel: string;
   neighborhood: string;
   address: string;
   deliveryEstimate: string;
