@@ -103,7 +103,7 @@ const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> =
   },
   {
     test: /coupon must belong to the same store as the order/i,
-    message: "Este cupom não pertence a este mercado.",
+    message: "Este cupom não pertence a este estabelecimento.",
   },
   {
     test: /customer address not found/i,
@@ -143,7 +143,7 @@ const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> =
   },
   {
     test: /store not found/i,
-    message: "Mercado não encontrado.",
+    message: "Estabelecimento não encontrado.",
   },
   {
     test: /this order already has an approved payment/i,

@@ -22,6 +22,7 @@ import {
   setStoredCheckoutMode,
   type CheckoutOrderType,
 } from '@/features/orders/services/checkoutModeService';
+import { getEstablishmentLabels } from '@/features/markets';
 import {
   calculatePlatformServiceFee,
   getMercadoPagoCheckoutConfig,
@@ -45,6 +46,7 @@ export function DeliveryScreen() {
   const total = discountedSubtotal + (mode === "delivery" ? deliveryFee : 0);
   const serviceFee = calculatePlatformServiceFee(total, checkoutConfig?.platform_split);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
+  const establishmentLabels = getEstablishmentLabels(currentMarket.establishmentType);
 
   useEffect(() => {
     setMode(getStoredCheckoutMode(marketId));
@@ -70,7 +72,7 @@ export function DeliveryScreen() {
   const handleContinueToCheckout = () => {
     if (!meetsMinimumOrder) {
       showSystemNotice(
-        `O pedido mínimo deste mercado é R$ ${minimumOrder.toFixed(2).replace('.', ',')}. Adicione mais R$ ${missingMinimumOrder.toFixed(2).replace('.', ',')} em produtos para finalizar.`
+        `O pedido mínimo ${establishmentLabels.ofThis} é R$ ${minimumOrder.toFixed(2).replace('.', ',')}. Adicione mais R$ ${missingMinimumOrder.toFixed(2).replace('.', ',')} em produtos para finalizar.`
       );
       return;
     }
@@ -161,7 +163,7 @@ export function DeliveryScreen() {
           >
             <Store size={16} />
             <span style={{ fontSize: "14px", fontWeight: 700 }}>
-              Retirar na loja
+              Retirar {establishmentLabels.inThe}
             </span>
           </button>
         </div>

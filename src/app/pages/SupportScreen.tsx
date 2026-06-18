@@ -12,29 +12,31 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useApp } from "@/app/providers/AppProvider";
+import { getEstablishmentLabels, type EstablishmentLabels } from "@/features/markets";
 import { apiRequest, getAuthToken, unwrapList } from "@/shared/lib/api";
 import { normalizeSearchText } from "@/shared/utils/searchText";
 
-const faqs = [
+function buildFaqs(labels: EstablishmentLabels) {
+  return [
   {
     q: "Como acompanho o andamento do meu pedido?",
     a: "Acesse Meu Perfil, entre em Meus pedidos e abra o pedido desejado. Você verá o progresso da compra, o tipo de atendimento escolhido e, quando houver entrega, a chave de recebimento que deve ser informada somente ao entregador.",
   },
   {
-    q: "Como funcionam a entrega e a retirada no mercado?",
-    a: "Na finalização da compra, escolha uma das opções disponíveis para o mercado. As entregas são feitas por ordem de pedido. Se a compra for realizada fora do horário de funcionamento, o atendimento ficará para o próximo dia em que o mercado estiver aberto.",
+    q: `Como funcionam a entrega e a retirada ${labels.inThe}?`,
+    a: `Na finalização da compra, escolha uma das opções disponíveis para ${labels.thisWithArticle}. As entregas são feitas por ordem de pedido. Se a compra for realizada fora do horário de funcionamento, o atendimento ficará para o próximo dia de atendimento.`,
   },
   {
     q: "Como cancelo um pedido?",
-    a: "Abra Meus pedidos, selecione a compra e toque em Cancelar pedido. Até o pedido confirmado, o cancelamento é processado com estorno integral quando houver pagamento aprovado. Depois que a separação começou, a solicitação será analisada pelo mercado e poderá ter retenção de valores. Se o pedido já estiver finalizado ou o botão não aparecer, fale com o mercado pelo suporte.",
+    a: `Abra Meus pedidos, selecione a compra e toque em Cancelar pedido. Até o pedido confirmado, o cancelamento é processado com estorno integral quando houver pagamento aprovado. Depois que a separação começou, a solicitação será analisada ${labels.byThe} e poderá ter retenção de valores. Se o pedido já estiver finalizado ou o botão não aparecer, fale com ${labels.withDefiniteArticle} pelo suporte.`,
   },
   {
     q: "Como altero meu endereço de entrega?",
-    a: "Antes de finalizar a compra, acesse Meu Perfil e Meus endereços para cadastrar, remover ou escolher o endereço principal. Depois que o pedido for enviado, a alteração não pode ser feita pelo app; entre em contato com o mercado.",
+    a: `Antes de finalizar a compra, acesse Meu Perfil e Meus endereços para cadastrar, remover ou escolher o endereço principal. Depois que o pedido for enviado, a alteração não pode ser feita pelo app; entre em contato com ${labels.withDefiniteArticle}.`,
   },
   {
     q: "Quais formas de pagamento posso usar?",
-    a: "As formas liberadas pelo mercado aparecem na etapa de pagamento. O app pode oferecer PIX, cartão de crédito e cartão de débito. A disponibilidade depende da configuração do mercado.",
+    a: `As formas liberadas ${labels.byThe} aparecem na etapa de pagamento. O app pode oferecer PIX, cartão de crédito e cartão de débito. A disponibilidade depende da configuração ${labels.fromThe}.`,
   },
   {
     q: "O que faço quando o PIX expira?",
@@ -52,7 +54,8 @@ const faqs = [
     q: "Como coloco CPF na nota?",
     a: "Na finalização da compra, escolha informar CPF na nota e digite um CPF válido. Para usar o mesmo CPF nas próximas compras, marque a opção de salvar como padrão ou configure essa preferência em Privacidade e segurança.",
   },
-];
+  ];
+}
 
 interface BusinessHour {
   dia_semana: number;
@@ -100,6 +103,7 @@ function formatBusinessHours(
   schedules: BusinessHour[],
   fallbackOpeningTime: string | null | undefined,
   fallbackClosingTime: string | null | undefined,
+  labels: EstablishmentLabels,
 ) {
   if (schedules.length === 0) {
     const openingTime = formatTime(fallbackOpeningTime);
@@ -107,7 +111,7 @@ function formatBusinessHours(
 
     return openingTime && closingTime
       ? `Horário padrão: ${openingTime} às ${closingTime}`
-      : "Horário não informado pelo mercado.";
+      : `Horário não informado ${labels.byThe}.`;
   }
 
   return [...schedules]
@@ -145,6 +149,7 @@ export function SupportScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [businessHours, setBusinessHours] = useState<BusinessHour[]>([]);
   const [configuredWhatsapp, setConfiguredWhatsapp] = useState(currentMarket.whatsappSupport || null);
+  const establishmentLabels = getEstablishmentLabels(currentMarket.establishmentType);
   const normalizedSearchQuery = normalizeSearchText(searchQuery);
   const supportPhone = configuredWhatsapp || currentMarket.whatsappSupport || currentMarket.phone;
   const supportEmail = currentMarket.email?.trim() || null;
@@ -156,7 +161,9 @@ export function SupportScreen() {
     businessHours,
     currentMarket.openingTime,
     currentMarket.closingTime,
+    establishmentLabels,
   );
+  const faqs = buildFaqs(establishmentLabels);
 
   const filteredFaqs = faqs.filter(
     (f) =>
@@ -225,7 +232,7 @@ export function SupportScreen() {
           <CheckCircle size={20} color="#16a34a" className="flex-shrink-0" />
           <div>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "#15803d" }}>
-              Atendimento do mercado
+              Atendimento {establishmentLabels.fromThe}
             </p>
             <p style={{ fontSize: "12px", color: "#166534" }}>
               {currentMarket.name}
@@ -332,7 +339,7 @@ export function SupportScreen() {
                     Enviar e-mail
                   </p>
                   <p style={{ fontSize: "12px", color: "#64748b" }}>
-                    E-mail não configurado pelo mercado
+                    E-mail não configurado {establishmentLabels.byThe}
                   </p>
                 </div>
               </div>

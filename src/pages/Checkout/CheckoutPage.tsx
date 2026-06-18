@@ -20,6 +20,7 @@ import { useApp } from '@/app/providers/AppProvider';
 import { Checkbox } from '@/app/components/ui/checkbox';
 import { BannerRenderer, useBanners } from '@/features/banners';
 import { authService, type AuthUser } from '@/features/auth';
+import { getEstablishmentLabels } from '@/features/markets';
 import {
   formatAddressLine,
   formatAddressLocation,
@@ -230,12 +231,14 @@ function SavedCardCvvModal({
   card,
   publicKey,
   primaryColor,
+  unavailableLabel,
   onClose,
   onToken,
 }: {
   card: Pick<SavedPaymentCard, 'gateway_card_id' | 'forma_pagamento' | 'payment_method_id' | 'ultimos_quatro' | 'nome_impresso'>;
   publicKey: string;
   primaryColor: string;
+  unavailableLabel: string;
   onClose: () => void;
   onToken: (token: MercadoPagoCardToken) => void;
 }) {
@@ -255,7 +258,7 @@ function SavedCardCvvModal({
       setErrorMessage("");
 
       if (!publicKey) {
-        setErrorMessage("Pagamento online não configurado para este mercado.");
+        setErrorMessage(`Pagamento online não configurado para ${unavailableLabel}.`);
         return;
       }
 
@@ -460,6 +463,7 @@ export function CheckoutPage() {
   const itemCount = getCartLineCount(cart);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
   const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
+  const establishmentLabels = getEstablishmentLabels(currentMarket.establishmentType);
   const storedPayerData = getStoredPayerData();
   const payerValidation = validatePayerData(storedPayerData);
   const hasPayerData = payerValidation.isValid;
@@ -871,7 +875,7 @@ export function CheckoutPage() {
 
     if (!meetsMinimumOrder) {
       showSystemNotice(
-        `O pedido mínimo deste mercado é R$ ${minimumOrder.toFixed(2).replace('.', ',')}. Adicione mais R$ ${missingMinimumOrder.toFixed(2).replace('.', ',')} em produtos para finalizar.`
+        `O pedido mínimo ${establishmentLabels.ofThis} é R$ ${minimumOrder.toFixed(2).replace('.', ',')}. Adicione mais R$ ${missingMinimumOrder.toFixed(2).replace('.', ',')} em produtos para finalizar.`
       );
       return;
     }
@@ -1183,7 +1187,7 @@ export function CheckoutPage() {
               <div className="mb-1 flex items-center gap-2">
                 {isPickup ? <Store size={14} color="var(--market-primary-color)" /> : <MapPin size={14} color="var(--market-primary-color)" />}
                 <p style={{ fontSize: "12px", fontWeight: 800, color: "#334155" }}>
-                  {isPickup ? "Retirada no mercado" : "Endereço de entrega"}
+                  {isPickup ? `Retirada ${establishmentLabels.inThe}` : "Endereço de entrega"}
                 </p>
               </div>
 
@@ -1191,7 +1195,7 @@ export function CheckoutPage() {
                 <p style={{ fontSize: "13px", lineHeight: 1.5, color: "#64748b" }}>
                   {currentMarket.name}
                   <br />
-                  {currentMarket.address || "Endereço do mercado não informado"}
+                  {currentMarket.address || `Endereço ${establishmentLabels.fromThe} não informado`}
                 </p>
               ) : selectedAddress ? (
                 <>
@@ -1232,10 +1236,10 @@ export function CheckoutPage() {
                 }}
               >
                 {loadingBusinessHours
-                  ? "Verificando horário do mercado..."
+                  ? `Verificando horário ${establishmentLabels.fromThe}...`
                   : marketScheduleStatus.isOpen
-                    ? "Mercado aberto agora."
-                    : "Mercado fechado agora."}
+                    ? `${establishmentLabels.singularCapitalized} ${establishmentLabels.openAdjective} agora.`
+                    : `${establishmentLabels.singularCapitalized} ${establishmentLabels.closedAdjective} agora.`}
               </p>
             </div>
 
@@ -1248,7 +1252,7 @@ export function CheckoutPage() {
               </p>
               {!marketScheduleStatus.isOpen && !loadingBusinessHours && (
                 <p style={{ fontSize: "12px", color: "#166534", lineHeight: 1.4, marginTop: "2px" }}>
-                  Como o mercado está fechado, {isPickup ? "a retirada" : "a entrega"} será no próximo dia em que ele estiver aberto.
+                  Como {establishmentLabels.withDefiniteArticle} está {establishmentLabels.closedAdjective}, {isPickup ? "a retirada" : "a entrega"} será no próximo dia de atendimento.
                 </p>
               )}
             </div>
@@ -1556,6 +1560,7 @@ export function CheckoutPage() {
           card={selectedSavedCardForCvv}
           publicKey={checkoutConfig?.public_key || ""}
           primaryColor={primaryColor}
+          unavailableLabel={establishmentLabels.thisWithArticle}
           onClose={() => setPendingCvvSelection(null)}
           onToken={handleSavedCardCvvToken}
         />

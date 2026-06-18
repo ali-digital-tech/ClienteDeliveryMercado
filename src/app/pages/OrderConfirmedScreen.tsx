@@ -239,7 +239,7 @@ export function OrderConfirmedScreen() {
             {displayedScheduledFor && (
               <div className="rounded-xl px-3 py-1.5 text-left" style={{ backgroundColor: "#fffbeb" }}>
                 <p style={{ fontSize: "11px", color: "#92400e", lineHeight: 1.25, fontWeight: 600 }}>
-                  Pedido feito fora do horário. A entrega será no próximo dia de mercado aberto.
+                  Pedido feito fora do horário. A entrega será no próximo dia de atendimento.
                 </p>
               </div>
             )}

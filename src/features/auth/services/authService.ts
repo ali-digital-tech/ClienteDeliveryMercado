@@ -34,7 +34,7 @@ function getPasswordResetRedirectBaseUrl() {
 function requireStoreId(storeId: string | undefined) {
   const lojaId = normalizeStoreId(storeId);
   if (!lojaId) {
-    throw new Error('Não foi possível identificar a loja atual. Recarregue a página do mercado e tente novamente.');
+    throw new Error('Não foi possível identificar o estabelecimento atual. Recarregue a página e tente novamente.');
   }
 
   return lojaId;

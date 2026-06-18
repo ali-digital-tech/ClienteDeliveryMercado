@@ -12,6 +12,7 @@ import {
 import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { useCategories } from '@/features/categories';
+import { getEstablishmentLabels } from '@/features/markets';
 import { ProductCard, useProducts } from '@/features/products';
 import { BannerRenderer, useBanners } from '@/features/banners';
 import { fetchCustomerNotifications } from '@/features/notifications';
@@ -82,6 +83,7 @@ export function MarketPage() {
   const navigate = useNavigate();
   const { marketId } = useMarketContext();
   const { cartCount, cartPulseKey, currentMarket, isLoggedIn, tenantPath } = useApp();
+  const establishmentLabels = getEstablishmentLabels(currentMarket.establishmentType);
   const [activeCartPulseKey, setActiveCartPulseKey] = useState(0);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const lastCartPulseKeyRef = useRef(cartPulseKey);
@@ -560,7 +562,7 @@ export function MarketPage() {
             <div className="flex flex-col items-center gap-3 rounded-2xl bg-white px-6 py-10 text-center mx-4">
               <PackageSearch size={34} color="#94a3b8" />
               <p style={{ fontSize: "14px", fontWeight: 700, color: "#334155" }}>
-                Este mercado ainda não possui produtos disponíveis
+                Este {establishmentLabels.singular} ainda não possui produtos disponíveis
               </p>
             </div>
           ) : (

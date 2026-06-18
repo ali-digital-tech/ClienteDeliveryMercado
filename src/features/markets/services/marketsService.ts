@@ -1,5 +1,6 @@
 import { apiRequest, unwrapList } from '@/shared/lib/api';
 import type { EstablishmentType, Market } from '../types/market';
+import { getEstablishmentLabels } from '../utils/establishmentLabels';
 
 interface ApiStore {
   id: string;
@@ -51,18 +52,6 @@ function resolveEstablishmentType(store: ApiStore): EstablishmentType {
   return 'mercado';
 }
 
-function getDigitalLabel(establishmentType: EstablishmentType) {
-  const labels: Record<EstablishmentType, string> = {
-    mercado: 'Supermercado Digital',
-    lanchonete: 'Lanchonete Digital',
-    restaurante: 'Restaurante Digital',
-    hibrido: 'Delivery Digital',
-    outro: 'Loja Digital',
-  };
-
-  return labels[establishmentType];
-}
-
 function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market {
   const street = store.endereco || store.rua || store.logradouro;
   const address = [
@@ -71,14 +60,15 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
     [store.cidade, store.estado].filter(Boolean).join(' - '),
   ].filter(Boolean).join(' · ');
   const establishmentType = resolveEstablishmentType(store);
+  const labels = getEstablishmentLabels(establishmentType);
 
   return {
     id: store.id,
-    name: store.nome || 'Mercado',
-    description: store.descricao || 'Mercado com entrega de produtos selecionados.',
+    name: store.nome || labels.singularCapitalized,
+    description: store.descricao || `${labels.singularCapitalized} com entrega de produtos selecionados.`,
     establishmentType,
     configurableMenuEnabled: store.cardapio_configuravel_ativo === true,
-    digitalLabel: getDigitalLabel(establishmentType),
+    digitalLabel: labels.digital,
     neighborhood: store.bairro || store.cidade || 'Sua região',
     address: address || store.bairro || store.cidade || 'Endereço da loja não informado',
     deliveryEstimate: '35-50 min',

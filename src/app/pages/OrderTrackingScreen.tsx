@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
+import { getEstablishmentLabels, type EstablishmentLabels } from "@/features/markets";
 import { getOrdersByMarketId, loadOrderItems, requestOrderCancellation, type Order } from "@/features/orders";
 import { PostPaymentPushPrompt } from "@/features/notifications";
 import { formatCartQuantity } from "@/features/cart";
@@ -57,6 +58,10 @@ type ProgressStep = {
 
 function formatCurrency(value: number | undefined) {
   return `R$ ${(value || 0).toFixed(2).replace(".", ",")}`;
+}
+
+function capitalizeFirst(value: string) {
+  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
 }
 
 function formatOrderCode(order: Order) {
@@ -117,7 +122,7 @@ function matchesOrder(order: Order, orderId: string) {
   ].some((value) => value && value.replace(/^#/, "") === normalized);
 }
 
-function buildSteps(order: Order): ProgressStep[] {
+function buildSteps(order: Order, labels: EstablishmentLabels): ProgressStep[] {
   const isPickup = order.type === "pickup";
   const isNotDelivered = order.status === "nao_entregue";
 
@@ -132,7 +137,7 @@ function buildSteps(order: Order): ProgressStep[] {
     {
       id: "confirmado",
       label: "Pedido confirmado",
-      desc: "Confirmação do mercado",
+      desc: `Confirmação ${labels.fromThe}`,
       time: formatDateTime(order.confirmedAt),
       icon: CheckCircle2,
     },
@@ -146,7 +151,7 @@ function buildSteps(order: Order): ProgressStep[] {
     {
       id: "pronto",
       label: isPickup ? "Pronto para retirada" : "Pedido pronto para envio",
-      desc: isPickup ? "Disponível para retirada no mercado" : "Aguardando saída para entrega",
+      desc: isPickup ? `Disponível para retirada ${labels.inThe}` : "Aguardando saída para entrega",
       time: formatDateTime(order.readyAt),
       icon: Package,
     },
@@ -162,7 +167,7 @@ function buildSteps(order: Order): ProgressStep[] {
       label: isNotDelivered ? "Não entregue" : isPickup ? "Retirado" : "Entregue",
       desc: isNotDelivered
         ? "Entrega não concluída pelo entregador"
-        : isPickup ? "Pedido retirado no mercado" : "Pedido entregue ao cliente",
+        : isPickup ? `Pedido retirado ${labels.inThe}` : "Pedido entregue ao cliente",
       time: formatDateTime(isNotDelivered ? order.deliveryInfo?.failedAt : order.deliveredAt),
       icon: isNotDelivered ? AlertTriangle : Home,
       failed: isNotDelivered,
@@ -392,7 +397,8 @@ export function OrderTrackingScreen() {
   const status = selectedOrder.type === "pickup" && selectedOrder.status === "entregue"
     ? { ...defaultStatus, label: "Retirado" }
     : defaultStatus;
-  const steps = buildSteps(selectedOrder);
+  const establishmentLabels = getEstablishmentLabels(currentMarket.establishmentType);
+  const steps = buildSteps(selectedOrder, establishmentLabels);
   const hasDiscount = Boolean(selectedOrder.discount && selectedOrder.discount > 0);
   const hasDeliveryFee = Boolean(selectedOrder.deliveryFee && selectedOrder.deliveryFee > 0);
   const serviceFee = selectedOrder.payment?.applicationFee || 0;
@@ -479,7 +485,7 @@ export function OrderTrackingScreen() {
 
           <div className="flex-1 min-w-0">
             <p className="text-white" style={{ fontSize: "13px", fontWeight: 700 }}>
-              {selectedOrder.type === "delivery" ? "Entrega por ordem de pedido" : "Retirada no mercado"}
+              {selectedOrder.type === "delivery" ? "Entrega por ordem de pedido" : `Retirada ${establishmentLabels.inThe}`}
             </p>
             <p className="truncate" style={{ fontSize: "12px", color: "var(--market-primary-muted-color)" }}>
               Realizado em {formatDateTime(selectedOrder.createdAt)}
@@ -692,7 +698,7 @@ export function OrderTrackingScreen() {
                   {deliveryFailureReason
                     ? `Motivo: ${deliveryFailureReason}. `
                     : ""}
-                  Entre em contato com o mercado para combinar os próximos passos.
+                  Entre em contato com {establishmentLabels.withDefiniteArticle} para combinar os próximos passos.
                 </p>
                 {marketWhatsappUrl ? (
                   <a
@@ -703,11 +709,11 @@ export function OrderTrackingScreen() {
                     style={{ backgroundColor: "#16a34a", fontSize: "13px", fontWeight: 800 }}
                   >
                     <MessageCircle size={16} />
-                    Falar com o mercado no WhatsApp
+                    Falar com {establishmentLabels.withDefiniteArticle} no WhatsApp
                   </a>
                 ) : (
                   <div className="mt-3 rounded-xl border border-red-200 bg-white/70 px-3 py-2" style={{ fontSize: "12px", color: "#991b1b", fontWeight: 700 }}>
-                    WhatsApp do mercado não configurado.
+                    WhatsApp {establishmentLabels.fromThe} não configurado.
                   </div>
                 )}
               </div>
@@ -770,7 +776,7 @@ export function OrderTrackingScreen() {
                     {formatDateTime(selectedOrder.scheduledFor)}
                   </p>
                   <p style={{ fontSize: "11px", color: "#b45309", lineHeight: 1.35 }}>
-                    Pedido feito fora do horário. A entrega será no próximo dia de mercado aberto.
+                    Pedido feito fora do horário. A entrega será no próximo dia de atendimento.
                   </p>
                 </div>
               </div>
@@ -887,7 +893,7 @@ export function OrderTrackingScreen() {
               <span style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
                 {selectedOrder.type === "delivery"
                   ? (hasDeliveryFee ? formatCurrency(selectedOrder.deliveryFee) : "Grátis")
-                  : "No mercado"}
+                  : capitalizeFirst(establishmentLabels.inThe)}
               </span>
             </div>
 

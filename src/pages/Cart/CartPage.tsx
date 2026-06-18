@@ -6,6 +6,7 @@ import { useApp } from '@/app/providers/AppProvider';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { BannerRenderer, useBanners } from '@/features/banners';
 import { formatCartQuantity, getCartLineCount, getNextCartQuantity } from '@/features/cart';
+import { getEstablishmentLabels } from '@/features/markets';
 import {
   calculatePlatformServiceFee,
   getMercadoPagoCheckoutConfig,
@@ -95,6 +96,7 @@ export function CartPage() {
   const serviceFee = calculatePlatformServiceFee(total, checkoutConfig?.platform_split);
   const itemCount = getCartLineCount(cart);
   const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
+  const establishmentLabels = getEstablishmentLabels(currentMarket?.establishmentType);
 
   useEffect(() => {
     let isActive = true;
@@ -144,7 +146,7 @@ export function CartPage() {
   const handleContinueToDelivery = () => {
     if (!meetsMinimumOrder) {
       showSystemNotice(
-        `O pedido mínimo deste mercado é R$ ${minimumOrder.toFixed(2).replace('.', ',')}. Adicione mais R$ ${missingMinimumOrder.toFixed(2).replace('.', ',')} em produtos para finalizar.`
+        `O pedido mínimo ${establishmentLabels.ofThis} é R$ ${minimumOrder.toFixed(2).replace('.', ',')}. Adicione mais R$ ${missingMinimumOrder.toFixed(2).replace('.', ',')} em produtos para finalizar.`
       );
       return;
     }
@@ -224,14 +226,14 @@ export function CartPage() {
               <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 flex items-center gap-2 mb-3">
                 <Truck size={16} color="#f97316" />
                 <p style={{ fontSize: '12px', color: '#ea580c', lineHeight: 1.4 }}>
-                  Taxa de entrega deste mercado: <b>R$ {deliveryFee.toFixed(2).replace('.', ',')}</b>
+                  Taxa de entrega {establishmentLabels.ofThis}: <b>R$ {deliveryFee.toFixed(2).replace('.', ',')}</b>
                 </p>
               </div>
             )}
             {deliveryFee === 0 && (
               <div className="rounded-2xl px-4 py-3 flex items-center gap-2 mb-3" style={{ backgroundColor: primarySoftColor, border: `1px solid ${primaryColor}` }}>
                 <Truck size={16} color={primaryColor} />
-                <p style={{ fontSize: '12px', color: primaryColor, fontWeight: 600 }}>Entrega grátis neste mercado.</p>
+                <p style={{ fontSize: '12px', color: primaryColor, fontWeight: 600 }}>Entrega grátis {establishmentLabels.inThis}.</p>
               </div>
             )}
 
