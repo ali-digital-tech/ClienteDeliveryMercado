@@ -26,6 +26,7 @@ import { ProfileScreen } from '../pages/ProfileScreen';
 import { SplashScreen } from '../pages/SplashScreen';
 import { SupportScreen } from '../pages/SupportScreen';
 import { WelcomeScreen } from '../pages/WelcomeScreen';
+import { TableQrPage } from '@/pages/Salao/TableQrPage';
 import { withAuth } from './RequireAuth';
 
 const AuthenticatedCartPage = withAuth(CartPage);
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
       { path: 'splash', Component: SplashScreen },
       { path: 'welcome', Component: WelcomeScreen },
       { path: 'home', Component: MarketPage },
+      { path: 'mesa/:qrToken', Component: TableQrPage },
       { path: 'promocoes', Component: MarketPage },
       { path: 'categories', Component: CategoriesPage },
       { path: 'produtos', Component: ProductsPage },
