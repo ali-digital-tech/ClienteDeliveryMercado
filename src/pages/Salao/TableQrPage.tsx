@@ -85,6 +85,14 @@ export function TableQrPage() {
 
   const loadProducts = useCallback(async (nextPage = 1, append = false) => {
     if (!marketId || productsLoadingRef.current) return;
+    if (!selectedCategoryId) {
+      setProducts([]);
+      setPage(1);
+      setHasNextPage(false);
+      setProductsLoading(false);
+      setLoadingMore(false);
+      return;
+    }
     productsLoadingRef.current = true;
     if (append) setLoadingMore(true);
     else setProductsLoading(true);
@@ -93,7 +101,7 @@ export function TableQrPage() {
       const catalog = await getProductsByMarketId(marketId, {
         page: nextPage,
         perPage: PRODUCTS_PER_PAGE,
-        categoryId: selectedCategoryId || undefined,
+        categoryId: selectedCategoryId,
       });
       setProducts((current) => (append ? [...current, ...catalog.products] : catalog.products));
       setPage(catalog.page || nextPage);
@@ -121,6 +129,7 @@ export function TableQrPage() {
         if (!active) return;
         setContext(ctx);
         setCategories(departmentCategories);
+        setSelectedCategoryId((current) => current || departmentCategories[0]?.id || "");
       } catch (error: any) {
         if (active) setNotice(error?.message || "Não foi possível abrir o cardápio da mesa.");
       } finally {
@@ -384,34 +393,21 @@ export function TableQrPage() {
         <section className="mb-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-bold" style={{ color: "var(--market-primary-color)" }}>Categorias</h2>
-            {selectedCategoryId && (
-              <button
-                onClick={() => setSelectedCategoryId("")}
-                className="text-xs font-bold text-slate-500"
-              >
-                Limpar
-              </button>
-            )}
+            <span className="text-xs font-semibold text-slate-500">Escolha uma categoria</span>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-            <button
-              onClick={() => setSelectedCategoryId("")}
-              className="flex h-[94px] w-[82px] shrink-0 flex-col items-center justify-between rounded-2xl p-3 transition active:scale-95"
-              style={{
-                backgroundColor: !selectedCategoryId ? "var(--market-primary-color)" : "#ffffff",
-                border: "1px solid var(--market-primary-border-color)",
-                color: !selectedCategoryId ? "#ffffff" : "var(--market-primary-color)",
-              }}
-            >
-              <UtensilsCrossed size={24} />
-              <span className="min-h-[24px] text-center text-[10px] font-bold leading-tight">Todos</span>
-            </button>
             {categories.map((category) => {
               const active = selectedCategoryId === category.id;
               return (
                 <button
                   key={category.id}
-                  onClick={() => setSelectedCategoryId(category.id)}
+                  onClick={() => {
+                    if (selectedCategoryId === category.id) return;
+                    setProducts([]);
+                    setPage(1);
+                    setHasNextPage(false);
+                    setSelectedCategoryId(category.id);
+                  }}
                   className="flex h-[94px] w-[82px] shrink-0 flex-col items-center justify-between rounded-2xl p-3 transition active:scale-95"
                   style={{
                     backgroundColor: active ? "var(--market-primary-color)" : "var(--market-primary-soft-color)",
@@ -430,12 +426,16 @@ export function TableQrPage() {
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-bold" style={{ color: "var(--market-primary-color)" }}>
-              {selectedCategory ? selectedCategory.name : "Produtos"}
+              {selectedCategory ? selectedCategory.name : "Selecione uma categoria"}
             </h2>
             {products.length > 0 && <span className="text-xs font-semibold text-slate-500">{products.length} exibidos</span>}
           </div>
 
-          {productsLoading ? (
+          {!selectedCategoryId ? (
+            <div className="rounded-2xl bg-white px-4 py-12 text-center text-sm font-semibold text-slate-500">
+              Selecione uma categoria para ver os produtos.
+            </div>
+          ) : productsLoading ? (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
               {[0, 1, 2, 3, 4, 5].map((item) => (
                 <div key={item} className="h-[226px] animate-pulse rounded-2xl bg-white" />
