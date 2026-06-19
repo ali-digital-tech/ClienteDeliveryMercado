@@ -6,7 +6,26 @@ function unwrap<T = any>(payload: any): T {
 
 export const salaoQrService = {
   getContext: async (token: string) =>
-    unwrap(await apiRequest(`/salao/qr/mesas/${token}`)),
+    unwrap(await apiRequest(`/salao/qr/${token}/context`)),
+
+  requestOpening: async (token: string, data: Record<string, unknown>) =>
+    unwrap(await apiRequest(`/salao/qr/${token}/solicitar-abertura`, {
+      method: "POST",
+      body: data,
+    })),
+
+  validatePin: async (token: string, data: Record<string, unknown>) =>
+    unwrap(await apiRequest(`/salao/qr/${token}/validar-pin`, {
+      method: "POST",
+      body: data,
+    })),
+
+  sendOrder: async (token: string, participantToken: string, data: Record<string, unknown>) =>
+    unwrap(await apiRequest(`/salao/qr/${token}/pedidos`, {
+      method: "POST",
+      headers: { "x-salao-participant-token": participantToken },
+      body: data,
+    })),
 
   addItem: async (token: string, data: Record<string, unknown>) =>
     unwrap(await apiRequest(`/salao/qr/mesas/${token}/itens`, {
@@ -20,9 +39,10 @@ export const salaoQrService = {
       body: { observacoes: observacoes || null },
     })),
 
-  requestBill: async (token: string, observacoes?: string) =>
-    unwrap(await apiRequest(`/salao/qr/mesas/${token}/solicitar-conta`, {
+  requestBill: async (token: string, participantToken: string, data?: Record<string, unknown>) =>
+    unwrap(await apiRequest(`/salao/qr/${token}/solicitar-conta`, {
       method: "POST",
-      body: { observacoes: observacoes || null },
+      headers: { "x-salao-participant-token": participantToken },
+      body: data || {},
     })),
 };
