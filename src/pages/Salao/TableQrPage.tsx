@@ -257,7 +257,7 @@ export function TableQrPage() {
 
   if (initialLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white text-gray-600">
+      <div className="flex flex-1 items-center justify-center bg-white text-gray-600">
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
         Abrindo cardápio...
       </div>
@@ -265,9 +265,9 @@ export function TableQrPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-32">
+    <div className="flex flex-1 flex-col overflow-hidden bg-slate-50">
       <header
-        className="sticky top-0 z-20 px-4 pb-3 pt-7 shadow-sm"
+        className="z-20 flex-shrink-0 px-4 pb-3 pt-7 shadow-sm"
         style={{ background: "linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)" }}
       >
         <div className="mx-auto max-w-3xl">
@@ -316,7 +316,8 @@ export function TableQrPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-4">
+      <main className={`w-full flex-1 overflow-y-auto px-4 py-4 ${cart.length > 0 ? "pb-56" : "pb-6"}`}>
+        <div className="mx-auto max-w-3xl">
         {notice && (
           <div className="mb-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
             {notice}
@@ -491,6 +492,7 @@ export function TableQrPage() {
             </>
           )}
         </section>
+        </div>
       </main>
 
       {cart.length > 0 && (
