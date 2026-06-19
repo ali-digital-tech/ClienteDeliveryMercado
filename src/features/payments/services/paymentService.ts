@@ -74,6 +74,10 @@ export interface MercadoPagoPaymentResult {
     valor: string | number;
     application_fee?: string | number | null;
     gateway_pagamento_id?: string | null;
+    pago_em?: string | null;
+    sem_troco?: boolean | null;
+    troco_para?: string | number | null;
+    troco_valor?: string | number | null;
   };
   mp_payment_id: string | number;
   status: string;
@@ -337,6 +341,10 @@ export async function createCashPayment(
       valor: payment.valor,
       application_fee: payment.application_fee || 0,
       gateway_pagamento_id: payment.gateway_pagamento_id || null,
+      pago_em: payment.pago_em || null,
+      sem_troco: payment.sem_troco ?? null,
+      troco_para: payment.troco_para ?? null,
+      troco_valor: payment.troco_valor ?? null,
     },
     mp_payment_id: payment.id,
     status: payment.status,

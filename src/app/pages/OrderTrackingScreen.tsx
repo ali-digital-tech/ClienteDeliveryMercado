@@ -419,9 +419,14 @@ export function OrderTrackingScreen() {
   const refunds = selectedOrder.refunds || [];
   const isCanceledWithoutPayment = selectedOrder.status === "cancelado" && !selectedOrder.isPaid;
   const isPaymentPending = !selectedOrder.isPaid && selectedOrder.status !== "cancelado";
+  const isPendingCashPayment = isPaymentPending && selectedOrder.payment?.method === "dinheiro";
   const paymentStatusMessage = isCanceledWithoutPayment
     ? "Pedido cancelado sem pagamento concluído."
-    : isPaymentPending
+    : isPendingCashPayment
+      ? selectedOrder.type === "pickup"
+        ? "Pagamento em dinheiro pendente. Pague na retirada."
+        : "Pagamento em dinheiro pendente. Pague ao receber."
+      : isPaymentPending
       ? "Pagamento aguardando confirmação."
       : "Pagamento registrado com segurança.";
   const canRequestCancellation = !cancellationRequest
@@ -973,7 +978,7 @@ export function OrderTrackingScreen() {
               {paymentStatusMessage}
             </p>
           </div>
-          {isPaymentPending && (
+          {isPaymentPending && !isPendingCashPayment && (
             <button
               onClick={() => navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(selectedOrder.rawId || selectedOrder.id)}`)}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2"

@@ -694,10 +694,12 @@ export function CheckoutPage() {
       receiptKey: order.chave_recebimento,
       payment_id: result.payment.id,
       mp_payment_id: result.mp_payment_id,
+      paymentMethod: result.payment.forma_pagamento,
+      paymentStatus: result.payment.status,
     }));
   }, []);
 
-  const completeApprovedPayment = useCallback(async (
+  const completeConfirmedOrder = useCallback(async (
     result: MercadoPagoPaymentResult,
     order: PendingCheckoutOrder
   ) => {
@@ -843,7 +845,7 @@ export function CheckoutPage() {
         if (cancelled) return;
 
         if (payment.status === 'aprovado') {
-          await completeApprovedPayment(
+          await completeConfirmedOrder(
             {
               ...paymentResult,
               payment: {
@@ -871,7 +873,7 @@ export function CheckoutPage() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [completeApprovedPayment, paymentResult, pendingOrder, pixStatus]);
+  }, [completeConfirmedOrder, paymentResult, pendingOrder, pixStatus]);
 
   const handleFinalize = async (paymentSelectionOverride?: StoredPaymentSelection) => {
     if (cart.length === 0) {
@@ -983,8 +985,13 @@ export function CheckoutPage() {
 
       setPaymentResult(result);
 
+      if (selection.method === 'dinheiro') {
+        await completeConfirmedOrder(result, order);
+        return;
+      }
+
       if (result.payment.status === 'aprovado') {
-        await completeApprovedPayment(result, order);
+        await completeConfirmedOrder(result, order);
         return;
       }
 
@@ -1323,7 +1330,7 @@ export function CheckoutPage() {
                   fontWeight: 600,
                 }}
               >
-                {isCashPayment ? "Pagamento aprovado na entrega ou retirada" : payerStatusMessage}
+                {isCashPayment ? "Pagamento em dinheiro pendente até a entrega ou retirada" : payerStatusMessage}
               </p>
             </div>
             {paymentReady ? (

@@ -96,8 +96,12 @@ function hasValidPixPayment(order: Order) {
   );
 }
 
+function isPendingCashOrder(order: Order) {
+  return !order.isPaid && order.payment?.method === "dinheiro" && order.payment.status === "pendente";
+}
+
 function getReachedCompactStepIndex(order: Order) {
-  if (!order.isPaid) return 0;
+  if (!order.isPaid && !isPendingCashOrder(order)) return 0;
   if (order.status === "entregue" || order.status === "nao_entregue" || order.deliveredAt || order.deliveryInfo?.failedAt) return 4;
   if (order.status === "pronto" || order.status === "saiu" || order.readyAt || order.outForDeliveryAt || order.deliveryInfo?.outForDeliveryAt) return 3;
   if (order.status === "separacao" || order.separationAt) return 2;
@@ -107,7 +111,7 @@ function getReachedCompactStepIndex(order: Order) {
 
 function getCompactTimelineSteps(order: Order): CompactTimelineStep[] {
   const isPickup = order.type === "pickup";
-  const paymentPending = !order.isPaid;
+  const paymentPending = !order.isPaid && !isPendingCashOrder(order);
   const baseLabels = paymentPending
     ? ["Pagamento", "Recebido", "Separação", isPickup ? "Pronto" : "Envio", isPickup ? "Retirado" : "Entregue"]
     : ["Recebido", "Confirmado", "Separação", isPickup ? "Pronto" : "Envio", isPickup ? "Retirado" : "Entregue"];
@@ -295,7 +299,7 @@ export function MyOrdersScreen() {
   const handleOpenOrderDetails = (order: Order) => {
     const orderId = order.rawId || order.id;
 
-    if (!order.isPaid && order.status !== "cancelado") {
+    if (!order.isPaid && !isPendingCashOrder(order) && order.status !== "cancelado") {
       navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(orderId)}`);
       return;
     }
@@ -407,11 +411,11 @@ export function MyOrdersScreen() {
                 ? defaultStatus
                 : order.type === "pickup" && order.status === "entregue"
                 ? { ...defaultStatus, label: "Retirado" }
-                : !order.isPaid
+                : !order.isPaid && !isPendingCashOrder(order)
                   ? { color: "#92400e", bg: "#fffbeb", label: "Aguardando pagamento" }
                   : defaultStatus;
               const isActive = !["entregue", "nao_entregue", "cancelado"].includes(order.status);
-              const canRecoverPayment = !order.isPaid && order.status !== "cancelado";
+              const canRecoverPayment = !order.isPaid && !isPendingCashOrder(order) && order.status !== "cancelado";
               const itemCount = order.itemCount ?? order.items.reduce((sum, item) => sum + item.qty, 0);
               const hasItems = order.items.length > 0;
               const canRepeat = Boolean(order.cartId) || itemCount > 0 || hasItems;

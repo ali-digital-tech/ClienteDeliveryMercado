@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { CheckCircle2, Home, Eye, KeyRound } from "lucide-react";
+import { CheckCircle2, Home, Eye, KeyRound, CreditCard } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { PostPaymentPushPrompt } from "@/features/notifications";
 import { formatBrasiliaDate } from '@/shared/lib/dateTime';
@@ -36,6 +36,8 @@ export function OrderConfirmedScreen() {
   const [savedTotal, setSavedTotal] = useState(0);
   const [savedScheduledFor, setSavedScheduledFor] = useState<string | null>(null);
   const [savedReceiptKey, setSavedReceiptKey] = useState<string | null>(null);
+  const [savedPaymentMethod, setSavedPaymentMethod] = useState<string | null>(null);
+  const [savedPaymentStatus, setSavedPaymentStatus] = useState<string | null>(null);
   const normalizedOrderId = (rawOrderId || orderId).replace(/^#/, "");
   const apiOrder = orders.find((order) => (
     [order.rawId, order.id, order.number]
@@ -45,6 +47,9 @@ export function OrderConfirmedScreen() {
   const displayedTotal = apiOrder?.total ?? savedTotal;
   const displayedScheduledFor = apiOrder?.scheduledFor ?? savedScheduledFor;
   const displayedReceiptKey = apiOrder?.receiptKey ?? savedReceiptKey;
+  const displayedPaymentMethod = apiOrder?.payment?.method ?? savedPaymentMethod;
+  const displayedPaymentStatus = apiOrder?.payment?.status ?? savedPaymentStatus;
+  const hasPendingCashPayment = displayedPaymentMethod === "dinheiro" && displayedPaymentStatus === "pendente";
   const displayedStatus = apiOrder?.type === "pickup" && apiOrder.status === "entregue"
     ? "Retirado"
     : apiOrder ? statusLabels[apiOrder.status] : "Recebido";
@@ -59,7 +64,15 @@ export function OrderConfirmedScreen() {
 
   useEffect(() => {
     const total = cartTotal - discount;
-    let order: { id?: string; rawId?: string; total?: number | string; scheduledFor?: string | null; receiptKey?: string | null } | null = null;
+    let order: {
+      id?: string;
+      rawId?: string;
+      total?: number | string;
+      scheduledFor?: string | null;
+      receiptKey?: string | null;
+      paymentMethod?: string | null;
+      paymentStatus?: string | null;
+    } | null = null;
 
     try {
       const stored = sessionStorage.getItem('cliente_delivery_last_order');
@@ -71,6 +84,8 @@ export function OrderConfirmedScreen() {
     setSavedTotal(Number(order?.total || total || 0));
     setSavedScheduledFor(order?.scheduledFor || null);
     setSavedReceiptKey(order?.receiptKey || null);
+    setSavedPaymentMethod(order?.paymentMethod || null);
+    setSavedPaymentStatus(order?.paymentStatus || null);
     setOrderId(order?.id || "");
     setRawOrderId(order?.rawId || order?.id || "");
     setTimeout(() => setShow(true), 100);
@@ -263,6 +278,20 @@ export function OrderConfirmedScreen() {
               </span>
             </div>
 
+            {hasPendingCashPayment && (
+              <div className="rounded-xl px-3 py-2 text-left" style={{ backgroundColor: "#fffbeb", border: "1px solid #fde68a" }}>
+                <div className="flex items-center gap-2">
+                  <CreditCard size={15} color="#b45309" />
+                  <span style={{ fontSize: "12px", fontWeight: 800, color: "#92400e" }}>
+                    Pagamento pendente
+                  </span>
+                </div>
+                <p className="mt-1" style={{ fontSize: "11px", lineHeight: 1.35, color: "#92400e" }}>
+                  O pagamento em dinheiro será confirmado na entrega ou retirada.
+                </p>
+              </div>
+            )}
+
             <div
               className="h-px"
               style={{ backgroundColor: "#e2e8f0" }}
@@ -276,7 +305,7 @@ export function OrderConfirmedScreen() {
                   color: "#334155",
                 }}
               >
-                Total pago
+                {hasPendingCashPayment ? "Total do pedido" : "Total pago"}
               </span>
               <span
                 style={{
