@@ -14,6 +14,7 @@ import {
   saveCustomerPaymentCard,
   savePaymentSelection,
   selectionFromSavedCard,
+  tokenizePagarmeCard,
   validatePayerData,
   type CardPaymentMethod,
   type PaymentMethod,
@@ -28,6 +29,7 @@ interface MercadoPagoCardToken {
   id?: string;
   first_six_digits?: string;
   last_four_digits?: string;
+  payment_method_id?: string;
   cardholder?: {
     name?: string;
   };
@@ -395,6 +397,8 @@ export function PaymentScreen() {
     doc_number: storedPayer.doc_number || "",
   });
   const [publicKey, setPublicKey] = useState("");
+  const [paymentGateway, setPaymentGateway] = useState<"mercadopago" | "pagarme" | null>(null);
+  const [pagarmeCard, setPagarmeCard] = useState({ number: "", exp_month: "", exp_year: "", cvv: "" });
   const [checkoutConfigLoaded, setCheckoutConfigLoaded] = useState(false);
   const [cardholderName, setCardholderName] = useState(currentUser?.nome || "");
   const [paymentMethodId, setPaymentMethodId] = useState(storedSelection.payment_method_id || "");
@@ -434,6 +438,7 @@ export function PaymentScreen() {
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
   const isCashPayment = selected === "dinheiro";
   const isCardPayment = selected !== "pix" && selected !== "dinheiro";
+  const isPagarme = paymentGateway === "pagarme";
   const selectedSavedCard = savedCards.find((card) => card.id === selectedSavedCardId) || null;
   const isUsingSavedCard = Boolean(isCardPayment && !isProfilePaymentMethods && selectedSavedCard);
   const savedCardsForSelectedMethod = savedCards.filter((card) => card.forma_pagamento === selected);
@@ -462,6 +467,7 @@ export function PaymentScreen() {
           showSystemNotice("Esta loja ainda não possui pagamentos online configurados.");
         }
         setPublicKey(config.public_key || "");
+        setPaymentGateway(config.gateway || "mercadopago");
         setCheckoutConfigLoaded(true);
       })
       .catch((err) => {
@@ -482,7 +488,11 @@ export function PaymentScreen() {
   }, [currentMarket.acceptsCash, selected]);
 
   useEffect(() => {
-    if (isProfilePaymentMethods) return;
+    if (isProfilePaymentMethods || paymentGateway !== "mercadopago") {
+      setSavedCards([]);
+      setSelectedSavedCardId("");
+      return;
+    }
 
     let isActive = true;
     getSavedPaymentCards(marketId)
@@ -513,7 +523,7 @@ export function PaymentScreen() {
     return () => {
       isActive = false;
     };
-  }, [applySavedCardSelection, isProfilePaymentMethods, marketId, storedSelection.method, storedSelection.saved_card_id]);
+  }, [applySavedCardSelection, isProfilePaymentMethods, marketId, paymentGateway, storedSelection.method, storedSelection.saved_card_id]);
 
   useEffect(() => {
     if (!isCardPayment) {
@@ -732,6 +742,13 @@ export function PaymentScreen() {
   useEffect(() => {
     if (!isCardPayment || !publicKey) return;
 
+    if (isPagarme) {
+      setSecureFieldsError("");
+      setSecureFieldsReady(true);
+      resetCardMetadata();
+      return;
+    }
+
     let cancelled = false;
 
     const mountSecureFields = async () => {
@@ -810,10 +827,27 @@ export function PaymentScreen() {
       setIsLoadingCardInfo(false);
       clearSecureFieldContainers();
     };
-  }, [isCardPayment, isUsingSavedCard, publicKey, resetCardMetadata]);
+  }, [isCardPayment, isPagarme, isUsingSavedCard, publicKey, resetCardMetadata]);
 
   const createSecureCardToken = async (normalizedPayer: PayerData) => {
     if (!publicKey) throw new Error("Pagamento online não configurado para esta loja.");
+    if (isPagarme) {
+      if (!cardholderName.trim()) throw new Error("Informe o nome impresso no cartão.");
+      const number = pagarmeCard.number.replace(/\D/g, "");
+      const expMonth = Number(pagarmeCard.exp_month);
+      let expYear = Number(pagarmeCard.exp_year);
+      if (expYear < 100) expYear += 2000;
+      if (number.length < 13 || !expMonth || !expYear || pagarmeCard.cvv.length < 3) {
+        throw new Error("Preencha corretamente os dados do cartão.");
+      }
+      return tokenizePagarmeCard(publicKey, {
+        number,
+        holder_name: cardholderName.trim(),
+        exp_month: expMonth,
+        exp_year: expYear,
+        cvv: pagarmeCard.cvv.replace(/\D/g, ""),
+      });
+    }
     if (!secureFieldsReady || !mpRef.current) throw new Error("Aguarde os campos seguros do cartão carregarem.");
 
     if (isUsingSavedCard && selectedSavedCard) {
@@ -852,6 +886,10 @@ export function PaymentScreen() {
       const normalizedPayer = isCashPayment ? null : validatePayer();
       if (normalizedPayer) savePayerData(normalizedPayer);
 
+      if (isProfilePaymentMethods && isPagarme) {
+        throw new Error("O salvamento de cartões ainda não está disponível para lojas que usam Stone.");
+      }
+
       if (selected === "pix") {
         savePaymentSelection({ method: "pix" });
       } else if (selected === "dinheiro") {
@@ -874,14 +912,14 @@ export function PaymentScreen() {
               method: selected,
               card_token: cardToken.id,
               card_token_created_at: Date.now(),
-              payment_method_id: paymentMethodId,
+              payment_method_id: cardToken.payment_method_id || paymentMethodId || "card",
               issuer_id: issuerId,
               installments,
               cardholder_name: cardholderName.trim(),
               last_four_digits: cardToken.last_four_digits,
             };
 
-        if (!selectedSavedCard && (isProfilePaymentMethods || saveCardForNextPurchases)) {
+        if (!isPagarme && !selectedSavedCard && (isProfilePaymentMethods || saveCardForNextPurchases)) {
           const formasPagamento = isProfilePaymentMethods && cardSaveMode === "cartao_credito_debito"
             ? ["cartao_credito", "cartao_debito"] satisfies CardPaymentMethod[]
             : undefined;
@@ -1280,7 +1318,36 @@ export function PaymentScreen() {
                     />
                   </div>
 
-                  <div className="col-span-2">
+                  {isPagarme && (
+                    <>
+                      <div className="col-span-2">
+                        <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>Número do cartão</label>
+                        <input
+                          className="w-full rounded-xl border px-3 py-3 text-sm outline-none"
+                          inputMode="numeric"
+                          autoComplete="cc-number"
+                          maxLength={23}
+                          value={pagarmeCard.number}
+                          onChange={(event) => setPagarmeCard((prev) => ({ ...prev, number: event.target.value.replace(/[^\d ]/g, "") }))}
+                          placeholder="0000 0000 0000 0000"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>Mês</label>
+                        <input className="w-full rounded-xl border px-3 py-3 text-sm outline-none" inputMode="numeric" autoComplete="cc-exp-month" maxLength={2} value={pagarmeCard.exp_month} onChange={(event) => setPagarmeCard((prev) => ({ ...prev, exp_month: event.target.value.replace(/\D/g, "") }))} placeholder="MM" />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>Ano</label>
+                        <input className="w-full rounded-xl border px-3 py-3 text-sm outline-none" inputMode="numeric" autoComplete="cc-exp-year" maxLength={4} value={pagarmeCard.exp_year} onChange={(event) => setPagarmeCard((prev) => ({ ...prev, exp_year: event.target.value.replace(/\D/g, "") }))} placeholder="AAAA" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>CVV</label>
+                        <input className="w-full rounded-xl border px-3 py-3 text-sm outline-none" type="password" inputMode="numeric" autoComplete="cc-csc" maxLength={4} value={pagarmeCard.cvv} onChange={(event) => setPagarmeCard((prev) => ({ ...prev, cvv: event.target.value.replace(/\D/g, "") }))} placeholder="CVV" />
+                      </div>
+                    </>
+                  )}
+
+                  <div className={isPagarme ? "hidden" : "col-span-2"}>
                     <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
                       Número do cartão
                     </label>
@@ -1291,7 +1358,7 @@ export function PaymentScreen() {
                     />
                   </div>
 
-                  <div>
+                  <div className={isPagarme ? "hidden" : ""}>
                     <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
                       Validade
                     </label>
@@ -1302,7 +1369,7 @@ export function PaymentScreen() {
                     />
                   </div>
 
-                  <div>
+                  <div className={isPagarme ? "hidden" : ""}>
                     <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
                       CVV
                     </label>
@@ -1313,7 +1380,7 @@ export function PaymentScreen() {
                     />
                   </div>
 
-                  {isLoadingCardInfo && (
+                  {!isPagarme && isLoadingCardInfo && (
                     <div className="col-span-2 rounded-xl px-3 py-2 text-sm" style={{ backgroundColor: "#f8fafc", color: "#64748b" }}>
                       <span className="inline-flex items-center gap-2 font-semibold">
                         <Loader2 size={15} className="animate-spin" />
@@ -1322,7 +1389,7 @@ export function PaymentScreen() {
                     </div>
                   )}
 
-                  {issuerOptions.length > 1 ? (
+                  {!isPagarme && issuerOptions.length > 1 ? (
                     <div className="col-span-2">
                       <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
                         Banco do cartão
@@ -1341,7 +1408,7 @@ export function PaymentScreen() {
                     </div>
                   ) : null}
 
-                  {selected === "cartao_credito" && paymentMethodId && !isProfilePaymentMethods && (
+                  {selected === "cartao_credito" && (paymentMethodId || isPagarme) && !isProfilePaymentMethods && (
                     <div className="col-span-2">
                       <label className="mb-1.5 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
                         Parcelamento
@@ -1362,7 +1429,7 @@ export function PaymentScreen() {
                   )}
                 </div>
 
-                {!isProfilePaymentMethods && (
+                {!isPagarme && !isProfilePaymentMethods && (
                   <label
                     className="mt-4 flex items-start gap-3 rounded-xl px-3 py-3"
                     style={{ backgroundColor: "#f8fafc", border: "1px solid var(--market-primary-border-color)" }}
@@ -1381,7 +1448,7 @@ export function PaymentScreen() {
               </>
             )}
 
-            {selected === "cartao_credito" && paymentMethodId && paymentAmount > 0 && (
+            {selected === "cartao_credito" && (paymentMethodId || isPagarme) && paymentAmount > 0 && (
               <p className="mt-3" style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}>
                 Parcelamento calculado sobre {formatCurrency(paymentAmount)}.
               </p>

@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"pagarme": {
+			"type": "http",
+			"url": "https://docs.pagar.me/mcp"
+		}
+	},
+	"inputs": []
+}

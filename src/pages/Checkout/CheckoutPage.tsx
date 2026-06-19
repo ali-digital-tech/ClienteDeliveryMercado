@@ -593,6 +593,7 @@ export function CheckoutPage() {
   useEffect(() => {
     if (
       !marketId ||
+      !checkoutConfig?.capabilities?.saved_cards ||
       paymentSelection.method === 'pix' ||
       paymentSelection.method === 'dinheiro' ||
       paymentSelection.saved_card_id ||
@@ -618,10 +619,10 @@ export function CheckoutPage() {
     return () => {
       isActive = false;
     };
-  }, [marketId, paymentSelection]);
+  }, [checkoutConfig?.capabilities?.saved_cards, marketId, paymentSelection]);
 
   useEffect(() => {
-    if (!marketId || paymentSelection.method === 'pix') return;
+    if (!marketId || !checkoutConfig?.capabilities?.saved_cards || paymentSelection.method === 'pix') return;
 
     let isActive = true;
 
@@ -636,7 +637,7 @@ export function CheckoutPage() {
     return () => {
       isActive = false;
     };
-  }, [marketId, paymentSelection.method, paymentSelection.saved_card_id]);
+  }, [checkoutConfig?.capabilities?.saved_cards, marketId, paymentSelection.method, paymentSelection.saved_card_id]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -819,7 +820,7 @@ export function CheckoutPage() {
       setPixSecondsRemaining(remaining);
 
       if (remaining <= 0) {
-        setPixFailureMessage('A validade exibida terminou. Estamos consultando o Mercado Pago antes de atualizar o pagamento.');
+        setPixFailureMessage('A validade exibida terminou. Estamos consultando o gateway antes de atualizar o pagamento.');
         if (paymentResult.payment.id && !pixExpirationCheckedRef.current) {
           pixExpirationCheckedRef.current = true;
           void refreshPaymentById(paymentResult.payment.id).catch((error) => {
@@ -999,7 +1000,7 @@ export function CheckoutPage() {
         setPendingOrder(order);
         const resolvedExpiration = resolvePixExpiration(result.date_of_expiration);
         if (!resolvedExpiration) {
-          throw new Error('O Mercado Pago não retornou a validade do PIX.');
+          throw new Error('O gateway não retornou a validade do PIX.');
         }
         const expiration = new Date(resolvedExpiration).getTime();
         const remainingSeconds = Math.max(0, Math.ceil((expiration - Date.now()) / 1000));
@@ -1632,7 +1633,7 @@ export function CheckoutPage() {
                 {pixStatus === 'waiting'
                   ? pixSecondsRemaining > 0
                     ? `Você tem ${formatPixCountdown(pixSecondsRemaining)} para realizar o pagamento. Estamos verificando se você já fez o pagamento.`
-                    : 'A validade exibida terminou. O pedido continuará pendente até o Mercado Pago confirmar o resultado.'
+                    : 'A validade exibida terminou. O pedido continuará pendente até o gateway confirmar o resultado.'
                   : pixFailureMessage}
               </p>
             </div>

@@ -51,6 +51,7 @@ export interface SavedPaymentCard {
 }
 
 export interface MercadoPagoCheckoutConfig {
+  gateway: 'mercadopago' | 'pagarme';
   public_key: string;
   connected: boolean;
   onboarding_status?: string | null;
@@ -61,6 +62,13 @@ export interface MercadoPagoCheckoutConfig {
     valor?: number | string | null;
     percentual?: number | string | null;
   } | null;
+  capabilities?: {
+    pix: boolean;
+    credit_card: boolean;
+    debit_card: boolean;
+    saved_cards: boolean;
+    platform_split: boolean;
+  };
 }
 
 export type PlatformSplitConfig = NonNullable<MercadoPagoCheckoutConfig['platform_split']>;
@@ -80,6 +88,8 @@ export interface MercadoPagoPaymentResult {
     troco_valor?: string | number | null;
   };
   mp_payment_id: string | number;
+  provider_payment_id?: string | number;
+  provider_order_id?: string | number;
   status: string;
   status_detail?: string | null;
   qr_code?: string | null;
@@ -243,7 +253,7 @@ export function selectionFromSavedCard(card: SavedPaymentCard): StoredPaymentSel
 
 export async function getMercadoPagoCheckoutConfig(marketId: string) {
   const response = await apiRequest<{ data: MercadoPagoCheckoutConfig }>(
-    `/mercadopago/checkout-config/${marketId}`
+    `/payment-gateways/checkout-config/${marketId}`
   );
 
   return response.data;
@@ -305,7 +315,7 @@ export async function setPrincipalCustomerPaymentCard(cardId: string) {
 
 export async function createPixPayment(pedidoId: string, payer: PayerData) {
   const response = await apiRequest<{ data: MercadoPagoPaymentResult }>(
-    '/mercadopago/payment/pix',
+    '/payment-gateways/payment/pix',
     {
       method: 'POST',
       body: {
@@ -363,7 +373,7 @@ export async function getPaymentById(paymentId: string) {
 }
 
 export async function refreshPaymentById(paymentId: string) {
-  await apiRequest(`/mercadopago/payment/${paymentId}/status`);
+  await apiRequest(`/payment-gateways/payment/${paymentId}/status`);
   return getPaymentById(paymentId);
 }
 
@@ -386,7 +396,7 @@ export async function createCardPayment(
     }
 
     const response = await apiRequest<{ data: MercadoPagoPaymentResult }>(
-      '/mercadopago/payment/saved-card',
+      '/payment-gateways/payment/saved-card',
       {
         method: 'POST',
         body: {
@@ -407,7 +417,7 @@ export async function createCardPayment(
   }
 
   const response = await apiRequest<{ data: MercadoPagoPaymentResult }>(
-    '/mercadopago/payment/card',
+    '/payment-gateways/payment/card',
     {
       method: 'POST',
       body: {
@@ -423,4 +433,33 @@ export async function createCardPayment(
   );
 
   return response.data;
+}
+
+export interface PagarmeCardData {
+  number: string;
+  holder_name: string;
+  exp_month: number;
+  exp_year: number;
+  cvv: string;
+}
+
+export async function tokenizePagarmeCard(publicKey: string, card: PagarmeCardData) {
+  if (!publicKey) throw new Error('Chave pública Pagar.me não configurada.');
+  const baseUrl = publicKey.startsWith('pk_test_')
+    ? 'https://sdx-api.pagar.me/core/v5'
+    : 'https://api.pagar.me/core/v5';
+  const response = await fetch(`${baseUrl}/tokens?appId=${encodeURIComponent(publicKey)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'card', card }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.id) {
+    throw new Error(payload?.message || payload?.errors?.[0]?.message || 'Não foi possível validar o cartão no Pagar.me.');
+  }
+  return {
+    id: String(payload.id),
+    last_four_digits: payload.card?.last_four_digits || card.number.replace(/\D/g, '').slice(-4),
+    payment_method_id: String(payload.card?.brand || 'card').toLowerCase(),
+  };
 }
