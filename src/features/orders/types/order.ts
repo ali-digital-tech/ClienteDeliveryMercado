@@ -13,7 +13,7 @@ export interface OrderItem {
 
 export interface OrderPayment {
   id: string;
-  method: 'pix' | 'cartao_credito' | 'cartao_debito' | string;
+  method: 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro' | string;
   status: string;
   value: number;
   applicationFee?: number;
@@ -24,6 +24,9 @@ export interface OrderPayment {
   expiresAt?: string | null;
   paidAt?: string | null;
   createdAt?: string | null;
+  noChange?: boolean;
+  changeFor?: number | null;
+  changeValue?: number | null;
 }
 
 export interface OrderCancellationRequest {

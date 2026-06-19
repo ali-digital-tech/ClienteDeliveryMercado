@@ -21,4 +21,6 @@ export interface Market {
   email?: string | null;
   openingTime?: string | null;
   closingTime?: string | null;
+  paymentMethods?: string[];
+  acceptsCash?: boolean;
 }

@@ -29,6 +29,7 @@ interface ApiStore {
 
 interface ApiStoreConfig {
   whatsapp_suporte?: string | null;
+  formas_pagamento?: string[] | null;
 }
 
 const fallbackLogo = 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=600&q=80';
@@ -52,6 +53,15 @@ function resolveEstablishmentType(store: ApiStore): EstablishmentType {
   return 'mercado';
 }
 
+function normalizePaymentMethod(value: string) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+}
+
 function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market {
   const street = store.endereco || store.rua || store.logradouro;
   const address = [
@@ -61,6 +71,7 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
   ].filter(Boolean).join(' · ');
   const establishmentType = resolveEstablishmentType(store);
   const labels = getEstablishmentLabels(establishmentType);
+  const paymentMethods = Array.isArray(config.formas_pagamento) ? config.formas_pagamento : [];
 
   return {
     id: store.id,
@@ -83,6 +94,8 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
     email: store.email || null,
     openingTime: store.horario_abertura || null,
     closingTime: store.horario_fechamento || null,
+    paymentMethods,
+    acceptsCash: paymentMethods.some((method) => normalizePaymentMethod(method) === 'dinheiro'),
   };
 }
 

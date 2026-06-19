@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { ChevronLeft, CreditCard, Loader2, Lock, QrCode, ShieldCheck, Smartphone } from "lucide-react";
+import { Banknote, ChevronLeft, CreditCard, Loader2, Lock, QrCode, ShieldCheck, Smartphone } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { getStoredCheckoutMode } from '@/features/orders/services/checkoutModeService';
 import {
@@ -140,6 +140,12 @@ const methodOptions: Array<{
     desc: "Pagamento à vista com cartão de débito",
     Icon: Smartphone,
   },
+  {
+    id: "dinheiro",
+    label: "Dinheiro",
+    desc: "Pague na entrega ou retirada",
+    Icon: Banknote,
+  },
 ];
 
 const cardSaveOptions: Array<{
@@ -179,7 +185,7 @@ type PaymentLocationState = {
 };
 
 function isPaymentMethod(value: unknown): value is PaymentMethod {
-  return value === "pix" || value === "cartao_credito" || value === "cartao_debito";
+  return value === "pix" || value === "cartao_credito" || value === "cartao_debito" || value === "dinheiro";
 }
 
 function onlyDigits(value: string) {
@@ -345,9 +351,11 @@ export function PaymentScreen() {
   const storedSelection = useMemo(() => getStoredPaymentSelection(), []);
   const locationState = location.state as PaymentLocationState | null;
   const isProfilePaymentMethods = locationState?.mode === "profilePaymentMethods";
-  const initialMethod = isPaymentMethod(locationState?.initialMethod)
+  const initialMethod = isProfilePaymentMethods && locationState?.initialMethod === "dinheiro"
+    ? "cartao_credito"
+    : isPaymentMethod(locationState?.initialMethod)
     ? locationState.initialMethod
-    : isProfilePaymentMethods && storedSelection.method === "pix"
+    : isProfilePaymentMethods && (storedSelection.method === "pix" || storedSelection.method === "dinheiro")
       ? "cartao_credito"
       : storedSelection.method || "pix";
   const initialInstallments = initialMethod === storedSelection.method
@@ -403,6 +411,10 @@ export function PaymentScreen() {
   const [cardMetadataMessage, setCardMetadataMessage] = useState("");
   const [isLoadingCardInfo, setIsLoadingCardInfo] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cashNoChange, setCashNoChange] = useState(storedSelection.sem_troco !== false);
+  const [cashChangeAmount, setCashChangeAmount] = useState(
+    storedSelection.troco_para ? String(storedSelection.troco_para).replace(".", ",") : ""
+  );
 
   const applySavedCardSelection = useCallback((card: SavedPaymentCard, preferredInstallments = storedSelection.installments || 1) => {
     const nextInstallments = card.forma_pagamento === "cartao_debito" ? 1 : preferredInstallments;
@@ -419,20 +431,23 @@ export function PaymentScreen() {
 
   const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
-  const isCardPayment = selected !== "pix";
+  const isCashPayment = selected === "dinheiro";
+  const isCardPayment = selected !== "pix" && selected !== "dinheiro";
   const selectedSavedCard = savedCards.find((card) => card.id === selectedSavedCardId) || null;
   const isUsingSavedCard = Boolean(isCardPayment && !isProfilePaymentMethods && selectedSavedCard);
   const savedCardsForSelectedMethod = savedCards.filter((card) => card.forma_pagamento === selected);
+  const cashChangeValue = Number(cashChangeAmount.replace(",", "."));
   const availableMethodOptions = useMemo(
     () => isProfilePaymentMethods
-      ? methodOptions.filter((option) => option.id !== "pix")
-      : methodOptions,
-    [isProfilePaymentMethods],
+      ? methodOptions.filter((option) => option.id !== "pix" && option.id !== "dinheiro")
+      : methodOptions.filter((option) => option.id !== "dinheiro" || currentMarket.acceptsCash),
+    [currentMarket.acceptsCash, isProfilePaymentMethods],
   );
   const payerValidation = validatePayerData(payer);
   const confirmDisabled =
     isSubmitting ||
-    !payerValidation.isValid ||
+    (!isCashPayment && !payerValidation.isValid) ||
+    (isCashPayment && !cashNoChange && (!Number.isFinite(cashChangeValue) || cashChangeValue < paymentAmount)) ||
     (isCardPayment && (!secureFieldsReady || Boolean(secureFieldsError)));
 
   useEffect(() => {
@@ -459,6 +474,13 @@ export function PaymentScreen() {
   }, [marketId]);
 
   useEffect(() => {
+    if (selected === "dinheiro" && !currentMarket.acceptsCash) {
+      setSelected("pix");
+      savePaymentSelection({ method: "pix" });
+    }
+  }, [currentMarket.acceptsCash, selected]);
+
+  useEffect(() => {
     if (isProfilePaymentMethods) return;
 
     let isActive = true;
@@ -470,7 +492,7 @@ export function PaymentScreen() {
         const defaultCard = cards.find((card) => card.principal) || cards[0] || null;
         if (!defaultCard) return;
 
-        const shouldUseSavedCard = storedSelection.method !== "pix";
+        const shouldUseSavedCard = storedSelection.method !== "pix" && storedSelection.method !== "dinheiro";
         const hasFreshStoredToken = hasFreshCardToken(storedSelection);
         const storedSavedCard = shouldUseSavedCard && storedSelection.saved_card_id
           ? cards.find((card) => card.id === storedSelection.saved_card_id)
@@ -558,7 +580,7 @@ export function PaymentScreen() {
   const handleSelectMethod = useCallback((method: PaymentMethod) => {
     setSelected(method);
 
-    if (method === "pix") {
+    if (method === "pix" || method === "dinheiro") {
       setSelectedSavedCardId("");
       return;
     }
@@ -822,13 +844,20 @@ export function PaymentScreen() {
     setIsSubmitting(true);
 
     try {
-      const normalizedPayer = validatePayer();
-      savePayerData(normalizedPayer);
+      const normalizedPayer = isCashPayment ? null : validatePayer();
+      if (normalizedPayer) savePayerData(normalizedPayer);
 
       if (selected === "pix") {
         savePaymentSelection({ method: "pix" });
+      } else if (selected === "dinheiro") {
+        const parsedChange = Number(cashChangeAmount.replace(/\./g, "").replace(",", "."));
+        savePaymentSelection({
+          method: "dinheiro",
+          sem_troco: cashNoChange,
+          troco_para: cashNoChange || !Number.isFinite(parsedChange) ? null : parsedChange,
+        });
       } else {
-        const cardToken = await createSecureCardToken(normalizedPayer);
+        const cardToken = await createSecureCardToken(normalizedPayer!);
         const baseSelection = selectedSavedCard
           ? {
               ...selectionFromSavedCard(selectedSavedCard),
@@ -851,7 +880,7 @@ export function PaymentScreen() {
           const formasPagamento = isProfilePaymentMethods && cardSaveMode === "cartao_credito_debito"
             ? ["cartao_credito", "cartao_debito"] satisfies CardPaymentMethod[]
             : undefined;
-          const savedCard = await saveCustomerPaymentCard(marketId, normalizedPayer, baseSelection, {
+          const savedCard = await saveCustomerPaymentCard(marketId, normalizedPayer!, baseSelection, {
             formas_pagamento: formasPagamento,
           });
           const savedSelection = selectionFromSavedCard(savedCard);
@@ -987,14 +1016,49 @@ export function PaymentScreen() {
           })}
         </div>
 
-        <div className="mb-4">
-          <PayerDataForm
-            value={payer}
-            onChange={setPayer}
-            primaryColor={primaryColor}
-            description={isCardPayment ? "Usado para validar o cartão com segurança." : "Usado para emitir e acompanhar o pagamento."}
-          />
-        </div>
+        {!isCashPayment && (
+          <div className="mb-4">
+            <PayerDataForm
+              value={payer}
+              onChange={setPayer}
+              primaryColor={primaryColor}
+              description={isCardPayment ? "Usado para validar o cartão com segurança." : "Usado para emitir e acompanhar o pagamento."}
+            />
+          </div>
+        )}
+
+        {isCashPayment && (
+          <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>
+            <h2 style={{ fontSize: "14px", fontWeight: 800, color: "var(--market-primary-color)" }}>
+              Troco
+            </h2>
+            <label className="mt-3 flex items-center gap-3 rounded-xl px-3 py-3" style={{ backgroundColor: primarySoftColor }}>
+              <input
+                type="checkbox"
+                checked={cashNoChange}
+                onChange={(event) => setCashNoChange(event.target.checked)}
+              />
+              <span style={{ fontSize: "13px", fontWeight: 800, color: "#334155" }}>
+                Não preciso de troco
+              </span>
+            </label>
+            {!cashNoChange && (
+              <label className="mt-3 block">
+                <span className="mb-1 block" style={{ fontSize: "12px", fontWeight: 800, color: "#64748b" }}>
+                  Troco para R$
+                </span>
+                <input
+                  value={cashChangeAmount}
+                  onChange={(event) => setCashChangeAmount(event.target.value.replace(/[^\d,.]/g, ""))}
+                  inputMode="decimal"
+                  placeholder="Ex.: 100,00"
+                  className="w-full rounded-xl border px-3 py-3 outline-none"
+                  style={{ borderColor: "var(--market-primary-border-color)", fontSize: "15px", color: "#1e293b" }}
+                />
+              </label>
+            )}
+          </div>
+        )}
 
         {isCardPayment && (
           <div ref={cardFormRef} className="mb-4 rounded-2xl bg-white p-4 shadow-sm" style={{ border: "1px solid var(--market-primary-border-color)" }}>

@@ -4,8 +4,8 @@ const PAYMENT_SELECTION_STORAGE_KEY = 'cliente_delivery_payment_selection';
 const PAYER_STORAGE_KEY = 'cliente_delivery_payer_data';
 const CARD_TOKEN_TTL_MS = 20 * 60 * 1000;
 
-export type PaymentMethod = 'pix' | 'cartao_credito' | 'cartao_debito';
-export type CardPaymentMethod = Exclude<PaymentMethod, 'pix'>;
+export type PaymentMethod = 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro';
+export type CardPaymentMethod = Exclude<PaymentMethod, 'pix' | 'dinheiro'>;
 
 export interface PayerData {
   payer_email: string;
@@ -19,6 +19,8 @@ export type PayerValidationErrors = Partial<Record<keyof PayerData | 'full_name'
 
 export interface StoredPaymentSelection {
   method: PaymentMethod;
+  sem_troco?: boolean;
+  troco_para?: number | null;
   card_token?: string;
   card_token_created_at?: number;
   saved_card_id?: string;
@@ -99,6 +101,9 @@ export interface LocalPayment {
   status_detalhado?: string | null;
   status_gateway_raw?: string | null;
   application_fee?: string | number | null;
+  sem_troco?: boolean | null;
+  troco_para?: string | number | null;
+  troco_valor?: string | number | null;
 }
 
 function normalizeAmount(value: string | number | null | undefined) {
@@ -307,6 +312,40 @@ export async function createPixPayment(pedidoId: string, payer: PayerData) {
   );
 
   return response.data;
+}
+
+export async function createCashPayment(
+  pedidoId: string,
+  selection: StoredPaymentSelection
+): Promise<MercadoPagoPaymentResult> {
+  const response = await apiRequest<{ data: LocalPayment }>('/pagamentos/dinheiro', {
+    method: 'POST',
+    body: {
+      pedido_id: pedidoId,
+      sem_troco: selection.sem_troco !== false,
+      troco_para: selection.sem_troco === false ? selection.troco_para ?? null : null,
+    },
+  });
+  const payment = response.data;
+
+  return {
+    payment: {
+      id: payment.id,
+      pedido_id: payment.pedido_id,
+      status: payment.status,
+      forma_pagamento: payment.forma_pagamento,
+      valor: payment.valor,
+      application_fee: payment.application_fee || 0,
+      gateway_pagamento_id: payment.gateway_pagamento_id || null,
+    },
+    mp_payment_id: payment.id,
+    status: payment.status,
+    status_detail: null,
+    qr_code: null,
+    qr_code_base64: null,
+    ticket_url: null,
+    date_of_expiration: null,
+  };
 }
 
 export async function getPaymentById(paymentId: string) {

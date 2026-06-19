@@ -38,6 +38,7 @@ import {
   cancelPayment,
   calculatePlatformServiceFee,
   createCardPayment,
+  createCashPayment,
   createPixPayment,
   getMercadoPagoCheckoutConfig,
   getSavedPaymentCards,
@@ -476,9 +477,13 @@ export function CheckoutPage() {
   const paymentLabel =
     paymentSelection.method === 'pix'
       ? 'PIX'
+      : paymentSelection.method === 'dinheiro'
+        ? 'Dinheiro'
       : paymentSelection.method === 'cartao_debito'
         ? 'Cartão de débito'
         : 'Cartão de crédito';
+  const isCashPayment = paymentSelection.method === 'dinheiro';
+  const paymentReady = isCashPayment || hasPayerData;
   const isPixWaiting = Boolean(paymentResult?.qr_code && pixStatus === 'waiting');
   const canChooseAnotherPayment = Boolean(paymentResult?.qr_code && ['expired', 'failed'].includes(pixStatus));
   const pixProgress = paymentResult?.qr_code
@@ -894,14 +899,20 @@ export function CheckoutPage() {
       return;
     }
 
-    if (!hasPayerData) {
+    const currentPaymentSelection = paymentSelectionOverride ?? getStoredPaymentSelection();
+    const currentIsCashPayment = currentPaymentSelection.method === 'dinheiro';
+
+    if (!currentIsCashPayment && !hasPayerData) {
       showSystemNotice('Complete os dados do pagador para continuar.');
       openPaymentScreen();
       return;
     }
 
-    const currentPaymentSelection = paymentSelectionOverride ?? getStoredPaymentSelection();
-    if (currentPaymentSelection.method !== 'pix' && !hasFreshCardToken(currentPaymentSelection)) {
+    if (
+      currentPaymentSelection.method !== 'pix' &&
+      currentPaymentSelection.method !== 'dinheiro' &&
+      !hasFreshCardToken(currentPaymentSelection)
+    ) {
       if (currentPaymentSelection.saved_card_id) {
         let nextSavedPaymentCards = savedPaymentCards;
         let savedCard = nextSavedPaymentCards.find((card) => card.id === currentPaymentSelection.saved_card_id);
@@ -948,7 +959,7 @@ export function CheckoutPage() {
     setPixFailureMessage('');
 
     try {
-      const payer = resolvePayerData();
+      const payer = currentIsCashPayment ? null : resolvePayerData();
       const cpfInvoicePayload = resolveCpfInvoicePayload();
       const selection = paymentSelectionOverride ?? getStoredPaymentSelection();
       const syncedCart = await syncCartItemsBatch(marketId, cart);
@@ -964,8 +975,10 @@ export function CheckoutPage() {
       });
       const result =
         selection.method === 'pix'
-          ? await createPixPayment(order.id, payer)
-          : await createCardPayment(order.id, payer, selection);
+          ? await createPixPayment(order.id, payer as PayerData)
+          : selection.method === 'dinheiro'
+            ? await createCashPayment(order.id, selection)
+            : await createCardPayment(order.id, payer as PayerData, selection);
 
       setPaymentResult(result);
 
@@ -1262,7 +1275,7 @@ export function CheckoutPage() {
         {/* Pagamento */}
         <div
           className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-          style={{ border: `1px solid ${hasPayerData ? "#bbf7d0" : "#fde68a"}` }}
+          style={{ border: `1px solid ${paymentReady ? "#bbf7d0" : "#fde68a"}` }}
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -1286,7 +1299,7 @@ export function CheckoutPage() {
                 fontWeight: 600,
               }}
             >
-              {hasPayerData ? "Alterar" : "Completar"}
+              {paymentReady ? "Alterar" : "Completar"}
             </button>
           </div>
 
@@ -1305,14 +1318,14 @@ export function CheckoutPage() {
                 className="mt-0.5"
                 style={{
                   fontSize: "12px",
-                  color: hasPayerData ? "#15803d" : "#b45309",
+                  color: paymentReady ? "#15803d" : "#b45309",
                   fontWeight: 600,
                 }}
               >
-                {payerStatusMessage}
+                {isCashPayment ? "Pagamento aprovado na entrega ou retirada" : payerStatusMessage}
               </p>
             </div>
-            {hasPayerData ? (
+            {paymentReady ? (
               <CheckCircle2 size={18} color="#16a34a" />
             ) : (
               <AlertTriangle size={18} color="#d97706" />

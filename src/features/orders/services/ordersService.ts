@@ -80,6 +80,9 @@ interface ApiOrder {
     data_expiracao?: string | null;
     pago_em?: string | null;
     criado_em?: string | null;
+    sem_troco?: boolean | null;
+    troco_para?: string | number | null;
+    troco_valor?: string | number | null;
   } | null;
   reembolsos?: Array<{
     id: string;
@@ -440,6 +443,9 @@ function mapOrder(order: ApiOrder): Order {
         : order.pagamento.data_expiracao || null,
       paidAt: order.pagamento.pago_em || null,
       createdAt: order.pagamento.criado_em || null,
+      noChange: order.pagamento.sem_troco === true,
+      changeFor: order.pagamento.troco_para == null ? null : toNumber(order.pagamento.troco_para),
+      changeValue: order.pagamento.troco_valor == null ? null : toNumber(order.pagamento.troco_valor),
     } : null,
     refunds: Array.isArray(order.reembolsos)
       ? order.reembolsos.map((refund) => ({
