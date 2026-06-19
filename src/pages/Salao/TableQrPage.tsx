@@ -1,8 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
-import { BellRing, Check, Loader2, Minus, Plus, Receipt, ShoppingCart, Trash2, UtensilsCrossed } from "lucide-react";
+import {
+  BellRing,
+  Check,
+  Loader2,
+  Minus,
+  Plus,
+  Receipt,
+  Search,
+  ShoppingCart,
+  Store,
+  Trash2,
+  UtensilsCrossed,
+} from "lucide-react";
+import { getCategoriesByMarketId, type Category } from "@/features/categories";
 import { getProductsByMarketId, type Product } from "@/features/products";
 import { salaoQrService } from "@/features/salao/services/salaoQrService";
+
+const PRODUCTS_PER_PAGE = 16;
+const CONTEXT_POLLING_INTERVAL_MS = 30000;
 
 const money = (value: unknown) => `R$ ${Number(value || 0).toFixed(2).replace(".", ",")}`;
 
@@ -25,47 +41,107 @@ const getDeviceId = () => {
 export function TableQrPage() {
   const { marketId = "", qrToken = "" } = useParams();
   const [context, setContext] = useState<any | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [page, setPage] = useState(1);
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [pin, setPin] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [participantToken, setParticipantToken] = useState(() => localStorage.getItem(`salao_participant_${qrToken}`) || "");
+  const contextLoadingRef = useRef(false);
+  const productsLoadingRef = useRef(false);
   const deviceId = useMemo(getDeviceId, []);
 
-  const tableLabel = useMemo(() => {
-    const mesa = context?.mesa;
-    return mesa?.nome || (mesa?.numero ? `Mesa ${mesa.numero}` : "Mesa");
-  }, [context]);
-
+  const mesa = context?.mesa;
   const comanda = context?.comanda;
   const canOrder = comanda?.status === "aberta" && Boolean(participantToken);
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cart.reduce((sum, item) => sum + Number(item.product.price || 0) * item.quantity, 0);
+  const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
 
-  const load = async (silent = false) => {
-    if (!marketId || !qrToken) return;
-    if (!silent) setLoading(true);
+  const tableLabel = useMemo(() => {
+    return mesa?.nome || (mesa?.numero ? `Mesa ${mesa.numero}` : "Mesa");
+  }, [mesa]);
+
+  const loadContext = useCallback(async (silent = false) => {
+    if (!qrToken || contextLoadingRef.current) return;
+    contextLoadingRef.current = true;
     try {
-      const [ctx, catalog] = await Promise.all([
-        salaoQrService.getContext(qrToken),
-        getProductsByMarketId(marketId, { perPage: 100 }),
-      ]);
+      const ctx = await salaoQrService.getContext(qrToken);
       setContext(ctx);
-      setProducts(catalog.products);
     } catch (error: any) {
-      setNotice(error?.message || "Não foi possível abrir o cardápio da mesa.");
+      if (!silent) setNotice(error?.message || "Não foi possível abrir a mesa.");
     } finally {
-      if (!silent) setLoading(false);
+      contextLoadingRef.current = false;
     }
-  };
+  }, [qrToken]);
+
+  const loadProducts = useCallback(async (nextPage = 1, append = false) => {
+    if (!marketId || productsLoadingRef.current) return;
+    productsLoadingRef.current = true;
+    if (append) setLoadingMore(true);
+    else setProductsLoading(true);
+
+    try {
+      const catalog = await getProductsByMarketId(marketId, {
+        page: nextPage,
+        perPage: PRODUCTS_PER_PAGE,
+        categoryId: selectedCategoryId || undefined,
+      });
+      setProducts((current) => (append ? [...current, ...catalog.products] : catalog.products));
+      setPage(catalog.page || nextPage);
+      setHasNextPage(Boolean(catalog.hasNextPage));
+    } catch (error: any) {
+      setNotice(error?.message || "Não foi possível carregar os produtos.");
+    } finally {
+      setProductsLoading(false);
+      setLoadingMore(false);
+      productsLoadingRef.current = false;
+    }
+  }, [marketId, selectedCategoryId]);
 
   useEffect(() => {
-    void load();
-    const interval = window.setInterval(() => void load(true), 10000);
-    return () => window.clearInterval(interval);
+    let active = true;
+
+    const loadInitial = async () => {
+      if (!marketId || !qrToken) return;
+      setInitialLoading(true);
+      try {
+        const [ctx, departmentCategories] = await Promise.all([
+          salaoQrService.getContext(qrToken),
+          getCategoriesByMarketId(marketId, { level: 1 }),
+        ]);
+        if (!active) return;
+        setContext(ctx);
+        setCategories(departmentCategories);
+      } catch (error: any) {
+        if (active) setNotice(error?.message || "Não foi possível abrir o cardápio da mesa.");
+      } finally {
+        if (active) setInitialLoading(false);
+      }
+    };
+
+    void loadInitial();
+    return () => {
+      active = false;
+    };
   }, [marketId, qrToken]);
+
+  useEffect(() => {
+    void loadProducts(1, false);
+  }, [loadProducts]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => void loadContext(true), CONTEXT_POLLING_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [loadContext]);
 
   const requestOpening = async () => {
     setBusy("opening");
@@ -76,7 +152,7 @@ export function TableQrPage() {
         nome_cliente: customerName.trim() || "Cliente",
       });
       setNotice("Solicitação enviada. Aguarde a liberação do atendente.");
-      await load(true);
+      await loadContext(true);
     } catch (error: any) {
       setNotice(error?.message || "Não foi possível solicitar abertura da mesa.");
     } finally {
@@ -120,15 +196,13 @@ export function TableQrPage() {
 
   const updateQuantity = (lineId: string, delta: number) => {
     setCart((current) =>
-      current
-        .map((item) => (item.lineId === lineId ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item))
-        .filter((item) => item.quantity > 0),
+      current.map((item) => (item.lineId === lineId ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item)),
     );
   };
 
   const sendCart = async () => {
     if (!canOrder) {
-      setNotice("Valide o PIN da mesa antes de enviar o pedido.");
+      setNotice(comanda ? "Valide o PIN da mesa antes de enviar o pedido." : "Solicite a abertura da mesa antes de enviar pedidos.");
       return;
     }
     if (!cart.length) return;
@@ -145,7 +219,7 @@ export function TableQrPage() {
       });
       setCart([]);
       setNotice("Pedido enviado para a cozinha.");
-      await load(true);
+      await loadContext(true);
     } catch (error: any) {
       setNotice(error?.message || "Não foi possível enviar o pedido.");
     } finally {
@@ -173,7 +247,7 @@ export function TableQrPage() {
     try {
       await salaoQrService.requestBill(qrToken, participantToken, { tipo: type });
       setNotice("Conta solicitada. Novos pedidos foram bloqueados para esta mesa.");
-      await load(true);
+      await loadContext(true);
     } catch (error: any) {
       setNotice(error?.message || "Não foi possível solicitar a conta.");
     } finally {
@@ -181,7 +255,7 @@ export function TableQrPage() {
     }
   };
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white text-gray-600">
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -191,178 +265,296 @@ export function TableQrPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
-      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-4">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
-              <UtensilsCrossed className="h-4 w-4" />
-              {context?.mesa?.loja_nome || "Restaurante"}
+    <div className="min-h-screen bg-slate-50 pb-32">
+      <header
+        className="sticky top-0 z-20 px-4 pb-3 pt-7 shadow-sm"
+        style={{ background: "linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)" }}
+      >
+        <div className="mx-auto max-w-3xl">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15 ring-1 ring-white/30">
+                {mesa?.logo_url ? (
+                  <img src={mesa.logo_url} alt={mesa?.loja_nome || "Restaurante"} className="h-full w-full object-cover" />
+                ) : (
+                  <Store size={19} color="white" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-extrabold text-white">{mesa?.loja_nome || "Restaurante"}</p>
+                <p className="truncate text-xs font-semibold text-white/75">{tableLabel}</p>
+              </div>
             </div>
-            <h1 className="text-xl font-semibold text-gray-950">{tableLabel}</h1>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => void callWaiter()}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25"
+                aria-label="Chamar garçom"
+              >
+                <BellRing size={18} color="white" />
+              </button>
+              <button
+                className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25"
+                aria-label="Carrinho"
+                onClick={() => document.getElementById("salao-cart")?.scrollIntoView({ behavior: "smooth", block: "end" })}
+              >
+                <ShoppingCart size={18} color="white" />
+                {cartCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-slate-950">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
-          <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            QR Mesa
+
+          <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm">
+            <Search size={18} color="#94a3b8" />
+            <span className="text-sm text-slate-400">Categorias e produtos da mesa</span>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-5">
+      <main className="mx-auto max-w-3xl px-4 py-4">
         {notice && (
-          <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <div className="mb-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
             {notice}
           </div>
         )}
 
-        <div className="mb-5 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          {!comanda ? (
-            <div className="space-y-3">
+        {!comanda && (
+          <div className="mb-4 rounded-2xl border border-amber-100 bg-white p-3 shadow-sm">
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
               <input
                 value={customerName}
                 onChange={(event) => setCustomerName(event.target.value)}
                 placeholder="Seu nome"
-                className="h-11 w-full rounded-lg border border-gray-300 px-3 text-sm"
+                className="h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none"
               />
               <button
                 onClick={() => void requestOpening()}
                 disabled={busy === "opening"}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gray-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-white disabled:opacity-60"
+                style={{ backgroundColor: "var(--market-primary-color)" }}
               >
                 {busy === "opening" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Solicitar abertura da mesa
+                Abrir mesa
               </button>
             </div>
-          ) : comanda.status !== "aberta" ? (
-            <div className="text-sm font-medium text-blue-800">
-              {comanda.status === "fechada" ? "Conta fechada. Aguarde o pagamento presencial." : "Conta solicitada. Novos pedidos estão bloqueados."}
-            </div>
-          ) : !participantToken ? (
-            <div className="grid gap-3 sm:grid-cols-[1fr_140px_auto]">
+          </div>
+        )}
+
+        {comanda?.status === "aberta" && !participantToken && (
+          <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="grid gap-2 sm:grid-cols-[1fr_112px_auto]">
               <input
                 value={customerName}
                 onChange={(event) => setCustomerName(event.target.value)}
                 placeholder="Seu nome"
-                className="h-11 rounded-lg border border-gray-300 px-3 text-sm"
+                className="h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none"
               />
               <input
                 value={pin}
                 onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
                 placeholder="PIN"
                 inputMode="numeric"
-                className="h-11 rounded-lg border border-gray-300 px-3 text-center text-lg font-semibold tracking-widest"
+                className="h-11 rounded-xl border border-slate-200 px-3 text-center text-lg font-bold tracking-widest outline-none"
               />
               <button
                 onClick={() => void validatePin()}
                 disabled={busy === "pin"}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-white disabled:opacity-60"
+                style={{ backgroundColor: "var(--market-primary-color)" }}
               >
                 {busy === "pin" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 Validar
               </button>
             </div>
-          ) : (
-            <div className="text-sm font-medium text-emerald-700">PIN validado. Monte seu carrinho e envie quando estiver pronto.</div>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="mb-5 grid gap-3 sm:grid-cols-3">
-          <button
-            onClick={() => void callWaiter()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 shadow-sm"
-          >
-            <BellRing className="h-4 w-4" />
-            Chamar garçom
-          </button>
-          <button
-            onClick={() => void requestBill("inteira")}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 shadow-sm"
-          >
-            <Receipt className="h-4 w-4" />
-            Conta inteira
-          </button>
-          <button
-            onClick={() => void requestBill("individual")}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 shadow-sm"
-          >
-            <Receipt className="h-4 w-4" />
-            Minha conta
-          </button>
-        </div>
+        {comanda && comanda.status !== "aberta" && (
+          <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">
+            {comanda.status === "fechada" ? "Conta fechada. Aguarde o pagamento presencial." : "Conta solicitada. Novos pedidos estão bloqueados."}
+          </div>
+        )}
 
-        <div className="space-y-3">
-          {products.map((product) => (
-            <div key={product.id} className="flex gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-              {product.image ? (
-                <img src={product.image} alt={product.name} className="h-20 w-20 rounded-lg object-cover" />
-              ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-gray-100 text-gray-400">
-                  <UtensilsCrossed className="h-6 w-6" />
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <h2 className="line-clamp-2 text-sm font-semibold text-gray-950">{product.name}</h2>
-                <p className="mt-1 line-clamp-2 text-xs text-gray-500">{product.description}</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="font-semibold text-gray-950">{money(product.price)}</span>
-                  <button
-                    onClick={() => addProduct(product)}
-                    className="inline-flex h-9 items-center gap-2 rounded-lg bg-gray-950 px-3 text-sm font-semibold text-white"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Carrinho
-                  </button>
-                </div>
-              </div>
+        <section className="mb-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-bold" style={{ color: "var(--market-primary-color)" }}>Categorias</h2>
+            {selectedCategoryId && (
+              <button
+                onClick={() => setSelectedCategoryId("")}
+                className="text-xs font-bold text-slate-500"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+            <button
+              onClick={() => setSelectedCategoryId("")}
+              className="flex h-[94px] w-[82px] shrink-0 flex-col items-center justify-between rounded-2xl p-3 transition active:scale-95"
+              style={{
+                backgroundColor: !selectedCategoryId ? "var(--market-primary-color)" : "#ffffff",
+                border: "1px solid var(--market-primary-border-color)",
+                color: !selectedCategoryId ? "#ffffff" : "var(--market-primary-color)",
+              }}
+            >
+              <UtensilsCrossed size={24} />
+              <span className="min-h-[24px] text-center text-[10px] font-bold leading-tight">Todos</span>
+            </button>
+            {categories.map((category) => {
+              const active = selectedCategoryId === category.id;
+              return (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategoryId(category.id)}
+                  className="flex h-[94px] w-[82px] shrink-0 flex-col items-center justify-between rounded-2xl p-3 transition active:scale-95"
+                  style={{
+                    backgroundColor: active ? "var(--market-primary-color)" : "var(--market-primary-soft-color)",
+                    border: `1px solid ${active ? "var(--market-primary-color)" : "var(--market-primary-border-color)"}`,
+                    color: active ? "#ffffff" : "var(--market-primary-color)",
+                  }}
+                >
+                  <span className="text-2xl">{category.emoji}</span>
+                  <span className="line-clamp-2 min-h-[24px] text-center text-[10px] font-bold leading-tight">{category.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-bold" style={{ color: "var(--market-primary-color)" }}>
+              {selectedCategory ? selectedCategory.name : "Produtos"}
+            </h2>
+            {products.length > 0 && <span className="text-xs font-semibold text-slate-500">{products.length} exibidos</span>}
+          </div>
+
+          {productsLoading ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+              {[0, 1, 2, 3, 4, 5].map((item) => (
+                <div key={item} className="h-[226px] animate-pulse rounded-2xl bg-white" />
+              ))}
             </div>
-          ))}
-        </div>
+          ) : products.length === 0 ? (
+            <div className="rounded-2xl bg-white px-4 py-12 text-center text-sm font-semibold text-slate-500">
+              Nenhum produto encontrado.
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+                {products.map((product) => (
+                  <article key={product.id} className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+                    <div className="aspect-square bg-slate-100">
+                      {product.image ? (
+                        <img src={product.image} alt={product.name} className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-slate-300">
+                          <UtensilsCrossed size={34} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <h3 className="line-clamp-2 min-h-[38px] text-sm font-bold leading-tight text-slate-950">{product.name}</h3>
+                      <p className="mt-1 line-clamp-1 text-[11px] text-slate-500">{product.categoryPath || product.brand || "Cardápio"}</p>
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className="text-sm font-extrabold text-slate-950">{money(product.price)}</span>
+                        <button
+                          onClick={() => addProduct(product)}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white active:scale-95"
+                          style={{ backgroundColor: "var(--market-primary-color)" }}
+                          aria-label={`Adicionar ${product.name}`}
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {hasNextPage && (
+                <button
+                  onClick={() => void loadProducts(page + 1, true)}
+                  disabled={loadingMore}
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-sm ring-1 ring-slate-200 disabled:opacity-60"
+                  style={{ color: "var(--market-primary-color)" }}
+                >
+                  {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Carregar mais produtos
+                </button>
+              )}
+            </>
+          )}
+        </section>
       </main>
 
       {cart.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-3 shadow-lg">
+        <div id="salao-cart" className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white p-3 shadow-2xl">
           <div className="mx-auto max-w-3xl">
             <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-950">
                 <ShoppingCart className="h-4 w-4" />
-                Carrinho
+                {cartCount} item{cartCount !== 1 ? "s" : ""}
               </div>
-              <div className="font-semibold text-gray-950">{money(cartTotal)}</div>
+              <div className="font-extrabold text-slate-950">{money(cartTotal)}</div>
             </div>
-            <div className="max-h-44 space-y-2 overflow-auto">
+            <div className="max-h-40 space-y-2 overflow-auto">
               {cart.map((item) => (
-                <div key={item.lineId} className="grid gap-2 rounded-lg bg-gray-50 p-2 sm:grid-cols-[1fr_auto]">
+                <div key={item.lineId} className="grid gap-2 rounded-xl bg-slate-50 p-2 sm:grid-cols-[1fr_auto]">
                   <div>
-                    <div className="text-sm font-medium text-gray-950">{item.product.name}</div>
+                    <div className="line-clamp-1 text-sm font-bold text-slate-950">{item.product.name}</div>
                     <input
                       value={item.notes}
                       onChange={(event) => setCart((current) => current.map((row) => (row.lineId === item.lineId ? { ...row, notes: event.target.value } : row)))}
                       placeholder="Observação"
-                      className="mt-1 h-9 w-full rounded-md border border-gray-200 px-2 text-xs"
+                      className="mt-1 h-8 w-full rounded-lg border border-slate-200 px-2 text-xs outline-none"
                     />
                   </div>
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => updateQuantity(item.lineId, -1)} className="rounded-md border border-gray-200 p-2">
+                    <button onClick={() => updateQuantity(item.lineId, -1)} className="rounded-lg border border-slate-200 bg-white p-2">
                       <Minus className="h-3.5 w-3.5" />
                     </button>
-                    <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.lineId, 1)} className="rounded-md border border-gray-200 p-2">
+                    <span className="w-6 text-center text-sm font-bold">{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.lineId, 1)} className="rounded-lg border border-slate-200 bg-white p-2">
                       <Plus className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => setCart((current) => current.filter((row) => row.lineId !== item.lineId))} className="rounded-md border border-gray-200 p-2 text-red-600">
+                    <button onClick={() => setCart((current) => current.filter((row) => row.lineId !== item.lineId))} className="rounded-lg border border-slate-200 bg-white p-2 text-red-600">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
               ))}
             </div>
-            <button
-              onClick={() => void sendCart()}
-              disabled={busy === "cart" || !canOrder}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gray-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              {busy === "cart" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              Enviar pedido
-            </button>
+            <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
+              <button
+                onClick={() => void sendCart()}
+                disabled={busy === "cart" || !canOrder}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-extrabold text-white disabled:opacity-50"
+                style={{ backgroundColor: "var(--market-primary-color)" }}
+              >
+                {busy === "cart" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                Enviar
+              </button>
+              <button
+                onClick={() => void requestBill("individual")}
+                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white"
+                aria-label="Minha conta"
+              >
+                <Receipt size={18} />
+              </button>
+              <button
+                onClick={() => void requestBill("inteira")}
+                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white"
+                aria-label="Conta inteira"
+              >
+                <Receipt size={18} />
+              </button>
+            </div>
           </div>
         </div>
       )}
