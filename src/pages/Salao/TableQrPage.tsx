@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   BellRing,
   Check,
@@ -16,9 +17,9 @@ import {
 import { getCategoriesByMarketId, type Category } from "@/features/categories";
 import { getProductsByMarketId, type Product } from "@/features/products";
 import { salaoQrService } from "@/features/salao/services/salaoQrService";
+import { createSalaoQrRealtime, salaoTableTopic } from "@/features/salao/services/salaoRealtime";
 
 const PRODUCTS_PER_PAGE = 16;
-const CONTEXT_POLLING_INTERVAL_MS = 30000;
 
 const money = (value: unknown) => `R$ ${Number(value || 0).toFixed(2).replace(".", ",")}`;
 
@@ -148,9 +149,36 @@ export function TableQrPage() {
   }, [loadProducts]);
 
   useEffect(() => {
-    const interval = window.setInterval(() => void loadContext(true), CONTEXT_POLLING_INTERVAL_MS);
-    return () => window.clearInterval(interval);
-  }, [loadContext]);
+    let active = true;
+    let channel: RealtimeChannel | null = null;
+    const realtime = createSalaoQrRealtime();
+    if (!realtime || !qrToken) return;
+
+    const subscribe = async () => {
+      const topic = await salaoTableTopic(qrToken);
+      if (!active) return;
+      channel = realtime
+        .channel(topic)
+        .on("broadcast", { event: "salao:update" }, () => void loadContext(true))
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") void loadContext(true);
+        });
+    };
+
+    void subscribe();
+    const reconcile = () => void loadContext(true);
+    window.addEventListener("focus", reconcile);
+    window.addEventListener("online", reconcile);
+    document.addEventListener("visibilitychange", reconcile);
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", reconcile);
+      window.removeEventListener("online", reconcile);
+      document.removeEventListener("visibilitychange", reconcile);
+      if (channel) void realtime.removeChannel(channel);
+    };
+  }, [loadContext, qrToken]);
 
   const requestOpening = async () => {
     setBusy("opening");
