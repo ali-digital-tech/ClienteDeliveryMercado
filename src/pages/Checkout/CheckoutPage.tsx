@@ -594,6 +594,7 @@ export function CheckoutPage() {
     if (
       !marketId ||
       paymentSelection.method === 'pix' ||
+      paymentSelection.method === 'dinheiro' ||
       paymentSelection.saved_card_id ||
       hasFreshCardToken(paymentSelection)
     ) return;

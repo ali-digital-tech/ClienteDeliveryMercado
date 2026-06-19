@@ -381,6 +381,7 @@ export function PaymentScreen() {
   const refreshCardMetadataRef = useRef<(bin: string) => void>(() => {});
   const cardFormRef = useRef<HTMLDivElement | null>(null);
   const selectedRef = useRef<PaymentMethod>(initialMethod);
+  const hasExplicitMethodSelectionRef = useRef(false);
 
   const [selected, setSelected] = useState<PaymentMethod>(initialMethod);
   const [cardSaveMode, setCardSaveMode] = useState<CardSaveMode>(
@@ -501,7 +502,9 @@ export function PaymentScreen() {
           ? storedSavedCard || (!hasFreshStoredToken ? defaultCard : null)
           : null;
 
-        if (cardToUse) applySavedCardSelection(cardToUse);
+        if (cardToUse && !hasExplicitMethodSelectionRef.current) {
+          applySavedCardSelection(cardToUse);
+        }
       })
       .catch((error) => {
         console.error("Erro ao carregar cartões salvos:", error);
@@ -578,6 +581,8 @@ export function PaymentScreen() {
   ), [savedCards]);
 
   const handleSelectMethod = useCallback((method: PaymentMethod) => {
+    hasExplicitMethodSelectionRef.current = true;
+    selectedRef.current = method;
     setSelected(method);
 
     if (method === "pix" || method === "dinheiro") {
