@@ -25,6 +25,7 @@ interface ApiStore {
   horario_fechamento?: string | null;
   tipo_estabelecimento?: EstablishmentType | null;
   cardapio_configuravel_ativo?: boolean | null;
+  formas_pagamento?: string[] | null;
 }
 
 interface ApiStoreConfig {
@@ -71,7 +72,11 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
   ].filter(Boolean).join(' · ');
   const establishmentType = resolveEstablishmentType(store);
   const labels = getEstablishmentLabels(establishmentType);
-  const paymentMethods = Array.isArray(config.formas_pagamento) ? config.formas_pagamento : [];
+  const paymentMethods = Array.isArray(store.formas_pagamento)
+    ? store.formas_pagamento
+    : Array.isArray(config.formas_pagamento)
+      ? config.formas_pagamento
+      : [];
 
   return {
     id: store.id,
