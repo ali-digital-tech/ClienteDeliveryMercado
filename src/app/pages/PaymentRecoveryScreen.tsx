@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { CheckCircle2, ChevronLeft, Copy, CreditCard, Loader2, QrCode, RefreshCw } from "lucide-react";
 import { useApp } from "@/app/providers/AppProvider";
 import {
+  createCashPayment,
   createCardPayment,
   createPixPayment,
   getSavedPaymentCards,
@@ -137,21 +138,25 @@ export function PaymentRecoveryScreen() {
       && !isPending,
   );
   const selectedMethod = paymentSelection.method;
+  const isCashPayment = selectedMethod === "dinheiro";
   const selectedMethodLabel =
     selectedMethod === "pix"
       ? "PIX"
+      : selectedMethod === "dinheiro"
+        ? "Dinheiro"
       : selectedMethod === "cartao_debito"
         ? "Cartão de débito"
         : "Cartão de crédito";
   const needsSavedCardCvv = Boolean(
-    selectedMethod !== "pix" && paymentSelection.saved_card_id && !hasFreshCardToken(paymentSelection)
+    selectedMethod !== "pix" && !isCashPayment && paymentSelection.saved_card_id && !hasFreshCardToken(paymentSelection)
   );
   const needsCardConfirmation = Boolean(
-    selectedMethod !== "pix" && !paymentSelection.saved_card_id && !hasFreshCardToken(paymentSelection)
+    selectedMethod !== "pix" && !isCashPayment && !paymentSelection.saved_card_id && !hasFreshCardToken(paymentSelection)
   );
   const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const payerValidation = validatePayerData(payer);
-  const paymentActionDisabled = Boolean(submittingAction) || !payerValidation.isValid;
+  const pixActionDisabled = Boolean(submittingAction) || !payerValidation.isValid;
+  const selectedMethodActionDisabled = Boolean(submittingAction) || (!isCashPayment && !payerValidation.isValid);
 
   const openTracking = useCallback(() => {
     navigate(`${tenantPath("order-tracking")}?orderId=${encodeURIComponent(orderId)}`, { replace: true });
@@ -198,7 +203,7 @@ export function PaymentRecoveryScreen() {
   }, [order?.payment]);
 
   useEffect(() => {
-    if (!marketId || paymentSelection.method === "pix") return;
+    if (!marketId || paymentSelection.method === "pix" || paymentSelection.method === "dinheiro") return;
 
     let active = true;
     getSavedPaymentCards(marketId)
@@ -268,30 +273,34 @@ export function PaymentRecoveryScreen() {
 
     setSubmittingAction(forcePix ? "pix" : "selected-method");
     try {
-      const payerData = resolvePayerData(payer);
       const selection = forcePix ? { method: "pix" as const } : paymentSelection;
-      savePayerData(payerData);
-      setPayer(payerData);
+      const payerData = selection.method === "dinheiro" ? null : resolvePayerData(payer);
+      if (payerData) {
+        savePayerData(payerData);
+        setPayer(payerData);
+      }
 
       if (forcePix) {
         savePaymentSelection(selection);
         setPaymentSelection(selection);
       }
 
-      if (!forcePix && selection.method !== "pix" && !hasFreshCardToken(selection)) {
+      if (!forcePix && selection.method !== "pix" && selection.method !== "dinheiro" && !hasFreshCardToken(selection)) {
         savePaymentSelection(selection);
         choosePaymentMethod();
         return;
       }
 
       const result = selection.method === "pix"
-        ? await createPixPayment(order.rawId || order.id, payerData)
-        : await createCardPayment(order.rawId || order.id, payerData, selection);
+        ? await createPixPayment(order.rawId || order.id, payerData as PayerData)
+        : selection.method === "dinheiro"
+          ? await createCashPayment(order.rawId || order.id, selection)
+          : await createCardPayment(order.rawId || order.id, payerData as PayerData, selection);
 
       setPayment(resultToOrderPayment(result));
       await refreshOrders();
 
-      if (result.payment.status === "aprovado") {
+      if (selection.method === "dinheiro" || result.payment.status === "aprovado") {
         markPostPaymentPushPromptFromRecovery();
         openTracking();
       }
@@ -415,7 +424,7 @@ export function PaymentRecoveryScreen() {
               </div>
             </div>
 
-            <button onClick={() => void createPayment(true)} disabled={paymentActionDisabled} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
+            <button onClick={() => void createPayment(true)} disabled={pixActionDisabled} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
               {submittingAction === "pix" ? <Loader2 className="animate-spin" size={16} /> : <QrCode size={16} />}
               {payerValidation.isValid ? "Gerar novo PIX" : "Complete os dados do pagador"}
             </button>
@@ -425,13 +434,15 @@ export function PaymentRecoveryScreen() {
             </button>
 
             {selectedMethod !== "pix" && (
-              <button onClick={() => void createPayment()} disabled={paymentActionDisabled} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 disabled:opacity-60" style={{ borderColor: "var(--market-primary-border-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
+              <button onClick={() => void createPayment()} disabled={selectedMethodActionDisabled} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 disabled:opacity-60" style={{ borderColor: "var(--market-primary-border-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
                 {submittingAction === "selected-method" ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
                 {needsSavedCardCvv
                   ? "Informar CVV do cartão salvo"
                   : needsCardConfirmation
                     ? "Confirmar dados do cartão"
-                    : `Tentar com ${selectedMethodLabel}`}
+                    : isCashPayment
+                      ? "Finalizar com Dinheiro"
+                      : `Tentar com ${selectedMethodLabel}`}
               </button>
             )}
           </div>
