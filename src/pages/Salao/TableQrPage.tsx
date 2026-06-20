@@ -13,9 +13,13 @@ import {
   Store,
   Trash2,
   UtensilsCrossed,
+  ChevronLeft,
 } from "lucide-react";
 import { getCategoriesByMarketId, type Category } from "@/features/categories";
-import { getProductsByMarketId, type Product } from "@/features/products";
+import { getProductsByMarketId, getProductById, type Product } from "@/features/products";
+import { ProductConfigurator } from "@/features/products/components/ProductConfigurator";
+import { isConfigurableProduct } from "@/features/products/utils/productConfiguration";
+import type { CartItemSelection } from "@/features/cart";
 import { salaoQrService } from "@/features/salao/services/salaoQrService";
 import { createSalaoQrRealtime, salaoTableTopic } from "@/features/salao/services/salaoRealtime";
 
@@ -28,6 +32,12 @@ type CartItem = {
   product: Product;
   quantity: number;
   notes: string;
+  productStoreVariationId?: string;
+  variationName?: string;
+  selections: CartItemSelection[];
+  configurationVersion?: number;
+  basePrice?: number;
+  optionsPrice?: number;
 };
 
 const getDeviceId = () => {
@@ -46,6 +56,9 @@ export function TableQrPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [view, setView] = useState<"catalog" | "cart">("catalog");
+  const [configuringProduct, setConfiguringProduct] = useState<Product | null>(null);
+  const [configuringLoading, setConfiguringLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [productsLoading, setProductsLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -231,14 +244,48 @@ export function TableQrPage() {
     }
   };
 
-  const addProduct = (product: Product) => {
+  const addProduct = async (product: Product) => {
+    if (isConfigurableProduct(product)) {
+      if (product.configuration) {
+        setConfiguringProduct(product);
+        return;
+      }
+      try {
+        setConfiguringLoading(true);
+        const detailed = await getProductById(marketId, product.storeProductId || product.id);
+        if (!detailed?.configuration) throw new Error("Configuração indisponível");
+        setConfiguringProduct(detailed);
+      } catch (error: any) {
+        setNotice(error?.message || "Não foi possível carregar as opções deste produto.");
+      } finally {
+        setConfiguringLoading(false);
+      }
+      return;
+    }
     setCart((current) => {
       const existing = current.find((item) => item.product.id === product.id && !item.notes);
       if (existing) {
         return current.map((item) => (item.lineId === existing.lineId ? { ...item, quantity: item.quantity + 1 } : item));
       }
-      return [...current, { lineId: crypto.randomUUID?.() || `${product.id}-${Date.now()}`, product, quantity: 1, notes: "" }];
+      return [...current, { lineId: crypto.randomUUID?.() || `${product.id}-${Date.now()}`, product, quantity: 1, notes: "", selections: [] }];
     });
+  };
+
+  const addConfiguredProduct = (item: any) => {
+    setCart((current) => [...current, {
+      lineId: crypto.randomUUID?.() || `${item.product.id}-${Date.now()}`,
+      product: item.product,
+      quantity: item.qty,
+      notes: item.notes || "",
+      productStoreVariationId: item.productStoreVariationId,
+      variationName: item.variationName,
+      selections: item.selections || [],
+      configurationVersion: item.configurationVersion,
+      basePrice: item.basePrice,
+      optionsPrice: item.optionsPrice,
+    }]);
+    setConfiguringProduct(null);
+    setView("cart");
   };
 
   const updateQuantity = (lineId: string, delta: number) => {
@@ -260,8 +307,20 @@ export function TableQrPage() {
         itens: cart.map((item) => ({
           produto_loja_id: item.product.storeProductId || item.product.id,
           produto_id: item.product.catalogProductId,
+          variacao_produto_loja_id: item.productStoreVariationId,
           quantidade: item.quantity,
           observacoes: item.notes.trim() || undefined,
+          configuracao_versao: item.configurationVersion,
+          selecoes: item.selections.map((selection) => ({
+            grupo_id: selection.groupId,
+            opcao_id: selection.optionId,
+            quantidade: selection.quantity,
+            fracao: selection.fraction,
+            nome_grupo: selection.groupName,
+            nome_opcao: selection.optionName,
+            preco_unitario: selection.unitPrice,
+            preco_contribuicao: selection.contribution,
+          })),
         })),
       });
       setCart([]);
@@ -349,7 +408,7 @@ export function TableQrPage() {
               <button
                 className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25"
                 aria-label="Carrinho"
-                onClick={() => document.getElementById("salao-cart")?.scrollIntoView({ behavior: "smooth", block: "end" })}
+                onClick={() => setView("cart")}
               >
                 <ShoppingCart size={18} color="white" />
                 {cartCount > 0 && (
@@ -368,7 +427,21 @@ export function TableQrPage() {
         </div>
       </header>
 
-      <main className={`w-full flex-1 overflow-y-auto px-4 py-4 ${cart.length > 0 ? "pb-56" : "pb-6"}`}>
+      {view === "cart" ? (
+        <TableQrCart
+          cart={cart}
+          cartCount={cartCount}
+          cartTotal={cartTotal}
+          busy={busy}
+          canOrder={canOrder}
+          onBack={() => setView("catalog")}
+          onUpdateQuantity={updateQuantity}
+          onRemove={(lineId) => setCart((current) => current.filter((row) => row.lineId !== lineId))}
+          onUpdateNotes={(lineId, notes) => setCart((current) => current.map((row) => row.lineId === lineId ? { ...row, notes } : row))}
+          onSend={() => void sendCart()}
+        />
+      ) : (
+      <main className={`w-full flex-1 overflow-y-auto px-4 py-4 ${cart.length > 0 ? "pb-28" : "pb-6"}`}>
         <div className="mx-auto max-w-3xl">
         {notice && (
           <div className="mb-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
@@ -508,7 +581,7 @@ export function TableQrPage() {
                       <div className="mt-3 flex items-center justify-between gap-2">
                         <span className="text-sm font-extrabold text-slate-950">{money(product.price)}</span>
                         <button
-                          onClick={() => addProduct(product)}
+                          onClick={() => void addProduct(product)}
                           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white active:scale-95"
                           style={{ backgroundColor: "var(--market-primary-color)" }}
                           aria-label={`Adicionar ${product.name}`}
@@ -537,8 +610,9 @@ export function TableQrPage() {
         </section>
         </div>
       </main>
+      )}
 
-      {cart.length > 0 && (
+      {view === "catalog" && cart.length > 0 && (
         <div id="salao-cart" className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white p-3 shadow-2xl">
           <div className="mx-auto max-w-3xl">
             <div className="mb-2 flex items-center justify-between">
@@ -548,42 +622,13 @@ export function TableQrPage() {
               </div>
               <div className="font-extrabold text-slate-950">{money(cartTotal)}</div>
             </div>
-            <div className="max-h-40 space-y-2 overflow-auto">
-              {cart.map((item) => (
-                <div key={item.lineId} className="grid gap-2 rounded-xl bg-slate-50 p-2 sm:grid-cols-[1fr_auto]">
-                  <div>
-                    <div className="line-clamp-1 text-sm font-bold text-slate-950">{item.product.name}</div>
-                    <input
-                      value={item.notes}
-                      onChange={(event) => setCart((current) => current.map((row) => (row.lineId === item.lineId ? { ...row, notes: event.target.value } : row)))}
-                      placeholder="Observação"
-                      className="mt-1 h-8 w-full rounded-lg border border-slate-200 px-2 text-xs outline-none"
-                    />
-                  </div>
-                  <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => updateQuantity(item.lineId, -1)} className="rounded-lg border border-slate-200 bg-white p-2">
-                      <Minus className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="w-6 text-center text-sm font-bold">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.lineId, 1)} className="rounded-lg border border-slate-200 bg-white p-2">
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => setCart((current) => current.filter((row) => row.lineId !== item.lineId))} className="rounded-lg border border-slate-200 bg-white p-2 text-red-600">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
             <div className="mt-3">
               <button
-                onClick={() => void sendCart()}
-                disabled={busy === "cart" || !canOrder}
+                onClick={() => setView("cart")}
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-extrabold text-white disabled:opacity-50"
                 style={{ backgroundColor: "var(--market-primary-color)" }}
               >
-                {busy === "cart" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Enviar pedido
+                <ShoppingCart className="h-4 w-4" /> Ver carrinho
               </button>
             </div>
           </div>
@@ -615,6 +660,78 @@ export function TableQrPage() {
           </div>
         </div>
       )}
+      {(configuringLoading || configuringProduct) && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 sm:items-center sm:px-4">
+          <div className="max-h-[92vh] w-full overflow-hidden rounded-t-3xl bg-slate-50 shadow-2xl sm:max-w-xl sm:rounded-3xl">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Monte seu item</p>
+                <h2 className="text-base font-extrabold text-slate-900">{configuringProduct?.name || "Carregando produto"}</h2>
+              </div>
+              <button onClick={() => { setConfiguringProduct(null); setConfiguringLoading(false); }} className="rounded-full bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600">Fechar</button>
+            </div>
+            <div className="max-h-[calc(92vh-64px)] overflow-y-auto px-4 pb-5">
+              {configuringLoading && !configuringProduct ? (
+                <div className="flex min-h-40 items-center justify-center gap-2 text-sm font-semibold text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando opções...</div>
+              ) : configuringProduct ? (
+                <ProductConfigurator product={configuringProduct} primaryColor="var(--market-primary-color)" onConfirm={addConfiguredProduct} />
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function TableQrCart({
+  cart,
+  cartCount,
+  cartTotal,
+  busy,
+  canOrder,
+  onBack,
+  onUpdateQuantity,
+  onRemove,
+  onUpdateNotes,
+  onSend,
+}: {
+  cart: CartItem[];
+  cartCount: number;
+  cartTotal: number;
+  busy: string;
+  canOrder: boolean;
+  onBack: () => void;
+  onUpdateQuantity: (lineId: string, delta: number) => void;
+  onRemove: (lineId: string) => void;
+  onUpdateNotes: (lineId: string, notes: string) => void;
+  onSend: () => void;
+}) {
+  return (
+    <main className="w-full flex-1 overflow-y-auto bg-slate-100 px-4 py-4 pb-28">
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-4 flex items-center gap-3">
+          <button onClick={onBack} className="rounded-full bg-white p-2 shadow-sm"><ChevronLeft className="h-5 w-5" /></button>
+          <div><h1 className="text-lg font-extrabold text-slate-900">Meu Carrinho</h1><p className="text-xs text-slate-500">{cartCount} item{cartCount !== 1 ? "s" : ""}</p></div>
+        </div>
+        {cart.length === 0 ? (
+          <div className="rounded-2xl bg-white px-4 py-14 text-center shadow-sm"><ShoppingCart className="mx-auto h-12 w-12 text-slate-300" /><p className="mt-3 font-extrabold text-slate-800">Seu carrinho está vazio</p><button onClick={onBack} className="mt-4 rounded-xl px-4 py-2 text-sm font-bold text-white" style={{ backgroundColor: "var(--market-primary-color)" }}>Explorar produtos</button></div>
+        ) : (
+          <>
+            <div className="space-y-3">
+              {cart.map((item) => (
+                <article key={item.lineId} className="flex gap-3 rounded-2xl bg-white p-3 shadow-sm">
+                  {item.product.image ? <img src={item.product.image} alt="" className="h-16 w-16 rounded-xl object-cover" /> : <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-slate-100 text-slate-300"><UtensilsCrossed /></div>}
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-900">{item.product.name}</p>{item.variationName && <p className="text-xs font-semibold text-slate-600">Tamanho: {item.variationName}</p>}{item.selections.map((selection) => <p key={`${selection.groupId}:${selection.optionId}`} className="text-xs text-slate-500">{selection.groupName}: {selection.optionName}{selection.quantity > 1 ? ` x${selection.quantity}` : ""}</p>)}<input value={item.notes} onChange={(event) => onUpdateNotes(item.lineId, event.target.value)} placeholder="Observação" className="mt-2 h-8 w-full rounded-lg border border-slate-200 px-2 text-xs" /><p className="mt-2 text-sm font-extrabold" style={{ color: "var(--market-primary-color)" }}>{money(Number(item.product.price) * item.quantity)}</p></div>
+                  <div className="flex flex-col items-center gap-2"><button onClick={() => onRemove(item.lineId)} className="p-1 text-red-600"><Trash2 className="h-4 w-4" /></button><div className="flex items-center gap-2 rounded-xl bg-slate-100 p-1"><button onClick={() => onUpdateQuantity(item.lineId, -1)} className="rounded-lg bg-white p-1.5"><Minus className="h-3.5 w-3.5" /></button><span className="w-5 text-center text-sm font-bold">{item.quantity}</span><button onClick={() => onUpdateQuantity(item.lineId, 1)} className="rounded-lg p-1.5 text-white" style={{ backgroundColor: "var(--market-primary-color)" }}><Plus className="h-3.5 w-3.5" /></button></div></div>
+                </article>
+              ))}
+            </div>
+            <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm"><div className="flex justify-between text-sm text-slate-500"><span>Subtotal</span><span>{money(cartTotal)}</span></div><div className="mt-3 flex justify-between border-t border-slate-100 pt-3 text-base font-extrabold text-slate-900"><span>Total</span><span>{money(cartTotal)}</span></div></div>
+            <button onClick={onSend} disabled={busy === "cart" || !canOrder} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-extrabold text-white disabled:opacity-50" style={{ backgroundColor: "var(--market-primary-color)" }}>{busy === "cart" && <Loader2 className="h-4 w-4 animate-spin" />} Enviar pedido · {money(cartTotal)}</button>
+          </>
+        )}
+      </div>
+    </main>
   );
 }
