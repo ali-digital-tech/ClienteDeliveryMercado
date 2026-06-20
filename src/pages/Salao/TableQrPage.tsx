@@ -54,6 +54,8 @@ export function TableQrPage() {
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [pin, setPin] = useState("");
+  const [requiresPin, setRequiresPin] = useState(false);
+  const [waiterConfirmationOpen, setWaiterConfirmationOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [participantToken, setParticipantToken] = useState(() => localStorage.getItem(`salao_participant_${qrToken}`) || "");
   const contextLoadingRef = useRef(false);
@@ -184,12 +186,19 @@ export function TableQrPage() {
     setBusy("opening");
     setNotice("");
     try {
-      await salaoQrService.requestOpening(qrToken, {
+      const result = await salaoQrService.requestOpening(qrToken, {
         dispositivo_id: deviceId,
         nome_cliente: customerName.trim() || "Cliente",
       });
-      setNotice("Solicitação enviada. Aguarde a liberação do atendente.");
       await loadContext(true);
+      if (result?.requires_pin) {
+        setRequiresPin(true);
+        setNotice("Esta mesa já foi aberta. Informe o PIN para entrar na comanda.");
+      } else if (result?.already_requested) {
+        setNotice("A abertura desta mesa já foi solicitada. Aguarde a liberação do atendente.");
+      } else {
+        setNotice("Solicitação enviada. Aguarde a liberação do atendente.");
+      }
     } catch (error: any) {
       setNotice(error?.message || "Não foi possível solicitar abertura da mesa.");
     } finally {
@@ -212,6 +221,7 @@ export function TableQrPage() {
       });
       localStorage.setItem(`salao_participant_${qrToken}`, result.token);
       setParticipantToken(result.token);
+      setRequiresPin(false);
       setPin("");
       setNotice("PIN validado. Você já pode enviar pedidos.");
     } catch (error: any) {
@@ -265,12 +275,16 @@ export function TableQrPage() {
   };
 
   const callWaiter = async () => {
+    setBusy("waiter");
     setNotice("");
     try {
       await salaoQrService.callWaiter(qrToken);
       setNotice("Garçom chamado. Aguarde o atendimento.");
     } catch (error: any) {
       setNotice(error?.message || "Não foi possível chamar o garçom.");
+    } finally {
+      setBusy("");
+      setWaiterConfirmationOpen(false);
     }
   };
 
@@ -325,11 +339,12 @@ export function TableQrPage() {
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => void callWaiter()}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25"
-                aria-label="Chamar garçom"
+                onClick={() => setWaiterConfirmationOpen(true)}
+                disabled={busy === "waiter"}
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-white/15 px-3 text-xs font-bold text-white ring-1 ring-white/25 disabled:opacity-60"
               >
-                <BellRing size={18} color="white" />
+                {busy === "waiter" ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing size={18} />}
+                Chamar Garçom
               </button>
               <button
                 className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25"
@@ -361,7 +376,7 @@ export function TableQrPage() {
           </div>
         )}
 
-        {!comanda && (
+        {!comanda && !requiresPin && (
           <div className="mb-4 rounded-2xl border border-amber-100 bg-white p-3 shadow-sm">
             <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
               <input
@@ -383,7 +398,7 @@ export function TableQrPage() {
           </div>
         )}
 
-        {comanda?.status === "aberta" && !participantToken && (
+        {(comanda?.status === "aberta" || requiresPin) && !participantToken && (
           <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
             <div className="grid gap-2 sm:grid-cols-[1fr_112px_auto]">
               <input
@@ -560,7 +575,7 @@ export function TableQrPage() {
                 </div>
               ))}
             </div>
-            <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
+            <div className="mt-3">
               <button
                 onClick={() => void sendCart()}
                 disabled={busy === "cart" || !canOrder}
@@ -568,21 +583,33 @@ export function TableQrPage() {
                 style={{ backgroundColor: "var(--market-primary-color)" }}
               >
                 {busy === "cart" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Enviar
+                Enviar pedido
               </button>
-              <button
-                onClick={() => void requestBill("individual")}
-                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white"
-                aria-label="Minha conta"
-              >
-                <Receipt size={18} />
-              </button>
-              <button
-                onClick={() => void requestBill("inteira")}
-                className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white"
-                aria-label="Conta inteira"
-              >
-                <Receipt size={18} />
+            </div>
+          </div>
+        </div>
+      )}
+      {canOrder && !cart.length && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white p-3 shadow-2xl">
+          <div className="mx-auto flex max-w-3xl gap-2">
+            <button onClick={() => void requestBill("individual")} disabled={busy === "bill-individual"} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold disabled:opacity-60">
+              {busy === "bill-individual" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Receipt className="h-4 w-4" />} Solicitar minha conta
+            </button>
+            <button onClick={() => void requestBill("inteira")} disabled={busy === "bill-inteira"} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold disabled:opacity-60">
+              {busy === "bill-inteira" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Receipt className="h-4 w-4" />} Solicitar conta da mesa
+            </button>
+          </div>
+        </div>
+      )}
+      {waiterConfirmationOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <h2 className="text-base font-extrabold text-slate-950">Chamar Garçom</h2>
+            <p className="mt-2 text-sm text-slate-600">Você quer mesmo chamar o garçom?</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setWaiterConfirmationOpen(false)} disabled={busy === "waiter"} className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600">Cancelar</button>
+              <button onClick={() => void callWaiter()} disabled={busy === "waiter"} className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-color)" }}>
+                {busy === "waiter" && <Loader2 className="h-4 w-4 animate-spin" />} Confirmar
               </button>
             </div>
           </div>
