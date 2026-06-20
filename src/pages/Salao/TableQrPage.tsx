@@ -40,6 +40,22 @@ type CartItem = {
   optionsPrice?: number;
 };
 
+type ParticipantSession = {
+  token: string;
+  comandaId: string;
+};
+
+const participantSessionKey = (qrToken: string) => `salao_participant_${qrToken}`;
+
+const readParticipantSession = (qrToken: string): ParticipantSession | null => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(participantSessionKey(qrToken)) || "null");
+    return stored?.token && stored?.comandaId ? stored : null;
+  } catch {
+    return null;
+  }
+};
+
 const getDeviceId = () => {
   const key = "salao_device_id";
   const current = localStorage.getItem(key);
@@ -70,7 +86,7 @@ export function TableQrPage() {
   const [requiresPin, setRequiresPin] = useState(false);
   const [waiterConfirmationOpen, setWaiterConfirmationOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
-  const [participantToken, setParticipantToken] = useState(() => localStorage.getItem(`salao_participant_${qrToken}`) || "");
+  const [participantToken, setParticipantToken] = useState("");
   const contextLoadingRef = useRef(false);
   const productsLoadingRef = useRef(false);
   const deviceId = useMemo(getDeviceId, []);
@@ -85,6 +101,22 @@ export function TableQrPage() {
   const tableLabel = useMemo(() => {
     return mesa?.nome || (mesa?.numero ? `Mesa ${mesa.numero}` : "Mesa");
   }, [mesa]);
+
+  // A participant token belongs to one specific comanda.  After the table is
+  // closed and opened again, the old browser token must never hide the PIN UI.
+  useEffect(() => {
+    if (!comanda?.id) {
+      setParticipantToken("");
+      return;
+    }
+    const session = readParticipantSession(qrToken);
+    if (session?.comandaId === comanda.id) {
+      setParticipantToken(session.token);
+      return;
+    }
+    localStorage.removeItem(participantSessionKey(qrToken));
+    setParticipantToken("");
+  }, [comanda?.id, qrToken]);
 
   const loadContext = useCallback(async (silent = false) => {
     if (!qrToken || contextLoadingRef.current) return;
@@ -232,7 +264,10 @@ export function TableQrPage() {
         dispositivo_id: deviceId,
         nome_cliente: customerName.trim() || "Cliente",
       });
-      localStorage.setItem(`salao_participant_${qrToken}`, result.token);
+      localStorage.setItem(participantSessionKey(qrToken), JSON.stringify({
+        token: result.token,
+        comandaId: result.comanda_id,
+      } satisfies ParticipantSession));
       setParticipantToken(result.token);
       setRequiresPin(false);
       setPin("");
