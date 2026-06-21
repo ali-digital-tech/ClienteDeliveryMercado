@@ -35,6 +35,7 @@ export interface ProductOption {
   itemType?: ProductOptionItemType;
   image?: string;
   productCategoryId?: string;
+  productCategoryName?: string;
   additionalPrice: number;
   promotionalPrice?: number;
   promotionEndsAt?: string;

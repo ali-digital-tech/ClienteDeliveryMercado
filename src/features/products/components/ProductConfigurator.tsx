@@ -1,4 +1,4 @@
-import { Minus, Plus } from 'lucide-react';
+import { ChevronDown, Minus, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { CartItem } from '@/features/cart';
 import { ProductImage } from './ProductImage';
@@ -9,6 +9,7 @@ import {
   type ProductSelectionInput,
 } from '../utils/configurationPrice';
 import type { Product, ProductOption, ProductOptionGroup } from '../types/product';
+import { normalizeSearchText } from '@/shared/utils/searchText';
 
 interface ProductConfiguratorProps {
   product: Product;
@@ -128,6 +129,43 @@ export function ProductConfigurator({
   const [quantity, setQuantity] = useState(initialItem?.qty || 1);
   const [notes, setNotes] = useState(initialItem?.notes || '');
   const [error, setError] = useState('');
+  const [optionSearch, setOptionSearch] = useState('');
+  const [productCategoryId, setProductCategoryId] = useState('all');
+  const productCategories = useMemo(() => {
+    const categories = new Map<string, string>();
+
+    visibleGroups.forEach(group => group.options.forEach(option => {
+      if (
+        (option.itemType === 'produto' || option.itemType === 'produto_e_adicional')
+        && option.productCategoryId
+      ) {
+        categories.set(
+          option.productCategoryId,
+          option.productCategoryName || 'Outros produtos',
+        );
+      }
+    }));
+
+    return Array.from(categories, ([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [visibleGroups]);
+  const normalizedOptionSearch = normalizeSearchText(optionSearch.trim());
+  const filteredGroups = useMemo(() => visibleGroups
+    .map(group => ({
+      ...group,
+      options: group.options.filter(option => {
+        const isProductOption = option.itemType === 'produto' || option.itemType === 'produto_e_adicional';
+        const matchesCategory = productCategoryId === 'all'
+          || !isProductOption
+          || option.productCategoryId === productCategoryId;
+        const matchesSearch = !normalizedOptionSearch
+          || normalizeSearchText(`${option.name} ${option.description || ''} ${option.productCategoryName || ''}`)
+            .includes(normalizedOptionSearch);
+
+        return matchesCategory && matchesSearch;
+      }),
+    }))
+    .filter(group => group.options.length > 0), [normalizedOptionSearch, productCategoryId, visibleGroups]);
   const fixedPromotionDetails = fixedSelections
     .map(selection => {
       const group = configuration?.groups.find(item => item.id === selection.groupId);
@@ -327,7 +365,57 @@ export function ProductConfigurator({
         </div>
       )}
 
-      {visibleGroups.map(group => {
+      {visibleGroups.some(group => group.options.length > 0) && (
+        <div className="mb-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-extrabold text-slate-700">Buscar adicionais</span>
+            <span className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm focus-within:border-slate-400">
+              <Search size={17} className="flex-shrink-0 text-slate-400" />
+              <input
+                type="search"
+                value={optionSearch}
+                onChange={event => setOptionSearch(event.target.value)}
+                placeholder="Ex.: bacon, queijo, borda..."
+                className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+              />
+              {optionSearch && (
+                <button
+                  type="button"
+                  onClick={() => setOptionSearch('')}
+                  className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Limpar busca de adicionais"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </span>
+          </label>
+
+          {productCategories.length > 0 && (
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-extrabold text-slate-700">Categoria dos produtos</span>
+              <span className="relative block">
+                <select
+                  value={productCategoryId}
+                  onChange={event => setProductCategoryId(event.target.value)}
+                  className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 pr-9 text-sm font-semibold text-slate-700 shadow-sm outline-none focus:border-slate-400"
+                >
+                  <option value="all">Todas as categorias</option>
+                  {productCategories.map(category => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={17}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+              </span>
+            </label>
+          )}
+        </div>
+      )}
+
+      {filteredGroups.map(group => {
         const limits = getGroupLimits(group, variationId);
         const selectedCount = countSelections(group, selections);
         return (
@@ -445,6 +533,23 @@ export function ProductConfigurator({
           </div>
         );
       })}
+
+      {filteredGroups.length === 0 && (normalizedOptionSearch || productCategoryId !== 'all') && (
+        <div className="mb-5 rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center">
+          <p className="text-sm font-bold text-slate-700">Nenhum adicional encontrado</p>
+          <button
+            type="button"
+            onClick={() => {
+              setOptionSearch('');
+              setProductCategoryId('all');
+            }}
+            className="mt-2 text-xs font-extrabold"
+            style={{ color: primaryColor }}
+          >
+            Limpar filtros
+          </button>
+        </div>
+      )}
 
       <label className="mb-4 block">
         <span className="mb-1 block text-sm font-bold text-slate-800">Observações</span>

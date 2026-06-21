@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MouseEvent, UIEvent } from "react";
+import type { MouseEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   Search,
@@ -34,7 +34,6 @@ const DEFAULT_SEARCH_SUGGESTIONS = ["Leite", "Pão", "Frango", "Café", "Ovos"];
 const MAX_RECENT_SEARCHES = 8;
 const MIN_SEARCH_LENGTH = 3;
 const PRODUCTS_PER_PAGE = 20;
-const DESKTOP_PAGINATION_QUERY = "(min-width: 768px)";
 
 function readRecentSearches(marketId: string): string[] {
   try {
@@ -92,25 +91,6 @@ function colorWithAlpha(color: string, alpha: number) {
   }
 
   return normalized;
-}
-
-function useDesktopPaginationMode() {
-  const [isDesktop, setIsDesktop] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia(DESKTOP_PAGINATION_QUERY).matches;
-  });
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(DESKTOP_PAGINATION_QUERY);
-    const update = () => setIsDesktop(mediaQuery.matches);
-
-    update();
-    mediaQuery.addEventListener("change", update);
-
-    return () => mediaQuery.removeEventListener("change", update);
-  }, []);
-
-  return isDesktop;
 }
 
 function getPaginationItems(currentPage: number, totalPages: number) {
@@ -201,7 +181,7 @@ export function ProductsPage() {
   const [showSort, setShowSort] = useState(false);
   const [sort, setSort] = useState("Relevância");
   const [desktopBannerPage, setDesktopBannerPage] = useState(1);
-  const isDesktopPagination = useDesktopPaginationMode();
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const categoryDrag = useHorizontalDragScroll<HTMLDivElement>();
   const subcategoryDrag = useHorizontalDragScroll<HTMLDivElement>();
 
@@ -271,8 +251,6 @@ export function ProductsPage() {
     isLoading: isLoadingProducts,
     isLoadingMore,
     error: productsError,
-    hasNextPage,
-    loadMore,
     loadPage,
     page,
     total,
@@ -284,7 +262,7 @@ export function ProductsPage() {
     perPage: PRODUCTS_PER_PAGE,
     enabled: canLoadProducts,
     allowGlobal: hasSearchQuery,
-    paginationMode: 'append',
+    paginationMode: 'paged',
   });
 
   const submitSearch = useCallback(() => {
@@ -480,15 +458,6 @@ export function ProductsPage() {
     };
   }, [bannerId, marketId]);
 
-  const handleContentScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
-    const target = event.currentTarget;
-    const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
-
-    if (distanceToBottom < 360 && hasNextPage && !isLoadingProducts && !isLoadingMore) {
-      void loadMore();
-    }
-  }, [hasNextPage, isLoadingMore, isLoadingProducts, loadMore]);
-
   const sourceProducts = bannerProducts ?? products;
 
   const filtered = (bannerId ? filterProducts(sourceProducts, normalizedSubmittedQuery) : sourceProducts)
@@ -507,10 +476,10 @@ export function ProductsPage() {
   const visibleResultCount = bannerId ? filtered.length : total;
   const totalPages = Math.max(1, Math.ceil(visibleResultCount / PRODUCTS_PER_PAGE));
   const currentPage = bannerId ? Math.min(desktopBannerPage, totalPages) : page;
-  const displayedProducts = bannerId && isDesktopPagination
+  const displayedProducts = bannerId
     ? filtered.slice((currentPage - 1) * PRODUCTS_PER_PAGE, currentPage * PRODUCTS_PER_PAGE)
     : filtered;
-  const shouldShowDesktopPagination = false;
+  const shouldShowPagination = totalPages > 1 && !isLoadingBannerProducts && !isLoadingCategories;
   const paginationItems = getPaginationItems(currentPage, totalPages);
 
   useEffect(() => {
@@ -522,10 +491,13 @@ export function ProductsPage() {
 
     if (bannerId) {
       setDesktopBannerPage(safePage);
+      contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
-    void loadPage(safePage);
+    void loadPage(safePage).then(() => {
+      contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }, [bannerId, loadPage, totalPages]);
 
   return (
@@ -751,7 +723,7 @@ export function ProductsPage() {
 
       {/* Content */}
       <div
-        onScroll={handleContentScroll}
+        ref={contentRef}
         className="flex-1 overflow-y-auto px-4 pt-4 pb-4"
         style={{ background: "#f8fafc" }}
       >
@@ -868,17 +840,10 @@ export function ProductsPage() {
                     <ProductCard key={p.id} product={p} compact fluid />
                   ))}
                 </div>
-                {isLoadingMore && !isDesktopPagination && (
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pt-2 pb-2">
-                    {[0, 1].map((item) => (
-                      <div key={item} className="h-[210px] animate-pulse rounded-2xl bg-white" />
-                    ))}
-                  </div>
-                )}
-                {shouldShowDesktopPagination && (
+                {shouldShowPagination && (
                   <nav
                     aria-label="Paginação de produtos"
-                    className="hidden items-center justify-center gap-1 pb-3 pt-4 md:flex"
+                    className="flex flex-wrap items-center justify-center gap-1 pb-3 pt-4"
                   >
                     <button
                       type="button"

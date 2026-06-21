@@ -79,6 +79,7 @@ interface ApiProductOption {
   tipo_item?: 'adicional' | 'produto' | 'produto_e_adicional';
   imagem_url?: string | null;
   produto_categoria_id?: string | null;
+  produto_categoria_nome?: string | null;
   preco_adicional?: string | number | null;
   preco_promocional?: string | number | null;
   promocao_ate?: string | null;
@@ -157,6 +158,7 @@ function mapOption(option: ApiProductOption): ProductOption {
     itemType: option.tipo_item || 'adicional',
     image: option.imagem_url || undefined,
     productCategoryId: option.produto_categoria_id || undefined,
+    productCategoryName: option.produto_categoria_nome || undefined,
     additionalPrice: toNumber(option.preco_adicional),
     promotionalPrice: option.preco_promocional == null ? undefined : toNumber(option.preco_promocional),
     promotionEndsAt: option.promocao_ate || undefined,
