@@ -10,12 +10,6 @@ export const salaoQrService = {
       headers: participantToken ? { "x-salao-participant-token": participantToken } : undefined,
     })),
 
-  requestOpening: async (token: string, data: Record<string, unknown>) =>
-    unwrap(await apiRequest(`/salao/qr/${token}/solicitar-abertura`, {
-      method: "POST",
-      body: data,
-    })),
-
   validatePin: async (token: string, data: Record<string, unknown>) =>
     unwrap(await apiRequest(`/salao/qr/${token}/validar-pin`, {
       method: "POST",

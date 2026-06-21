@@ -3,7 +3,6 @@ import { useParams } from "react-router";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   BellRing,
-  Check,
   Loader2,
   Minus,
   Plus,
@@ -83,7 +82,7 @@ export function TableQrPage() {
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
   const [pin, setPin] = useState("");
-  const [requiresPin, setRequiresPin] = useState(false);
+  const [pinModalOpen, setPinModalOpen] = useState(false);
   const [waiterConfirmationOpen, setWaiterConfirmationOpen] = useState(false);
   const [billSplitConfirmationOpen, setBillSplitConfirmationOpen] = useState(false);
   const [billPeopleDialogOpen, setBillPeopleDialogOpen] = useState(false);
@@ -120,6 +119,10 @@ export function TableQrPage() {
     localStorage.removeItem(participantSessionKey(qrToken));
     setParticipantToken("");
   }, [comanda?.id, qrToken]);
+
+  useEffect(() => {
+    if (comanda?.status === "aberta" && !participantToken) setPinModalOpen(true);
+  }, [comanda?.id, comanda?.status, participantToken]);
 
   const loadContext = useCallback(async (silent = false) => {
     if (!qrToken || contextLoadingRef.current) return;
@@ -234,30 +237,6 @@ export function TableQrPage() {
     };
   }, [loadContext, qrToken]);
 
-  const requestOpening = async () => {
-    setBusy("opening");
-    setNotice("");
-    try {
-      const result = await salaoQrService.requestOpening(qrToken, {
-        dispositivo_id: deviceId,
-        nome_cliente: customerName.trim() || "Cliente",
-      });
-      await loadContext(true);
-      if (result?.requires_pin) {
-        setRequiresPin(true);
-        setNotice("Esta mesa já foi aberta. Informe o PIN para entrar na comanda.");
-      } else if (result?.already_requested) {
-        setNotice("A abertura desta mesa já foi solicitada. Aguarde a liberação do atendente.");
-      } else {
-        setNotice("Solicitação enviada. Aguarde a liberação do atendente.");
-      }
-    } catch (error: any) {
-      setNotice(error?.message || "Não foi possível solicitar abertura da mesa.");
-    } finally {
-      setBusy("");
-    }
-  };
-
   const validatePin = async () => {
     if (!/^\d{4}$/.test(pin.trim())) {
       setNotice("Digite o PIN de 4 dígitos informado pelo atendente.");
@@ -276,7 +255,7 @@ export function TableQrPage() {
         comandaId: result.comanda_id,
       } satisfies ParticipantSession));
       setParticipantToken(result.token);
-      setRequiresPin(false);
+      setPinModalOpen(false);
       setPin("");
       setNotice("PIN validado. Você já pode enviar pedidos.");
     } catch (error: any) {
@@ -338,7 +317,8 @@ export function TableQrPage() {
 
   const sendCart = async () => {
     if (!canOrder) {
-      setNotice(comanda ? "Valide o PIN da mesa antes de enviar o pedido." : "Solicite a abertura da mesa antes de enviar pedidos.");
+      setPinModalOpen(true);
+      setNotice("Informe o PIN da mesa para enviar o pedido.");
       return;
     }
     if (!cart.length) return;
@@ -482,13 +462,41 @@ export function TableQrPage() {
         </div>
       </header>
 
+      {pinModalOpen && comanda?.status === "aberta" && !participantToken && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/45 sm:items-center sm:p-4">
+          <div className="w-full max-w-sm rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl">
+            <h2 className="text-base font-extrabold text-slate-950">Entrar na mesa</h2>
+            <p className="mt-1 text-sm text-slate-600">Informe o PIN recebido do garçom para enviar pedidos.</p>
+            <input
+              value={customerName}
+              onChange={(event) => setCustomerName(event.target.value)}
+              placeholder="Seu nome"
+              className="mt-4 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none"
+            />
+            <input
+              autoFocus
+              value={pin}
+              onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="PIN da mesa"
+              inputMode="numeric"
+              className="mt-2 h-12 w-full rounded-xl border border-slate-200 px-3 text-center text-lg font-bold tracking-widest outline-none"
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setPinModalOpen(false)} disabled={busy === "pin"} className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600">Agora não</button>
+              <button onClick={() => void validatePin()} disabled={busy === "pin"} className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-color)" }}>
+                {busy === "pin" && <Loader2 className="h-4 w-4 animate-spin" />} Validar PIN
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {view === "cart" ? (
         <TableQrCart
           cart={cart}
           cartCount={cartCount}
           cartTotal={cartTotal}
           busy={busy}
-          canOrder={canOrder}
           onBack={() => setView("catalog")}
           onUpdateQuantity={updateQuantity}
           onRemove={(lineId) => setCart((current) => current.filter((row) => row.lineId !== lineId))}
@@ -501,57 +509,6 @@ export function TableQrPage() {
         {notice && (
           <div className="mb-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
             {notice}
-          </div>
-        )}
-
-        {!comanda && !requiresPin && (
-          <div className="mb-4 rounded-2xl border border-amber-100 bg-white p-3 shadow-sm">
-            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-              <input
-                value={customerName}
-                onChange={(event) => setCustomerName(event.target.value)}
-                placeholder="Seu nome"
-                className="h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none"
-              />
-              <button
-                onClick={() => void requestOpening()}
-                disabled={busy === "opening"}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-white disabled:opacity-60"
-                style={{ backgroundColor: "var(--market-primary-color)" }}
-              >
-                {busy === "opening" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Abrir mesa
-              </button>
-            </div>
-          </div>
-        )}
-
-        {(comanda?.status === "aberta" || requiresPin) && !participantToken && (
-          <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <div className="grid gap-2 sm:grid-cols-[1fr_112px_auto]">
-              <input
-                value={customerName}
-                onChange={(event) => setCustomerName(event.target.value)}
-                placeholder="Seu nome"
-                className="h-11 rounded-xl border border-slate-200 px-3 text-sm outline-none"
-              />
-              <input
-                value={pin}
-                onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
-                placeholder="PIN"
-                inputMode="numeric"
-                className="h-11 rounded-xl border border-slate-200 px-3 text-center text-lg font-bold tracking-widest outline-none"
-              />
-              <button
-                onClick={() => void validatePin()}
-                disabled={busy === "pin"}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-white disabled:opacity-60"
-                style={{ backgroundColor: "var(--market-primary-color)" }}
-              >
-                {busy === "pin" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Validar
-              </button>
-            </div>
           </div>
         )}
 
@@ -776,7 +733,6 @@ function TableQrCart({
   cartCount,
   cartTotal,
   busy,
-  canOrder,
   onBack,
   onUpdateQuantity,
   onRemove,
@@ -787,7 +743,6 @@ function TableQrCart({
   cartCount: number;
   cartTotal: number;
   busy: string;
-  canOrder: boolean;
   onBack: () => void;
   onUpdateQuantity: (lineId: string, delta: number) => void;
   onRemove: (lineId: string) => void;
@@ -815,7 +770,7 @@ function TableQrCart({
               ))}
             </div>
             <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm"><div className="flex justify-between text-sm text-slate-500"><span>Subtotal</span><span>{money(cartTotal)}</span></div><div className="mt-3 flex justify-between border-t border-slate-100 pt-3 text-base font-extrabold text-slate-900"><span>Total</span><span>{money(cartTotal)}</span></div></div>
-            <button onClick={onSend} disabled={busy === "cart" || !canOrder} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-extrabold text-white disabled:opacity-50" style={{ backgroundColor: "var(--market-primary-color)" }}>{busy === "cart" && <Loader2 className="h-4 w-4 animate-spin" />} Enviar pedido · {money(cartTotal)}</button>
+            <button onClick={onSend} disabled={busy === "cart"} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-extrabold text-white disabled:opacity-50" style={{ backgroundColor: "var(--market-primary-color)" }}>{busy === "cart" && <Loader2 className="h-4 w-4 animate-spin" />} Enviar pedido · {money(cartTotal)}</button>
           </>
         )}
       </div>
