@@ -587,6 +587,12 @@ export function TableQrPage() {
           </div>
         )}
 
+        {!comanda && (
+          <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">
+            Mesa livre. Solicite ao garçom a abertura da comanda e o novo PIN para fazer pedidos.
+          </div>
+        )}
+
         <section className="mb-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-bold" style={{ color: "var(--market-primary-color)" }}>Categorias</h2>
