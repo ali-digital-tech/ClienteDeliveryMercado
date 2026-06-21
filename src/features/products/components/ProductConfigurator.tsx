@@ -205,6 +205,9 @@ export function ProductConfigurator({
     return { canConfirm: true, issue: '' };
   }, [configuration, selections, variationId, visibleGroups]);
   const totalPrice = price.unitPrice * quantity;
+  const hasSelectedOption = selections.some(selection =>
+    visibleGroups.some(group => group.id === selection.groupId),
+  );
 
   if (!configuration) return null;
 
@@ -291,7 +294,7 @@ export function ProductConfigurator({
           )}
           {(() => {
             const baseDetail = getVariationPriceDetail(product, variationId);
-            return (
+            return baseDetail.price > 0 || (baseDetail.originalPrice || 0) > 0 ? (
               <p className="mt-2 text-xs font-bold text-slate-700">
                 Base: {baseDetail.originalPrice && (
                   <span className="mr-1 text-slate-400 line-through">{formatMoney(baseDetail.originalPrice)}</span>
@@ -303,7 +306,7 @@ export function ProductConfigurator({
                   </span>
                 )}
               </p>
-            );
+            ) : null;
           })()}
           {fixedPromotionDetails.length > 0 && (
             <div className="mt-2 rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
@@ -345,7 +348,7 @@ export function ProductConfigurator({
                     : { borderColor: '#cbd5e1', color: '#334155' }}
                 >
                   <span className="block">{variation.name}</span>
-                  <span className="block text-xs">
+                  {(detail.price > 0 || (detail.originalPrice || 0) > 0) && <span className="block text-xs">
                     {detail.originalPrice && (
                       <span className={`mr-1 line-through ${selected ? 'text-white/70' : 'text-slate-400'}`}>
                         {formatMoney(detail.originalPrice)}
@@ -357,7 +360,7 @@ export function ProductConfigurator({
                         Promo
                       </span>
                     )}
-                  </span>
+                  </span>}
                 </button>
               );
             })}
@@ -432,13 +435,18 @@ export function ProductConfigurator({
                   <p className="mt-0.5 text-xs text-slate-500">{group.description}</p>
                 )}
               </div>
-              <span
-                className="whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-black uppercase"
-                style={selectedCount < limits.minimum
-                  ? { backgroundColor: '#fef3c7', color: '#b45309' }
-                  : { backgroundColor: '#f1f5f9', color: '#475569' }}
-              >
-                {limits.minimum > 0 ? 'Obrigatório' : 'Opcional'} · {selectedCount}/{limits.maximum}
+              <span className="flex flex-shrink-0 flex-col items-end gap-1">
+                <span
+                  className="whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-black uppercase"
+                  style={limits.minimum > 0
+                    ? { backgroundColor: '#fef3c7', color: '#b45309' }
+                    : { backgroundColor: '#f1f5f9', color: '#475569' }}
+                >
+                  {limits.minimum > 0 ? 'Obrigatório' : 'Opcional'}
+                </span>
+                <span className="whitespace-nowrap text-[10px] font-bold text-slate-500">
+                  {selectedCount} de {limits.maximum} selecionado(s)
+                </span>
               </span>
             </div>
             <div className="flex flex-col gap-2">
@@ -562,7 +570,10 @@ export function ProductConfigurator({
         />
       </label>
       </div>
-      <div className="sticky bottom-0 border-t border-slate-100 bg-white p-4 shadow-[0_-12px_24px_rgba(15,23,42,0.06)]">
+      {hasSelectedOption && <div className="h-40" aria-hidden="true" />}
+      <div className={hasSelectedOption
+        ? 'fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-xl border-t border-slate-100 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_24px_rgba(15,23,42,0.12)]'
+        : 'border-t border-slate-100 bg-white p-4 shadow-[0_-12px_24px_rgba(15,23,42,0.06)]'}>
         {(error || !validation.canConfirm) && (
           <p className={`mb-3 text-sm font-semibold ${error ? 'text-red-600' : 'text-slate-500'}`}>
             {error || validation.issue}
