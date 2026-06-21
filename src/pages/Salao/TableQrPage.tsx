@@ -85,6 +85,9 @@ export function TableQrPage() {
   const [pin, setPin] = useState("");
   const [requiresPin, setRequiresPin] = useState(false);
   const [waiterConfirmationOpen, setWaiterConfirmationOpen] = useState(false);
+  const [billSplitConfirmationOpen, setBillSplitConfirmationOpen] = useState(false);
+  const [billPeopleDialogOpen, setBillPeopleDialogOpen] = useState(false);
+  const [billSplitPeople, setBillSplitPeople] = useState("2");
   const [customerName, setCustomerName] = useState("");
   const [participantToken, setParticipantToken] = useState("");
   const contextLoadingRef = useRef(false);
@@ -382,22 +385,33 @@ export function TableQrPage() {
     }
   };
 
-  const requestBill = async (type: "inteira" | "individual") => {
+  const requestBill = async (people = 1) => {
     if (!participantToken) {
       setNotice("Valide o PIN da mesa antes de solicitar a conta.");
       return;
     }
-    setBusy(`bill-${type}`);
+    setBusy("bill");
     setNotice("");
     try {
-      await salaoQrService.requestBill(qrToken, participantToken, { tipo: type });
+      await salaoQrService.requestBill(qrToken, participantToken, { quantidade_pessoas_divisao: people });
       setNotice("Conta solicitada. Novos pedidos foram bloqueados para esta mesa.");
       await loadContext(true);
     } catch (error: any) {
       setNotice(error?.message || "Não foi possível solicitar a conta.");
     } finally {
       setBusy("");
+      setBillSplitConfirmationOpen(false);
+      setBillPeopleDialogOpen(false);
     }
+  };
+
+  const continueBillSplit = () => {
+    const people = Number(billSplitPeople);
+    if (!Number.isInteger(people) || people < 2 || people > 99) {
+      setNotice("Informe entre 2 e 99 pessoas para dividir a conta.");
+      return;
+    }
+    void requestBill(people);
   };
 
   if (initialLoading) {
@@ -671,13 +685,45 @@ export function TableQrPage() {
       )}
       {canOrder && !cart.length && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white p-3 shadow-2xl">
-          <div className="mx-auto flex max-w-3xl gap-2">
-            <button onClick={() => void requestBill("individual")} disabled={busy === "bill-individual"} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold disabled:opacity-60">
-              {busy === "bill-individual" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Receipt className="h-4 w-4" />} Solicitar minha conta
+          <div className="mx-auto flex max-w-3xl">
+            <button onClick={() => setBillSplitConfirmationOpen(true)} disabled={busy === "bill"} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold disabled:opacity-60">
+              {busy === "bill" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Receipt className="h-4 w-4" />} Solicitar conta da mesa
             </button>
-            <button onClick={() => void requestBill("inteira")} disabled={busy === "bill-inteira"} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold disabled:opacity-60">
-              {busy === "bill-inteira" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Receipt className="h-4 w-4" />} Solicitar conta da mesa
-            </button>
+          </div>
+        </div>
+      )}
+      {billSplitConfirmationOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <h2 className="text-base font-extrabold text-slate-950">Solicitar conta</h2>
+            <p className="mt-2 text-sm text-slate-600">Vai dividir a conta com alguém?</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setBillSplitConfirmationOpen(false)} disabled={busy === "bill"} className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600">Cancelar</button>
+              <button onClick={() => void requestBill(1)} disabled={busy === "bill"} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 disabled:opacity-60">Não</button>
+              <button onClick={() => { setBillSplitConfirmationOpen(false); setBillPeopleDialogOpen(true); }} disabled={busy === "bill"} className="rounded-xl px-4 py-2 text-sm font-bold text-white disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-color)" }}>Sim</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {billPeopleDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <h2 className="text-base font-extrabold text-slate-950">Dividir conta</h2>
+            <p className="mt-2 text-sm text-slate-600">Com quantas pessoas?</p>
+            <input
+              autoFocus
+              value={billSplitPeople}
+              onChange={(event) => setBillSplitPeople(event.target.value.replace(/\D/g, "").slice(0, 2))}
+              inputMode="numeric"
+              className="mt-4 h-12 w-full rounded-xl border border-slate-300 px-3 text-center text-lg font-bold"
+              aria-label="Quantidade de pessoas"
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setBillPeopleDialogOpen(false)} disabled={busy === "bill"} className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600">Cancelar</button>
+              <button onClick={continueBillSplit} disabled={busy === "bill"} className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-color)" }}>
+                {busy === "bill" && <Loader2 className="h-4 w-4 animate-spin" />} Confirmar
+              </button>
+            </div>
           </div>
         </div>
       )}
