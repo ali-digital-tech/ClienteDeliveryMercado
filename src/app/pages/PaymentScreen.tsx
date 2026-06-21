@@ -912,7 +912,10 @@ export function PaymentScreen() {
               method: selected,
               card_token: cardToken.id,
               card_token_created_at: Date.now(),
-              payment_method_id: cardToken.payment_method_id || paymentMethodId || "card",
+              // The BIN lookup is authoritative. Never persist a generic "card"
+              // value: Mercado Pago rejects it during payment creation.
+              payment_method_id: paymentMethodId,
+              card_bin: currentBinRef.current || undefined,
               issuer_id: issuerId,
               installments,
               cardholder_name: cardholderName.trim(),

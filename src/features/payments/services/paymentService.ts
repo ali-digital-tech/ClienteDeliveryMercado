@@ -27,6 +27,7 @@ export interface StoredPaymentSelection {
   gateway_card_id?: string;
   gateway_customer_id?: string;
   payment_method_id?: string;
+  card_bin?: string;
   issuer_id?: string | number | null;
   installments?: number;
   cardholder_name?: string;
@@ -425,6 +426,7 @@ export async function createCardPayment(
         forma_pagamento: selection.method,
         card_token: selection.card_token,
         payment_method_id: selection.payment_method_id,
+        card_bin: selection.card_bin,
         issuer_id: selection.issuer_id ?? null,
         installments: selection.installments || 1,
         ...payer,
