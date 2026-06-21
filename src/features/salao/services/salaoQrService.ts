@@ -23,6 +23,11 @@ export const salaoQrService = {
       body: data,
     })),
 
+  getOrderTracking: async (token: string, participantToken: string) =>
+    unwrap(await apiRequest(`/salao/qr/${token}/pedidos`, {
+      headers: { "x-salao-participant-token": participantToken },
+    })),
+
   addItem: async (token: string, data: Record<string, unknown>) =>
     unwrap(await apiRequest(`/salao/qr/mesas/${token}/itens`, {
       method: "POST",

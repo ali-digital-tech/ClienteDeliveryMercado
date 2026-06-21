@@ -13,6 +13,7 @@ import {
   Trash2,
   UtensilsCrossed,
   ChevronLeft,
+  ListOrdered,
 } from "lucide-react";
 import { getCategoriesByMarketId, type Category } from "@/features/categories";
 import { getProductsByMarketId, getProductById, type Product } from "@/features/products";
@@ -44,6 +45,18 @@ type ParticipantSession = {
   comandaId: string;
 };
 
+type TrackedOrderItem = {
+  id: string;
+  nome_produto: string;
+  nome_variacao?: string | null;
+  quantidade: number;
+  preco_total: number;
+  observacoes?: string | null;
+  status: "enviado" | "recebido" | "preparando" | "pronto" | "entregue" | "cancelado";
+  criado_em: string;
+  selecoes: Array<{ nome_grupo: string; nome_opcao: string; quantidade: number }>;
+};
+
 const participantSessionKey = (qrToken: string) => `salao_participant_${qrToken}`;
 
 const readParticipantSession = (qrToken: string): ParticipantSession | null => {
@@ -71,7 +84,7 @@ export function TableQrPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [view, setView] = useState<"catalog" | "cart">("catalog");
+  const [view, setView] = useState<"catalog" | "cart" | "orders">("catalog");
   const [configuringProduct, setConfiguringProduct] = useState<Product | null>(null);
   const [configuringLoading, setConfiguringLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -89,6 +102,8 @@ export function TableQrPage() {
   const [billSplitPeople, setBillSplitPeople] = useState("2");
   const [customerName, setCustomerName] = useState("");
   const [participantToken, setParticipantToken] = useState("");
+  const [trackedItems, setTrackedItems] = useState<TrackedOrderItem[]>([]);
+  const [trackingLoading, setTrackingLoading] = useState(false);
   const contextLoadingRef = useRef(false);
   const productsLoadingRef = useRef(false);
   const deviceId = useMemo(getDeviceId, []);
@@ -137,9 +152,29 @@ export function TableQrPage() {
     }
   }, [participantToken, qrToken]);
 
+  const loadOrderTracking = useCallback(async (silent = false) => {
+    if (!qrToken || !participantToken) {
+      setTrackedItems([]);
+      return;
+    }
+    setTrackingLoading(true);
+    try {
+      const tracking = await salaoQrService.getOrderTracking(qrToken, participantToken);
+      setTrackedItems(tracking.itens || []);
+    } catch (error: any) {
+      if (!silent) setNotice(error?.message || "Não foi possível carregar seus pedidos.");
+    } finally {
+      setTrackingLoading(false);
+    }
+  }, [participantToken, qrToken]);
+
   useEffect(() => {
     if (participantToken) void loadContext(true);
   }, [loadContext, participantToken]);
+
+  useEffect(() => {
+    if (participantToken) void loadOrderTracking(true);
+  }, [loadOrderTracking, participantToken]);
 
   const loadProducts = useCallback(async (nextPage = 1, append = false) => {
     if (!marketId || productsLoadingRef.current) return;
@@ -216,14 +251,23 @@ export function TableQrPage() {
       if (!active) return;
       channel = realtime
         .channel(topic)
-        .on("broadcast", { event: "salao:update" }, () => void loadContext(true))
+        .on("broadcast", { event: "salao:update" }, () => {
+          void loadContext(true);
+          void loadOrderTracking(true);
+        })
         .subscribe((status) => {
-          if (status === "SUBSCRIBED") void loadContext(true);
+          if (status === "SUBSCRIBED") {
+            void loadContext(true);
+            void loadOrderTracking(true);
+          }
         });
     };
 
     void subscribe();
-    const reconcile = () => void loadContext(true);
+    const reconcile = () => {
+      void loadContext(true);
+      void loadOrderTracking(true);
+    };
     window.addEventListener("focus", reconcile);
     window.addEventListener("online", reconcile);
     document.addEventListener("visibilitychange", reconcile);
@@ -235,7 +279,7 @@ export function TableQrPage() {
       document.removeEventListener("visibilitychange", reconcile);
       if (channel) void realtime.removeChannel(channel);
     };
-  }, [loadContext, qrToken]);
+  }, [loadContext, loadOrderTracking, qrToken]);
 
   const validatePin = async () => {
     if (!/^\d{4}$/.test(pin.trim())) {
@@ -348,6 +392,8 @@ export function TableQrPage() {
       setCart([]);
       setNotice("Pedido enviado para a cozinha.");
       await loadContext(true);
+      await loadOrderTracking(true);
+      setView("orders");
     } catch (error: any) {
       setNotice(error?.message || "Não foi possível enviar o pedido.");
     } finally {
@@ -433,6 +479,21 @@ export function TableQrPage() {
 
             <div className="flex items-center gap-2">
               <button
+                className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25"
+                aria-label="Meus pedidos"
+                onClick={() => {
+                  setView("orders");
+                  void loadOrderTracking();
+                }}
+              >
+                <ListOrdered size={18} color="white" />
+                {trackedItems.length > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-slate-950">
+                    {trackedItems.length}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setWaiterConfirmationOpen(true)}
                 disabled={busy === "waiter"}
                 className="inline-flex h-10 items-center gap-2 rounded-full bg-white/15 px-3 text-xs font-bold text-white ring-1 ring-white/25 disabled:opacity-60"
@@ -502,6 +563,14 @@ export function TableQrPage() {
           onRemove={(lineId) => setCart((current) => current.filter((row) => row.lineId !== lineId))}
           onUpdateNotes={(lineId, notes) => setCart((current) => current.map((row) => row.lineId === lineId ? { ...row, notes } : row))}
           onSend={() => void sendCart()}
+        />
+      ) : view === "orders" ? (
+        <TableQrOrderTracking
+          items={trackedItems}
+          loading={trackingLoading}
+          canTrack={Boolean(participantToken)}
+          onBack={() => setView("catalog")}
+          onRefresh={() => void loadOrderTracking()}
         />
       ) : (
       <main className={`w-full flex-1 overflow-y-auto px-4 py-4 ${cart.length > 0 ? "pb-28" : "pb-6"}`}>
@@ -725,6 +794,97 @@ export function TableQrPage() {
         </div>
       )}
     </div>
+  );
+}
+
+const kdsStatus = {
+  enviado: { label: "Enviado para a cozinha", color: "#92400e", background: "#fffbeb" },
+  recebido: { label: "Recebido pela cozinha", color: "#1d4ed8", background: "#eff6ff" },
+  preparando: { label: "Em preparo", color: "#c2410c", background: "#fff7ed" },
+  pronto: { label: "Pronto", color: "#166534", background: "#f0fdf4" },
+  entregue: { label: "Entregue na mesa", color: "#166534", background: "#f0fdf4" },
+  cancelado: { label: "Cancelado", color: "#b91c1c", background: "#fef2f2" },
+} as const;
+
+function TableQrOrderTracking({
+  items,
+  loading,
+  canTrack,
+  onBack,
+  onRefresh,
+}: {
+  items: TrackedOrderItem[];
+  loading: boolean;
+  canTrack: boolean;
+  onBack: () => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <main className="w-full flex-1 overflow-y-auto bg-slate-100 px-4 py-4 pb-10">
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="rounded-full bg-white p-2 shadow-sm" aria-label="Voltar ao cardápio"><ChevronLeft className="h-5 w-5" /></button>
+            <div>
+              <h1 className="text-lg font-extrabold text-slate-900">Meus pedidos</h1>
+              <p className="text-xs text-slate-500">Acompanhe o preparo em tempo real</p>
+            </div>
+          </div>
+          <button
+            onClick={onRefresh}
+            disabled={loading || !canTrack}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm disabled:opacity-50"
+            aria-label="Atualizar pedidos"
+          >
+            <Loader2 className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+
+        {!canTrack ? (
+          <div className="rounded-2xl bg-white px-5 py-12 text-center shadow-sm">
+            <ListOrdered className="mx-auto h-11 w-11 text-slate-300" />
+            <p className="mt-3 font-extrabold text-slate-800">Valide o PIN da mesa</p>
+            <p className="mt-1 text-sm text-slate-500">Depois da validação, seus pedidos e os status da cozinha aparecerão aqui.</p>
+          </div>
+        ) : loading && items.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-16 text-sm font-semibold text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /> Carregando seus pedidos...</div>
+        ) : items.length === 0 ? (
+          <div className="rounded-2xl bg-white px-5 py-12 text-center shadow-sm">
+            <UtensilsCrossed className="mx-auto h-11 w-11 text-slate-300" />
+            <p className="mt-3 font-extrabold text-slate-800">Você ainda não enviou pedidos</p>
+            <p className="mt-1 text-sm text-slate-500">Os itens enviados para a cozinha aparecerão aqui.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {items.map((item) => {
+              const status = kdsStatus[item.status] || kdsStatus.enviado;
+              return (
+                <article key={item.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="text-sm font-extrabold text-slate-950">{item.nome_produto}</h2>
+                      {item.nome_variacao && <p className="mt-0.5 text-xs font-semibold text-slate-600">{item.nome_variacao}</p>}
+                    </div>
+                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ color: status.color, backgroundColor: status.background }}>
+                      {status.label}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">Quantidade: {item.quantidade}</p>
+                  {item.selecoes.map((selection, index) => (
+                    <p key={`${item.id}-${index}`} className="mt-1 text-xs text-slate-500">{selection.nome_grupo}: {selection.nome_opcao}{Number(selection.quantidade) > 1 ? ` x${selection.quantidade}` : ""}</p>
+                  ))}
+                  {item.observacoes && <p className="mt-2 rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600">Obs.: {item.observacoes}</p>}
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
+                    <span className="text-slate-400">{new Date(item.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span className="font-extrabold text-slate-900">{money(item.preco_total)}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
 
