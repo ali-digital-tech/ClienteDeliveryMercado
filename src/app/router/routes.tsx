@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router';
 import { MarketLayout, RedirectToMarketHome } from '@/app/layouts/MarketLayout';
-import { HomePage } from '@/pages/Home/HomePage';
+import { HomePage, TestMarketsPage } from '@/pages/Home/HomePage';
 import { MarketPage } from '@/pages/Market/MarketPage';
 import { CartPage } from '@/pages/Cart/CartPage';
 import { CheckoutPage } from '@/pages/Checkout/CheckoutPage';
@@ -47,6 +47,7 @@ const AuthenticatedProfileScreen = withAuth(ProfileScreen);
 
 export const router = createBrowserRouter([
   { path: '/', Component: HomePage },
+  { path: '/mercado/teste', Component: TestMarketsPage },
   {
     path: '/mercado/:marketId',
     Component: MarketLayout,

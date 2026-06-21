@@ -2,9 +2,10 @@ import { useNavigate } from 'react-router';
 import { MapPin, ShoppingCart, Timer } from 'lucide-react';
 import { useMarkets } from '@/features/markets';
 
-export function HomePage() {
+export function HomePage({ mode = 'principal' }: { mode?: 'principal' | 'teste' }) {
   const navigate = useNavigate();
-  const { markets, isLoading, error } = useMarkets();
+  const { markets, isLoading, error } = useMarkets(mode);
+  const isTestPage = mode === 'teste';
 
   return (
     <div className="min-h-full overflow-y-auto" style={{ background: '#f8fafc' }}>
@@ -17,10 +18,12 @@ export function HomePage() {
             <ShoppingCart size={24} color="white" />
           </div>
           <h1 style={{ color: 'var(--market-primary-color)', fontSize: '28px', fontWeight: 800, lineHeight: 1.1 }}>
-            Escolha seu estabelecimento
+            {isTestPage ? 'Lojas de teste' : 'Escolha seu estabelecimento'}
           </h1>
           <p className="mt-2 max-w-xl" style={{ color: '#64748b', fontSize: '14px', lineHeight: 1.6 }}>
-            Cada estabelecimento possui catálogo, categorias, ofertas e carrinho próprios.
+            {isTestPage
+              ? 'Ambiente destinado a validação. Cada loja mantém catálogo, categorias, ofertas e carrinho próprios.'
+              : 'Cada estabelecimento possui catálogo, categorias, ofertas e carrinho próprios.'}
           </p>
         </div>
 
@@ -47,7 +50,7 @@ export function HomePage() {
         ) : error ? (
           <div className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: '#fecaca' }}>
             <p style={{ color: '#991b1b', fontSize: '14px', fontWeight: 700 }}>
-              Não foi possível carregar os estabelecimentos ativos.
+              Não foi possível carregar {isTestPage ? 'as lojas de teste' : 'os estabelecimentos ativos'}.
             </p>
             <p className="mt-1" style={{ color: '#64748b', fontSize: '13px', lineHeight: 1.5 }}>
               Atualize a página ou tente novamente em alguns instantes.
@@ -56,7 +59,7 @@ export function HomePage() {
         ) : markets.length === 0 ? (
           <div className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: '#e2e8f0' }}>
             <p style={{ color: '#334155', fontSize: '14px', fontWeight: 700 }}>
-              Nenhum estabelecimento ativo encontrado.
+              {isTestPage ? 'Nenhuma loja de teste encontrada.' : 'Nenhum estabelecimento ativo encontrado.'}
             </p>
           </div>
         ) : (
@@ -102,4 +105,8 @@ export function HomePage() {
       </div>
     </div>
   );
+}
+
+export function TestMarketsPage() {
+  return <HomePage mode="teste" />;
 }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { getMarkets } from '../services/marketsService';
+import { getMarkets, type MarketListMode } from '../services/marketsService';
 import type { Market } from '../types/market';
 
-export function useMarkets() {
+export function useMarkets(mode: MarketListMode = 'principal') {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -12,7 +12,7 @@ export function useMarkets() {
 
     setIsLoading(true);
     setError(null);
-    getMarkets()
+    getMarkets(mode)
       .then(data => {
         if (!ignore) setMarkets(data);
       })
@@ -29,7 +29,7 @@ export function useMarkets() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [mode]);
 
   return { markets, isLoading, error };
 }

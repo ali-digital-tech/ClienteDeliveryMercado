@@ -1,4 +1,4 @@
-import { apiRequest, unwrapList } from '@/shared/lib/api';
+import { apiRequest } from '@/shared/lib/api';
 import type { EstablishmentType, Market } from '../types/market';
 import { getEstablishmentLabels } from '../utils/establishmentLabels';
 
@@ -33,6 +33,13 @@ interface ApiStoreConfig {
   formas_pagamento?: string[] | null;
 }
 
+export type MarketListMode = 'principal' | 'teste';
+
+interface ApiStorePage {
+  data?: ApiStore[];
+  total_pages?: number;
+}
+
 const fallbackLogo = 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=600&q=80';
 
 function toNumber(value: string | number | null | undefined, fallback = 0) {
@@ -42,6 +49,20 @@ function toNumber(value: string | number | null | undefined, fallback = 0) {
 
 function unwrapData<T>(payload: any): T {
   return (payload?.data || payload || {}) as T;
+}
+
+function unwrapStorePage(payload: unknown) {
+  const response = payload as { data?: ApiStorePage | ApiStore[] };
+  const data = response?.data;
+
+  if (Array.isArray(data)) {
+    return { stores: data, totalPages: 1 };
+  }
+
+  return {
+    stores: Array.isArray(data?.data) ? data.data : [],
+    totalPages: Math.max(1, Number(data?.total_pages) || 1),
+  };
 }
 
 function resolveEstablishmentType(store: ApiStore): EstablishmentType {
@@ -104,17 +125,29 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
   };
 }
 
-export async function getMarkets(): Promise<Market[]> {
-  const response = await apiRequest('/lojas', {
-    cache: 'no-store',
-    params: {
-      status: 'ativa',
-      per_page: 100,
-      _fresh: Date.now(),
-    },
-  });
+export async function getMarkets(mode: MarketListMode = 'principal'): Promise<Market[]> {
+  const stores: ApiStore[] = [];
+  let page = 1;
+  let totalPages = 1;
 
-  return unwrapList<ApiStore>(response).map((store) => mapStoreToMarket(store));
+  do {
+    const response = await apiRequest('/lojas', {
+      cache: 'no-store',
+      params: {
+        status: 'ativa',
+        visibilidade: mode,
+        page,
+        per_page: 100,
+        _fresh: Date.now(),
+      },
+    });
+    const storePage = unwrapStorePage(response);
+    stores.push(...storePage.stores);
+    totalPages = storePage.totalPages;
+    page += 1;
+  } while (page <= totalPages);
+
+  return stores.map((store) => mapStoreToMarket(store));
 }
 
 export async function getMarketById(marketId: string): Promise<Market | null> {
