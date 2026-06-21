@@ -460,8 +460,8 @@ export function TableQrPage() {
         style={{ background: "linear-gradient(160deg, var(--market-secondary-color) 0%, var(--market-primary-color) 100%)" }}
       >
         <div className="mx-auto max-w-3xl">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/15 ring-1 ring-white/30">
                 {mesa?.logo_url ? (
                   <img src={mesa.logo_url} alt={mesa?.loja_nome || "Restaurante"} className="h-full w-full object-cover" />
@@ -477,7 +477,7 @@ export function TableQrPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               <button
                 className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25"
                 aria-label="Meus pedidos"
@@ -496,10 +496,10 @@ export function TableQrPage() {
               <button
                 onClick={() => setWaiterConfirmationOpen(true)}
                 disabled={busy === "waiter"}
-                className="inline-flex h-10 items-center gap-2 rounded-full bg-white/15 px-3 text-xs font-bold text-white ring-1 ring-white/25 disabled:opacity-60"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xs font-bold text-white ring-1 ring-white/25 disabled:opacity-60 sm:w-auto sm:gap-2 sm:px-3"
               >
                 {busy === "waiter" ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing size={18} />}
-                Chamar Garçom
+                <span className="hidden sm:inline">Chamar Garçom</span>
               </button>
               <button
                 className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25"
