@@ -5,8 +5,10 @@ function unwrap<T = any>(payload: any): T {
 }
 
 export const salaoQrService = {
-  getContext: async (token: string) =>
-    unwrap(await apiRequest(`/salao/qr/${token}/context`)),
+  getContext: async (token: string, participantToken?: string) =>
+    unwrap(await apiRequest(`/salao/qr/${token}/context`, {
+      headers: participantToken ? { "x-salao-participant-token": participantToken } : undefined,
+    })),
 
   requestOpening: async (token: string, data: Record<string, unknown>) =>
     unwrap(await apiRequest(`/salao/qr/${token}/solicitar-abertura`, {

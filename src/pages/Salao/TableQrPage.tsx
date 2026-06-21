@@ -125,14 +125,18 @@ export function TableQrPage() {
     if (!qrToken || contextLoadingRef.current) return;
     contextLoadingRef.current = true;
     try {
-      const ctx = await salaoQrService.getContext(qrToken);
+      const ctx = await salaoQrService.getContext(qrToken, participantToken);
       setContext(ctx);
     } catch (error: any) {
       if (!silent) setNotice(error?.message || "Não foi possível abrir a mesa.");
     } finally {
       contextLoadingRef.current = false;
     }
-  }, [qrToken]);
+  }, [participantToken, qrToken]);
+
+  useEffect(() => {
+    if (participantToken) void loadContext(true);
+  }, [loadContext, participantToken]);
 
   const loadProducts = useCallback(async (nextPage = 1, append = false) => {
     if (!marketId || productsLoadingRef.current) return;
@@ -441,7 +445,9 @@ export function TableQrPage() {
               </div>
               <div className="min-w-0">
                 <p className="truncate text-[15px] font-extrabold text-white">{mesa?.loja_nome || "Restaurante"}</p>
-                <p className="truncate text-xs font-semibold text-white/75">{tableLabel}</p>
+                <p className="truncate text-xs font-semibold text-white/75">
+                  {tableLabel}{comanda?.pin_atual ? ` · PIN da mesa: ${comanda.pin_atual}` : ""}
+                </p>
               </div>
             </div>
 
