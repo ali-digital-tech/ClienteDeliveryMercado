@@ -142,6 +142,7 @@ export function ProductDetailsPage() {
     !isConfigurableProduct(item.product) && item.product.id === product.id
   );
   const qty = cartItem?.qty || 0;
+  const selectedItemTotal = product.price * qty;
   const favorite = isFavorite(product.id);
   const discount = product.originalPrice
     ? Math.round((1 - product.price / product.originalPrice) * 100)
@@ -412,7 +413,9 @@ export function ProductDetailsPage() {
                 className="min-w-0 flex-1 rounded-xl px-3 py-3 text-white transition-all active:scale-[0.98]"
                 style={{ backgroundColor: primaryColor, fontSize: '13px', fontWeight: 750 }}
               >
-                {qty === 0 ? 'Adicionar' : `Ver carrinho (${formatCartQuantity(qty, product)})`}
+                {qty === 0
+                  ? 'Adicionar'
+                  : `Ver carrinho (${formatCartQuantity(qty, product)}) · R$ ${selectedItemTotal.toFixed(2).replace('.', ',')}`}
               </button>
             </div>}
 
@@ -527,7 +530,9 @@ export function ProductDetailsPage() {
                   className="flex-1 rounded-xl px-4 py-3 text-white transition-all active:scale-[0.98]"
                   style={{ backgroundColor: primaryColor, fontSize: '14px', fontWeight: 750 }}
                 >
-                  {qty === 0 ? 'Adicionar ao carrinho' : `Ver carrinho (${formatCartQuantity(qty, product)})`}
+                  {qty === 0
+                    ? 'Adicionar ao carrinho'
+                    : `Ver carrinho (${formatCartQuantity(qty, product)}) · R$ ${selectedItemTotal.toFixed(2).replace('.', ',')}`}
                 </button>
               </div>
             </div>}
