@@ -1,5 +1,6 @@
 import { apiRequest, unwrapList } from '@/shared/lib/api';
 import type { Product } from '@/features/products';
+import { mapStoreProduct as mapCatalogProduct } from '@/features/products/services/productsService';
 import type { Banner, BannerPageKey, BannerProductsResult } from '../types/banner';
 
 interface ApiStoreProduct {
@@ -37,6 +38,8 @@ function toNumber(value: string | number | null | undefined, fallback = 0) {
 }
 
 function mapStoreProduct(product: ApiStoreProduct): Product {
+  return mapCatalogProduct(product as any);
+
   const regularPrice = toNumber(product.preco);
   const promoPrice = product.preco_promocional === null ? 0 : toNumber(product.preco_promocional);
   const hasPromo = promoPrice > 0 && regularPrice > 0 && promoPrice < regularPrice;
