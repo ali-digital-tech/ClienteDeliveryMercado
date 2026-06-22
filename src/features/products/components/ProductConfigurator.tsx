@@ -449,7 +449,7 @@ export function ProductConfigurator({
                 </span>
               </span>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch]">
               {group.options.filter(option => isOptionAvailable(option, variationId)).map(option => {
                 const selected = selections.find(item => item.groupId === group.id && item.optionId === option.id);
                 const optionPriceDetail = getOptionPriceDetail(option, variationId);
@@ -459,7 +459,7 @@ export function ProductConfigurator({
                 return (
                   <div
                     key={option.id}
-                    className="flex items-center gap-3 rounded-xl border p-3"
+                    className="flex w-[min(20rem,84vw)] flex-none snap-start items-center gap-3 rounded-xl border p-3"
                     style={{ borderColor: selected ? primaryColor : '#e2e8f0' }}
                   >
                     <button
@@ -479,7 +479,15 @@ export function ProductConfigurator({
                           {getOptionIndicator(group, Boolean(selected))}
                         </span>
                       )}
-                      <span className="flex-1">
+                      {option.image && (
+                        <ProductImage
+                          src={option.image}
+                          alt={option.name}
+                          className="h-16 w-16 flex-shrink-0 rounded-lg object-cover"
+                          iconSize={20}
+                        />
+                      )}
+                      <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold text-slate-800">{option.name}</span>
                         {option.description && (
                           <span className="block text-xs text-slate-500">{option.description}</span>
