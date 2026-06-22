@@ -72,6 +72,20 @@ function coordinateFromInput(value: string) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function onlyDigits(value: string | null | undefined) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function findAreaByCep(areas: Array<{ cep_inicial?: string | null; cep_final?: string | null }>, cep: string) {
+  const value = Number(onlyDigits(cep));
+  if (!Number.isInteger(value) || onlyDigits(cep).length !== 8) return null;
+  return areas.find((area) => {
+    const start = onlyDigits(area.cep_inicial);
+    const end = onlyDigits(area.cep_final);
+    return start.length === 8 && end.length === 8 && value >= Number(start) && value <= Number(end);
+  }) || null;
+}
+
 export function AddressesScreen() {
   const navigate = useNavigate();
   const { currentUser, currentMarket, marketId, tenantPath } = useApp();
@@ -93,6 +107,8 @@ export function AddressesScreen() {
   const formLatitude = coordinateFromInput(form.latitude);
   const formLongitude = coordinateFromInput(form.longitude);
   const formHasCoordinates = formLatitude !== null && formLongitude !== null;
+  const cityOptions = useMemo(() => Array.from(new Set(deliveryAreas.map((area) => area.cidade).filter(Boolean))).sort(), [deliveryAreas]);
+  const neighborhoodOptions = useMemo(() => deliveryAreas.filter((area) => area.cidade.toLocaleLowerCase() === form.cidade.trim().toLocaleLowerCase()), [deliveryAreas, form.cidade]);
 
   const loadAddresses = useCallback(async () => {
     if (!currentUser) {
@@ -175,13 +191,14 @@ export function AddressesScreen() {
       const address = await lookupCep(form.cep);
       if (!address) return;
 
+      const matchedArea = findAreaByCep(deliveryAreas, digits);
       setForm(prev => ({
         ...prev,
         cep: address.cep,
         rua: prev.rua || address.rua,
-        bairro: prev.bairro || address.bairro,
-        cidade: prev.cidade || address.cidade,
-        estado: address.estado || prev.estado,
+        bairro: matchedArea?.bairro || prev.bairro || address.bairro,
+        cidade: matchedArea?.cidade || prev.cidade || address.cidade,
+        estado: matchedArea?.estado || address.estado || prev.estado,
       }));
     } catch {
       // CEP lookup is a convenience; manual entry remains available.
@@ -266,8 +283,8 @@ export function AddressesScreen() {
       return;
     }
 
-    if (!deliveryAreas.some((area) => area.bairro.toLocaleLowerCase() === payload.bairro.toLocaleLowerCase())) {
-      showSystemNotice('Selecione um bairro atendido pela loja.');
+    if (!deliveryAreas.some((area) => area.cidade.toLocaleLowerCase() === payload.cidade.toLocaleLowerCase() && area.bairro.toLocaleLowerCase() === payload.bairro.toLocaleLowerCase())) {
+      showSystemNotice('Selecione uma cidade e um bairro atendidos pela loja.');
       return;
     }
 
@@ -506,11 +523,12 @@ export function AddressesScreen() {
               <input value={form.complemento} onChange={e => updateForm('complemento', e.target.value)} placeholder="Complemento" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
 
               <div className="grid grid-cols-[1fr_1fr_84px] gap-3">
-                <select value={form.bairro} onChange={e => updateForm('bairro', e.target.value)} className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 w-full" style={{ fontSize: '14px' }} disabled={!deliveryAreas.length}>
+                <select value={form.bairro} onChange={e => updateForm('bairro', e.target.value)} className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 w-full" style={{ fontSize: '14px' }} disabled={!neighborhoodOptions.length}>
                   <option value="">{deliveryAreas.length ? 'Selecione o bairro' : 'Nenhum bairro atendido configurado'}</option>
-                  {deliveryAreas.map(area => <option key={area.bairro} value={area.bairro}>{area.bairro}</option>)}
+                  {neighborhoodOptions.map(area => <option key={area.id} value={area.bairro}>{area.bairro}</option>)}
                 </select>
-                <input value={form.cidade} onChange={e => updateForm('cidade', e.target.value)} placeholder="Cidade" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
+                <input list="delivery-cities" value={form.cidade} onChange={e => { const cidade = e.target.value; updateForm('cidade', cidade); if (form.bairro && !deliveryAreas.some(area => area.cidade.toLocaleLowerCase() === cidade.trim().toLocaleLowerCase() && area.bairro.toLocaleLowerCase() === form.bairro.toLocaleLowerCase())) updateForm('bairro', ''); }} placeholder="Cidade" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} disabled={!deliveryAreas.length} />
+                <datalist id="delivery-cities">{cityOptions.map(cidade => <option key={cidade} value={cidade} />)}</datalist>
                 <select value={form.estado} onChange={e => updateForm('estado', e.target.value)} className="bg-gray-100 rounded-xl px-3 py-3 outline-none text-gray-700 w-full" style={{ fontSize: '14px' }}>
                   {UF_OPTIONS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
                 </select>

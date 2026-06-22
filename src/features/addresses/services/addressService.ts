@@ -10,6 +10,10 @@ export interface DeliveryArea {
   id: string;
   bairro: string | null;
   nome: string;
+  cidade: string;
+  estado: string;
+  cep_inicial?: string | null;
+  cep_final?: string | null;
   taxa_entrega: string | number;
   tempo_estimado_minutos: number;
 }
