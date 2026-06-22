@@ -449,7 +449,7 @@ export function ProductConfigurator({
                 </span>
               </span>
             </div>
-            <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch]">
+            <ul className="space-y-2" aria-label={`Opções de ${group.name}`}>
               {group.options.filter(option => isOptionAvailable(option, variationId)).map(option => {
                 const selected = selections.find(item => item.groupId === group.id && item.optionId === option.id);
                 const optionPriceDetail = getOptionPriceDetail(option, variationId);
@@ -457,9 +457,9 @@ export function ProductConfigurator({
                 const isFractional = group.selectionType === 'fracionada';
                 const canAddFraction = Boolean(selected) || selectedCount < limits.maximum;
                 return (
-                  <div
+                  <li
                     key={option.id}
-                    className="flex w-[min(20rem,84vw)] flex-none snap-start items-center gap-3 rounded-xl border p-3"
+                    className="flex w-full items-center gap-3 rounded-xl border p-3"
                     style={{ borderColor: selected ? primaryColor : '#e2e8f0' }}
                   >
                     <button
@@ -542,10 +542,10 @@ export function ProductConfigurator({
                         </button>
                       </div>
                     ) : null}
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </div>
         );
       })}
