@@ -25,6 +25,7 @@ import {
   formatAddressLine,
   formatAddressLocation,
   getAddressCoordinates,
+  getDeliveryAreas,
   getMyAddresses,
   resolveSelectedAddress,
   type CustomerAddress,
@@ -431,6 +432,7 @@ export function CheckoutPage() {
   } = useApp();
   const { banners } = useBanners(marketId, 'checkout');
   const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
+  const [deliveryAreas, setDeliveryAreas] = useState<Array<{ bairro: string; taxa_entrega: string | number; tempo_estimado_minutos: number }>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentResult, setPaymentResult] = useState<MercadoPagoPaymentResult | null>(null);
   const [pendingOrder, setPendingOrder] = useState<PendingCheckoutOrder | null>(null);
@@ -455,7 +457,10 @@ export function CheckoutPage() {
 
   const orderType = getStoredCheckoutMode(marketId);
   const isPickup = orderType === 'pickup';
-  const deliveryFee = Math.max(0, currentMarket.deliveryFee || 0);
+  const selectedDeliveryArea = deliveryAreas.find((area) =>
+    area.bairro.toLocaleLowerCase() === (selectedAddress?.bairro || '').trim().toLocaleLowerCase(),
+  );
+  const deliveryFee = Math.max(0, Number(selectedDeliveryArea?.taxa_entrega || 0));
   const effectiveDeliveryFee = isPickup ? 0 : deliveryFee;
   const total = Math.max(cartTotal - discount + effectiveDeliveryFee, 0);
   const minimumOrder = Math.max(0, currentMarket.minimumOrder || 0);
@@ -546,6 +551,10 @@ export function CheckoutPage() {
       isActive = false;
     };
   }, [currentUser, marketId]);
+
+  useEffect(() => {
+    getDeliveryAreas(marketId).then(setDeliveryAreas).catch(() => setDeliveryAreas([]));
+  }, [marketId]);
 
   useEffect(() => {
     if (!marketId) return;
@@ -1226,6 +1235,11 @@ export function CheckoutPage() {
                     <br />
                     {formatAddressLocation(selectedAddress)}
                   </p>
+                  {selectedDeliveryArea && (
+                    <p style={{ fontSize: "11px", color: "#16a34a", marginTop: "4px", fontWeight: 700 }}>
+                      Previsão de entrega: {selectedDeliveryArea.tempo_estimado_minutos} min
+                    </p>
+                  )}
                   {selectedCoordinates && (
                     <p style={{ fontSize: "11px", color: "#16a34a", marginTop: "4px", fontWeight: 700 }}>
                       GPS: {selectedCoordinates.latitude.toFixed(5)}, {selectedCoordinates.longitude.toFixed(5)}

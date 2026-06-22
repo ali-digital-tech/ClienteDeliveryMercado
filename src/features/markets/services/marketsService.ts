@@ -108,9 +108,10 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
     digitalLabel: labels.digital,
     neighborhood: store.bairro || store.cidade || 'Sua região',
     address: address || store.bairro || store.cidade || 'Endereço da loja não informado',
-    deliveryEstimate: '35-50 min',
+    deliveryEstimate: '',
     minimumOrder: toNumber(store.valor_minimo_pedido),
-    deliveryFee: toNumber(store.taxa_entrega_padrao),
+    // The fee is resolved from the selected delivery area during checkout.
+    deliveryFee: 0,
     status: store.status === 'ativa' ? 'open' : 'closed',
     logo: store.logo_url || fallbackLogo,
     primaryColor: store.cor_primaria || '#122a4c',

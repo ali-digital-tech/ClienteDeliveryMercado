@@ -6,6 +6,14 @@ import type {
   GeocodeAddressResult,
 } from '../types/address';
 
+export interface DeliveryArea {
+  id: string;
+  bairro: string | null;
+  nome: string;
+  taxa_entrega: string | number;
+  tempo_estimado_minutos: number;
+}
+
 const SELECTED_ADDRESS_STORAGE_KEY = 'cliente_delivery_selected_address_by_market';
 
 function readSelectedAddressMap(): Record<string, string> {
@@ -52,6 +60,13 @@ export function resolveSelectedAddress(marketId: string, addresses: CustomerAddr
 export async function getMyAddresses() {
   const response = await apiRequest('/enderecos_cliente/me');
   return unwrapList<CustomerAddress>(response);
+}
+
+export async function getDeliveryAreas(marketId: string) {
+  const response = await apiRequest(`/lojas/${marketId}/areas-entrega`);
+  return unwrapList<DeliveryArea>(response)
+    .map((area) => ({ ...area, bairro: (area.bairro || area.nome || '').trim() }))
+    .filter((area) => Boolean(area.bairro));
 }
 
 export async function createAddress(payload: CustomerAddressPayload) {

@@ -21,6 +21,7 @@ import {
   formatAddressLocation,
   geocodeAddress,
   getAddressCoordinates,
+  getDeliveryAreas,
   getMyAddresses,
   lookupCep,
   reverseGeocode,
@@ -83,6 +84,7 @@ export function AddressesScreen() {
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [locationSource, setLocationSource] = useState<LocationSource>('manual');
+  const [deliveryAreas, setDeliveryAreas] = useState<Array<{ bairro: string; taxa_entrega: string | number; tempo_estimado_minutos: number }>>([]);
 
   const selectedAddress = useMemo(
     () => addresses.find(address => address.id === selected) || addresses.find(address => address.principal) || addresses[0],
@@ -115,6 +117,11 @@ export function AddressesScreen() {
   useEffect(() => {
     void loadAddresses();
   }, [loadAddresses]);
+
+  useEffect(() => {
+    if (!marketId) return;
+    getDeliveryAreas(marketId).then(setDeliveryAreas).catch(() => setDeliveryAreas([]));
+  }, [marketId]);
 
   const updateForm = (field: keyof AddressForm, value: string | boolean) => {
     const affectsCoordinates = LOCATION_FIELDS.includes(field);
@@ -256,6 +263,11 @@ export function AddressesScreen() {
 
     if (!payload.rua || !payload.numero || !payload.bairro || !payload.cidade || !payload.estado) {
       showSystemNotice('Preencha rua, número, bairro, cidade e estado.');
+      return;
+    }
+
+    if (!deliveryAreas.some((area) => area.bairro.toLocaleLowerCase() === payload.bairro.toLocaleLowerCase())) {
+      showSystemNotice('Selecione um bairro atendido pela loja.');
       return;
     }
 
@@ -494,7 +506,10 @@ export function AddressesScreen() {
               <input value={form.complemento} onChange={e => updateForm('complemento', e.target.value)} placeholder="Complemento" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
 
               <div className="grid grid-cols-[1fr_1fr_84px] gap-3">
-                <input value={form.bairro} onChange={e => updateForm('bairro', e.target.value)} placeholder="Bairro" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
+                <select value={form.bairro} onChange={e => updateForm('bairro', e.target.value)} className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 w-full" style={{ fontSize: '14px' }} disabled={!deliveryAreas.length}>
+                  <option value="">{deliveryAreas.length ? 'Selecione o bairro' : 'Nenhum bairro atendido configurado'}</option>
+                  {deliveryAreas.map(area => <option key={area.bairro} value={area.bairro}>{area.bairro}</option>)}
+                </select>
                 <input value={form.cidade} onChange={e => updateForm('cidade', e.target.value)} placeholder="Cidade" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
                 <select value={form.estado} onChange={e => updateForm('estado', e.target.value)} className="bg-gray-100 rounded-xl px-3 py-3 outline-none text-gray-700 w-full" style={{ fontSize: '14px' }}>
                   {UF_OPTIONS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
