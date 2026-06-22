@@ -25,6 +25,10 @@ interface ApiStoreProduct {
   destaque?: boolean | null;
   consumo_imediato?: boolean | null;
   quantidade_vendida?: string | number | null;
+  modo_compra?: 'simples' | 'configuravel' | null;
+  modo_estoque?: 'quantidade' | 'disponibilidade' | null;
+  tem_variacoes?: boolean | null;
+  preco_a_partir_de?: string | number | null;
 }
 
 function toNumber(value: string | number | null | undefined, fallback = 0) {
@@ -39,6 +43,9 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
   const salesCount = toNumber(product.quantidade_vendida);
   const saleType = product.tipo_venda || (product.vendavel_por_peso ? 'peso' : 'unidade');
   const isWeight = saleType === 'peso';
+  const startingPrice = product.preco_a_partir_de == null
+    ? (hasPromo ? promoPrice : regularPrice)
+    : toNumber(product.preco_a_partir_de);
 
   return {
     id: product.id,
@@ -46,7 +53,7 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
     marketId: product.loja_id || '',
     name: product.nome || 'Produto',
     brand: product.marca || 'Produto',
-    price: hasPromo ? promoPrice : regularPrice,
+    price: startingPrice,
     originalPrice: hasPromo ? regularPrice : undefined,
     saleType,
     minQty: toNumber(product.quantidade_minima_compra, isWeight ? 0.1 : 1),
@@ -62,6 +69,10 @@ function mapStoreProduct(product: ApiStoreProduct): Product {
     isFeatured: Boolean(product.destaque),
     isBestseller: salesCount > 0,
     isImmediateConsumption: Boolean(product.consumo_imediato) && hasPromo,
+    purchaseMode: product.modo_compra || 'simples',
+    stockMode: product.modo_estoque || 'quantidade',
+    hasVariations: Boolean(product.tem_variacoes),
+    startingPrice: product.modo_compra === 'configuravel' ? startingPrice : undefined,
   };
 }
 
