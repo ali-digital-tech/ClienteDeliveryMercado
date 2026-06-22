@@ -522,17 +522,19 @@ export function AddressesScreen() {
 
               <input value={form.complemento} onChange={e => updateForm('complemento', e.target.value)} placeholder="Complemento" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
 
-              <div className="grid grid-cols-[1fr_1fr_84px] gap-3">
-                <select value={form.bairro} onChange={e => updateForm('bairro', e.target.value)} className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 w-full" style={{ fontSize: '14px' }} disabled={!neighborhoodOptions.length}>
-                  <option value="">{deliveryAreas.length ? 'Selecione o bairro' : 'Nenhum bairro atendido configurado'}</option>
-                  {neighborhoodOptions.map(area => <option key={area.id} value={area.bairro}>{area.bairro}</option>)}
+              <div className="grid grid-cols-[1fr_84px] gap-3">
+                <select value={form.cidade} onChange={e => { const cidade = e.target.value; const area = deliveryAreas.find(item => item.cidade === cidade); updateForm('cidade', cidade); updateForm('estado', area?.estado || ''); updateForm('bairro', ''); }} className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 w-full" style={{ fontSize: '14px' }} disabled={!deliveryAreas.length}>
+                  <option value="">{deliveryAreas.length ? 'Selecione a cidade' : 'Nenhuma cidade configurada'}</option>
+                  {cityOptions.map(cidade => <option key={cidade} value={cidade}>{cidade}</option>)}
                 </select>
-                <input list="delivery-cities" value={form.cidade} onChange={e => { const cidade = e.target.value; updateForm('cidade', cidade); if (form.bairro && !deliveryAreas.some(area => area.cidade.toLocaleLowerCase() === cidade.trim().toLocaleLowerCase() && area.bairro.toLocaleLowerCase() === form.bairro.toLocaleLowerCase())) updateForm('bairro', ''); }} placeholder="Cidade" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} disabled={!deliveryAreas.length} />
-                <datalist id="delivery-cities">{cityOptions.map(cidade => <option key={cidade} value={cidade} />)}</datalist>
-                <select value={form.estado} onChange={e => updateForm('estado', e.target.value)} className="bg-gray-100 rounded-xl px-3 py-3 outline-none text-gray-700 w-full" style={{ fontSize: '14px' }}>
+                <select value={form.estado} disabled className="bg-gray-100 rounded-xl px-3 py-3 outline-none text-gray-700 w-full disabled:opacity-70" style={{ fontSize: '14px' }}>
                   {UF_OPTIONS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
                 </select>
               </div>
+              {form.cidade && <select value={form.bairro} onChange={e => updateForm('bairro', e.target.value)} className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 w-full" style={{ fontSize: '14px' }} disabled={!neighborhoodOptions.length}>
+                <option value="">Selecione o bairro</option>
+                {neighborhoodOptions.map(area => <option key={area.id} value={area.bairro}>{area.bairro}</option>)}
+              </select>}
 
               <input value={form.ponto_referencia} onChange={e => updateForm('ponto_referencia', e.target.value)} placeholder="Ponto de referência" className="bg-gray-100 rounded-xl px-4 py-3 outline-none text-gray-700 placeholder-gray-400 w-full" style={{ fontSize: '14px' }} />
 

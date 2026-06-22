@@ -7,6 +7,7 @@ import { useMarketContext } from '@/contexts/MarketContext';
 import { BannerRenderer, useBanners } from '@/features/banners';
 import { formatCartQuantity, getCartLineCount, getNextCartQuantity } from '@/features/cart';
 import { getEstablishmentLabels } from '@/features/markets';
+import { getDeliveryAreas } from '@/features/addresses';
 import {
   calculatePlatformServiceFee,
   getMercadoPagoCheckoutConfig,
@@ -89,6 +90,7 @@ export function CartPage() {
   const [couponSuccess, setCouponSuccess] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [checkoutConfig, setCheckoutConfig] = useState<MercadoPagoCheckoutConfig | null>(null);
+  const [startingDeliveryFee, setStartingDeliveryFee] = useState<number | null>(null);
   const suggestedProductsDrag = useHorizontalDragScroll<HTMLDivElement>();
 
   const deliveryFee = Math.max(0, currentMarket?.deliveryFee || 0);
@@ -113,6 +115,12 @@ export function CartPage() {
     return () => {
       isActive = false;
     };
+  }, [marketId]);
+
+  useEffect(() => {
+    getDeliveryAreas(marketId)
+      .then((areas) => setStartingDeliveryFee(areas.length ? Math.min(...areas.map((area) => Math.max(0, Number(area.taxa_entrega || 0)))) : null))
+      .catch(() => setStartingDeliveryFee(null));
   }, [marketId]);
   const primarySoftColor = `color-mix(in srgb, ${primaryColor} 10%, white)`;
   const minimumOrder = Math.max(0, currentMarket?.minimumOrder || 0);
@@ -222,15 +230,15 @@ export function CartPage() {
           <div className="flex-1 overflow-y-auto px-4 pt-3" style={{ background: '#f3f4f6' }}>
             <BannerRenderer banners={banners} placement="cart_top" page="cart" className="mb-3" />
             {/* Delivery banner */}
-            {deliveryFee > 0 && (
+            {startingDeliveryFee !== null && (
               <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 flex items-center gap-2 mb-3">
                 <Truck size={16} color="#f97316" />
                 <p style={{ fontSize: '12px', color: '#ea580c', lineHeight: 1.4 }}>
-                  Taxa de entrega {establishmentLabels.ofThis}: <b>R$ {deliveryFee.toFixed(2).replace('.', ',')}</b>
+                  Taxa de entrega a partir de <b>R$ {startingDeliveryFee.toFixed(2).replace('.', ',')}</b>.
                 </p>
               </div>
             )}
-            {deliveryFee === 0 && (
+            {startingDeliveryFee === null && (
               <div className="rounded-2xl px-4 py-3 flex items-center gap-2 mb-3" style={{ backgroundColor: primarySoftColor, border: `1px solid ${primaryColor}` }}>
                 <Truck size={16} color={primaryColor} />
                 <p style={{ fontSize: '12px', color: primaryColor, fontWeight: 600 }}>Entrega grátis {establishmentLabels.inThis}.</p>

@@ -12,6 +12,7 @@ import {
   formatAddressLine,
   formatAddressLocation,
   getAddressCoordinates,
+  getDeliveryAreas,
   getMyAddresses,
   resolveSelectedAddress,
   type CustomerAddress,
@@ -35,9 +36,11 @@ export function DeliveryScreen() {
   const [mode, setMode] = useState<CheckoutOrderType>(() => getStoredCheckoutMode(marketId));
   const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
   const [checkoutConfig, setCheckoutConfig] = useState<MercadoPagoCheckoutConfig | null>(null);
+  const [deliveryAreas, setDeliveryAreas] = useState<Array<{ cidade: string; bairro: string; taxa_entrega: string | number; tempo_estimado_minutos: number }>>([]);
 
   const discountedSubtotal = Math.max(cartTotal - discount, 0);
-  const deliveryFee = Math.max(0, currentMarket.deliveryFee || 0);
+  const selectedDeliveryArea = deliveryAreas.find((area) => area.cidade.toLocaleLowerCase() === (selectedAddress?.cidade || '').trim().toLocaleLowerCase() && area.bairro.toLocaleLowerCase() === (selectedAddress?.bairro || '').trim().toLocaleLowerCase());
+  const deliveryFee = Math.max(0, Number(selectedDeliveryArea?.taxa_entrega || 0));
   const minimumOrder = Math.max(0, currentMarket.minimumOrder || 0);
   const missingMinimumOrder = Math.max(0, minimumOrder - cartTotal);
   const meetsMinimumOrder = minimumOrder <= 0 || missingMinimumOrder <= 0;
@@ -50,6 +53,10 @@ export function DeliveryScreen() {
 
   useEffect(() => {
     setMode(getStoredCheckoutMode(marketId));
+  }, [marketId]);
+
+  useEffect(() => {
+    getDeliveryAreas(marketId).then(setDeliveryAreas).catch(() => setDeliveryAreas([]));
   }, [marketId]);
 
   useEffect(() => {

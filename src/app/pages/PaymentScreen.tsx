@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router";
 import { Banknote, ChevronLeft, CreditCard, Loader2, Lock, QrCode, ShieldCheck, Smartphone } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { getStoredCheckoutMode } from '@/features/orders/services/checkoutModeService';
+import { getDeliveryAreas, getMyAddresses, resolveSelectedAddress, type CustomerAddress } from '@/features/addresses';
 import {
   getMercadoPagoCheckoutConfig,
   getSavedPaymentCards,
@@ -367,7 +368,10 @@ export function PaymentScreen() {
   const nameParts = splitName(currentUser?.nome);
   const orderType = getStoredCheckoutMode(marketId);
   const isPickup = orderType === 'pickup';
-  const deliveryFee = isPickup ? 0 : Math.max(0, currentMarket.deliveryFee || 0);
+  const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
+  const [deliveryAreas, setDeliveryAreas] = useState<Array<{ cidade: string; bairro: string; taxa_entrega: string | number }>>([]);
+  const selectedDeliveryArea = deliveryAreas.find((area) => area.cidade.toLocaleLowerCase() === (selectedAddress?.cidade || '').trim().toLocaleLowerCase() && area.bairro.toLocaleLowerCase() === (selectedAddress?.bairro || '').trim().toLocaleLowerCase());
+  const deliveryFee = isPickup ? 0 : Math.max(0, Number(selectedDeliveryArea?.taxa_entrega || 0));
   const paymentAmount = isProfilePaymentMethods
     ? 0
     : Math.max(cartTotal - discount + deliveryFee, 0);
@@ -378,6 +382,15 @@ export function PaymentScreen() {
     expirationDate?: MercadoPagoSecureField;
     securityCode: MercadoPagoSecureField;
   } | null>(null);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    getMyAddresses().then((addresses) => setSelectedAddress(resolveSelectedAddress(marketId, addresses))).catch(() => setSelectedAddress(null));
+  }, [currentUser, marketId]);
+
+  useEffect(() => {
+    getDeliveryAreas(marketId).then(setDeliveryAreas).catch(() => setDeliveryAreas([]));
+  }, [marketId]);
   const currentBinRef = useRef("");
   const metadataRequestRef = useRef(0);
   const refreshCardMetadataRef = useRef<(bin: string) => void>(() => {});
