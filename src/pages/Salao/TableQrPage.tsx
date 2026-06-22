@@ -573,7 +573,7 @@ export function TableQrPage() {
           onRefresh={() => void loadOrderTracking()}
         />
       ) : (
-      <main className={`w-full flex-1 overflow-y-auto px-4 py-4 ${cart.length > 0 ? "pb-28" : "pb-6"}`}>
+      <main className={`w-full flex-1 overflow-y-auto px-4 py-4 ${cart.length > 0 || canOrder ? "pb-28" : "pb-6"}`}>
         <div className="mx-auto max-w-3xl">
         {notice && (
           <div className="mb-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
