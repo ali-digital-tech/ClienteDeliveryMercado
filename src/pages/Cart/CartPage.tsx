@@ -386,12 +386,6 @@ export function CartPage() {
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-gray-500" style={{ fontSize: '13px' }}>Taxa de entrega</span>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: deliveryFee === 0 ? primaryColor : '#374151' }}>
-                    {deliveryFee === 0 ? 'Grátis' : `R$ ${deliveryFee.toFixed(2).replace('.', ',')}`}
-                  </span>
-                </div>
                 {serviceFee > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-500" style={{ fontSize: '13px' }}>Taxa de serviço</span>
