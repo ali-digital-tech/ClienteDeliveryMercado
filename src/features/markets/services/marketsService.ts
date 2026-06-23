@@ -14,6 +14,8 @@ interface ApiStore {
   cidade?: string | null;
   estado?: string | null;
   status?: string | null;
+  aberta_agora?: boolean | null;
+  cidades_atendidas?: string[] | null;
   logo_url?: string | null;
   valor_minimo_pedido?: string | number | null;
   taxa_entrega_padrao?: string | number | null;
@@ -84,6 +86,21 @@ function normalizePaymentMethod(value: string) {
     .replace(/[\s-]+/g, '_');
 }
 
+function normalizeCities(store: ApiStore) {
+  const cities = Array.isArray(store.cidades_atendidas)
+    ? store.cidades_atendidas
+    : [];
+  const uniqueCities = new Map<string, string>();
+
+  [...cities, store.cidade].forEach((city) => {
+    if (typeof city !== 'string' || !city.trim()) return;
+    const normalizedCity = city.trim();
+    uniqueCities.set(normalizedCity.toLocaleLowerCase('pt-BR'), normalizedCity);
+  });
+
+  return [...uniqueCities.values()];
+}
+
 function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market {
   const street = store.endereco || store.rua || store.logradouro;
   const address = [
@@ -93,6 +110,7 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
   ].filter(Boolean).join(' · ');
   const establishmentType = resolveEstablishmentType(store);
   const labels = getEstablishmentLabels(establishmentType);
+  const cities = normalizeCities(store);
   const paymentMethods = Array.isArray(store.formas_pagamento)
     ? store.formas_pagamento
     : Array.isArray(config.formas_pagamento)
@@ -106,13 +124,15 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
     establishmentType,
     configurableMenuEnabled: store.cardapio_configuravel_ativo === true,
     digitalLabel: labels.digital,
-    neighborhood: store.bairro || store.cidade || 'Sua região',
+    neighborhood: store.bairro || cities[0] || 'Sua região',
+    city: store.cidade?.trim() || cities[0] || '',
+    cities,
     address: address || store.bairro || store.cidade || 'Endereço da loja não informado',
     deliveryEstimate: '',
     minimumOrder: toNumber(store.valor_minimo_pedido),
     // The fee is resolved from the selected delivery area during checkout.
     deliveryFee: 0,
-    status: store.status === 'ativa' ? 'open' : 'closed',
+    status: store.aberta_agora === false ? 'closed' : 'open',
     logo: store.logo_url || fallbackLogo,
     primaryColor: store.cor_primaria || '#122a4c',
     secondaryColor: store.cor_secundaria || '#16a34a',

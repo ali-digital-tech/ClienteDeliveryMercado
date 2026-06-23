@@ -8,6 +8,8 @@ export interface Market {
   configurableMenuEnabled: boolean;
   digitalLabel: string;
   neighborhood: string;
+  city: string;
+  cities: string[];
   address: string;
   deliveryEstimate: string;
   minimumOrder: number;
