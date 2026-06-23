@@ -41,6 +41,7 @@ import {
   createCardPayment,
   createCashPayment,
   createPixPayment,
+  getCardPaymentStatusMessage,
   getMercadoPagoCheckoutConfig,
   getSavedPaymentCards,
   getStoredPayerData,
@@ -1022,7 +1023,7 @@ export function CheckoutPage() {
         return;
       }
 
-      showSystemNotice('Pagamento ainda não aprovado. Confira a forma de pagamento e tente novamente.');
+      showSystemNotice(getCardPaymentStatusMessage(result.payment.status, result.status_detail));
       await refreshOrders();
       navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(order.id)}`);
     } catch (err) {

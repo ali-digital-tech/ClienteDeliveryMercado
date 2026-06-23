@@ -231,6 +231,37 @@ export function hasFreshCardToken(selection: StoredPaymentSelection) {
   return Date.now() - selection.card_token_created_at < CARD_TOKEN_TTL_MS;
 }
 
+export function getCardPaymentStatusMessage(status?: string | null, statusDetail?: string | null) {
+  const normalizedStatus = String(status || '').trim().toLowerCase();
+  const normalizedDetail = String(statusDetail || '').trim().toLowerCase();
+
+  if (['aprovado', 'approved', 'paid', 'authorized'].includes(normalizedStatus)) {
+    return 'Pagamento aprovado.';
+  }
+
+  if (['rejeitado', 'rejected', 'cancelado', 'cancelled', 'failed'].includes(normalizedStatus)) {
+    if (normalizedDetail.includes('cc_rejected_high_risk')) {
+      return 'O Mercado Pago recusou esta compra por segurança. Não repita o mesmo pagamento agora; aguarde alguns minutos ou use PIX/outro cartão.';
+    }
+    if (normalizedDetail.includes('cc_rejected_insufficient_amount')) {
+      return 'Pagamento recusado: limite ou saldo insuficiente no cartão.';
+    }
+    if (normalizedDetail.includes('cc_rejected_bad_filled')) {
+      return 'Pagamento recusado: confira os dados do cartão.';
+    }
+    if (normalizedDetail.includes('cc_rejected_call_for_authorize')) {
+      return 'Pagamento recusado: autorize a compra com o banco emissor do cartão.';
+    }
+    return 'Pagamento recusado. Escolha outro cartão ou tente novamente mais tarde.';
+  }
+
+  if (['pendente', 'pending', 'em_processamento', 'in_process', 'processing'].includes(normalizedStatus)) {
+    return 'Pagamento em análise. A confirmação final será atualizada automaticamente.';
+  }
+
+  return 'Pagamento ainda não aprovado. Confira a forma de pagamento e tente novamente.';
+}
+
 export function getStoredPayerData(): Partial<PayerData> {
   return readJson<Partial<PayerData>>(PAYER_STORAGE_KEY, {});
 }
