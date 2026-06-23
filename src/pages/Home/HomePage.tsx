@@ -1,230 +1,114 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Heart, MapPin, ShoppingCart, Timer } from 'lucide-react';
+import { Heart, MapPin, Search, ShoppingBag, Store, Timer, UserRound, Utensils, Grid2X2, Sparkles, ChevronRight, Package } from 'lucide-react';
 import {
-  ALL_CITIES_VALUE,
   readFavoriteMarketIds,
-  readSelectedMarketCity,
   saveFavoriteMarketIds,
-  saveSelectedMarketCity,
   useMarkets,
+  type EstablishmentType,
 } from '@/features/markets';
+import { authService } from '@/features/auth';
+import { getAuthToken } from '@/shared/lib/api';
+import { getOrdersByMarketId } from '@/features/orders';
+import { usePlatformBanners, type PlatformBanner } from '@/features/platformBanners';
+
+type HomeView = 'all' | 'favorites' | 'orders';
+
+const categories: Array<{ type: EstablishmentType; label: string; icon: typeof Store; color: string }> = [
+  { type: 'mercado', label: 'Mercados', icon: Store, color: '#ef4444' },
+  { type: 'restaurante', label: 'Restaurantes', icon: Utensils, color: '#f97316' },
+  { type: 'lanchonete', label: 'Lanchonetes', icon: Sparkles, color: '#ec4899' },
+  { type: 'hibrido', label: 'Diversos', icon: Grid2X2, color: '#7c3aed' },
+  { type: 'outro', label: 'Outros', icon: Package, color: '#0ea5e9' },
+];
+
+function firstName(name?: string) {
+  return name?.trim().split(/\s+/)[0] || 'cliente';
+}
+
+function routeForBanner(banner: PlatformBanner) {
+  if (banner.destino_tipo === 'link_externo') return banner.destino_url || null;
+  if (!banner.destino_loja_id) return null;
+  if (banner.destino_tipo === 'produto' && banner.destino_produto_loja_id) return `/mercado/${banner.destino_loja_id}/product/${banner.destino_produto_loja_id}`;
+  if (banner.destino_tipo === 'rota_loja') return `/mercado/${banner.destino_loja_id}/${banner.destino_rota || 'home'}`;
+  return `/mercado/${banner.destino_loja_id}`;
+}
 
 export function HomePage({ mode = 'principal' }: { mode?: 'principal' | 'teste' }) {
   const navigate = useNavigate();
   const { markets, isLoading, error } = useMarkets(mode);
+  const { banners } = usePlatformBanners();
   const isTestPage = mode === 'teste';
-  const [selectedCity, setSelectedCity] = useState(readSelectedMarketCity);
   const [favoriteMarketIds, setFavoriteMarketIds] = useState(readFavoriteMarketIds);
-
-  const cities = useMemo(() => {
-    const uniqueCities = new Map<string, string>();
-
-    markets.forEach((market) => {
-      market.cities.forEach((city) => {
-        const normalizedCity = city.trim();
-        if (normalizedCity) uniqueCities.set(normalizedCity.toLocaleLowerCase('pt-BR'), normalizedCity);
-      });
-    });
-
-    return [...uniqueCities.values()].sort((first, second) => first.localeCompare(second, 'pt-BR'));
-  }, [markets]);
-
-  const activeCity = useMemo(() => {
-    if (isTestPage || selectedCity === ALL_CITIES_VALUE) return ALL_CITIES_VALUE;
-
-    return cities.find((city) => city.localeCompare(selectedCity, 'pt-BR', { sensitivity: 'accent' }) === 0)
-      || ALL_CITIES_VALUE;
-  }, [cities, isTestPage, selectedCity]);
-
-  const visibleMarkets = useMemo(() => {
-    const favoriteIds = new Set(favoriteMarketIds);
-    const matchesCity = (marketCities: string[]) => (
-      activeCity === ALL_CITIES_VALUE
-      || marketCities.some((city) => city.localeCompare(activeCity, 'pt-BR', { sensitivity: 'accent' }) === 0)
-    );
-
-    return markets
-      .filter((market) => matchesCity(market.cities))
-      .sort((first, second) => Number(favoriteIds.has(second.id)) - Number(favoriteIds.has(first.id)));
-  }, [activeCity, favoriteMarketIds, markets]);
+  const [selectedCategory, setSelectedCategory] = useState<EstablishmentType | null>(null);
+  const [search, setSearch] = useState('');
+  const [view, setView] = useState<HomeView>('all');
+  const [userName, setUserName] = useState(() => authService.getStoredUser()?.nome);
+  const [orderMarketIds, setOrderMarketIds] = useState<string[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
   useEffect(() => {
-    if (!isTestPage && !isLoading && activeCity !== selectedCity) {
-      setSelectedCity(ALL_CITIES_VALUE);
-      saveSelectedMarketCity(ALL_CITIES_VALUE);
-    }
-  }, [activeCity, isLoading, isTestPage, selectedCity]);
+    if (!getAuthToken()) return;
+    authService.getCurrentCustomer().then((user) => setUserName(user.nome)).catch(() => undefined);
+  }, []);
 
-  const handleCityChange = (city: string) => {
-    setSelectedCity(city);
-    saveSelectedMarketCity(city);
-  };
+  useEffect(() => {
+    if (view !== 'orders' || !getAuthToken()) return;
+    let cancelled = false;
+    setOrdersLoading(true);
+    getOrdersByMarketId('').then((orders) => {
+      if (!cancelled) setOrderMarketIds([...new Set(orders.map((order) => order.marketId).filter(Boolean))]);
+    }).catch(() => { if (!cancelled) setOrderMarketIds([]); }).finally(() => { if (!cancelled) setOrdersLoading(false); });
+    return () => { cancelled = true; };
+  }, [view]);
+
+  const visibleMarkets = useMemo(() => {
+    const normalizedSearch = search.trim().toLocaleLowerCase('pt-BR');
+    return markets.filter((market) => {
+      if (selectedCategory && market.establishmentType !== selectedCategory) return false;
+      if (view === 'favorites' && !favoriteMarketIds.includes(market.id)) return false;
+      if (view === 'orders' && !orderMarketIds.includes(market.id)) return false;
+      return !normalizedSearch || `${market.name} ${market.description} ${market.city} ${market.neighborhood}`.toLocaleLowerCase('pt-BR').includes(normalizedSearch);
+    }).sort((a, b) => Number(favoriteMarketIds.includes(b.id)) - Number(favoriteMarketIds.includes(a.id)));
+  }, [favoriteMarketIds, markets, orderMarketIds, search, selectedCategory, view]);
 
   const toggleFavoriteMarket = (marketId: string) => {
-    setFavoriteMarketIds((currentIds) => {
-      const nextIds = currentIds.includes(marketId)
-        ? currentIds.filter((id) => id !== marketId)
-        : [...currentIds, marketId];
-
-      saveFavoriteMarketIds(nextIds);
-      return nextIds;
+    setFavoriteMarketIds((current) => {
+      const next = current.includes(marketId) ? current.filter((id) => id !== marketId) : [...current, marketId];
+      saveFavoriteMarketIds(next);
+      return next;
     });
   };
 
+  const openBanner = (banner: PlatformBanner) => {
+    const target = routeForBanner(banner);
+    if (!target) return;
+    if (banner.destino_tipo === 'link_externo') window.open(target, '_blank', 'noopener,noreferrer');
+    else navigate(target);
+  };
+
+  const contentTitle = view === 'favorites' ? 'Lojas favoritas' : view === 'orders' ? 'Onde você tem pedidos' : selectedCategory ? categories.find((item) => item.type === selectedCategory)?.label || 'Estabelecimentos' : 'Estabelecimentos em destaque';
+
   return (
-    <div className="min-h-full overflow-y-auto" style={{ background: '#f8fafc' }}>
-      <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 py-10 md:py-14">
-        <div className="mb-8">
-          <div
-            className="mb-4 flex items-center justify-center rounded-2xl"
-            style={{ width: '48px', height: '48px', background: 'var(--market-primary-color)' }}
-          >
-            <ShoppingCart size={24} color="white" />
-          </div>
-          <h1 style={{ color: 'var(--market-primary-color)', fontSize: '28px', fontWeight: 800, lineHeight: 1.1 }}>
-            {isTestPage ? 'Lojas de teste' : 'Escolha seu estabelecimento'}
-          </h1>
-          <p className="mt-2 max-w-xl" style={{ color: '#64748b', fontSize: '14px', lineHeight: 1.6 }}>
-            {isTestPage
-              ? 'Ambiente destinado a validação. Cada loja mantém catálogo, categorias, ofertas e carrinho próprios.'
-              : 'Cada estabelecimento possui catálogo, categorias, ofertas e carrinho próprios.'}
-          </p>
+    <main className="min-h-full overflow-y-auto bg-[#f8fafc] pb-8">
+      <div className="mx-auto w-full max-w-3xl px-4 py-7 sm:py-10">
+        <header className="mb-5 flex items-start justify-between gap-4">
+          <div><h1 className="text-slate-950" style={{ fontSize: '28px', fontWeight: 800 }}>Olá, {firstName(userName)}! <span aria-hidden>👋</span></h1><p className="mt-1 text-slate-500" style={{ fontSize: '16px' }}>Onde você deseja comprar hoje?</p></div>
+          <button aria-label="Abrir perfil" type="button" className="flex h-11 w-11 items-center justify-center rounded-full border bg-white text-slate-700 shadow-sm" onClick={() => navigate(markets[0] ? `/mercado/${markets[0].id}/profile` : '/')}><UserRound size={21} /></button>
+        </header>
 
-          {!isTestPage && !isLoading && !error && cities.length > 0 && (
-            <label className="mt-5 block max-w-xs" style={{ color: '#334155', fontSize: '13px', fontWeight: 700 }}>
-              Cidade
-              <select
-                value={activeCity}
-                onChange={(event) => handleCityChange(event.target.value)}
-                className="mt-1.5 h-11 w-full rounded-xl border bg-white px-3 outline-none transition focus:ring-2"
-                style={{ borderColor: '#cbd5e1', color: '#334155' }}
-                aria-label="Filtrar lojas por cidade"
-              >
-                <option value={ALL_CITIES_VALUE}>Todas as cidades</option>
-                {cities.map((city) => <option key={city} value={city}>{city}</option>)}
-              </select>
-              <span className="mt-1.5 block" style={{ color: '#64748b', fontSize: '12px', fontWeight: 400 }}>
-                Lojas favoritas aparecem primeiro e ficam salvas neste dispositivo.
-              </span>
-            </label>
-          )}
-        </div>
+        <label className="mb-6 flex h-13 items-center gap-3 rounded-2xl border bg-white px-4 shadow-sm" style={{ borderColor: '#e2e8f0' }}><Search size={23} color="#94a3b8" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar estabelecimento" className="min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400" /></label>
 
-        {isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2" aria-label="Carregando estabelecimentos">
-            {[0, 1].map((item) => (
-              <div
-                key={item}
-                className="overflow-hidden rounded-2xl border bg-white shadow-sm"
-                style={{ borderColor: '#e2e8f0' }}
-              >
-                <div className="h-32 animate-pulse bg-slate-200" />
-                <div className="space-y-3 p-4">
-                  <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
-                  <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
-                  <div className="flex gap-2 pt-1">
-                    <div className="h-6 w-24 animate-pulse rounded-full bg-slate-100" />
-                    <div className="h-6 w-32 animate-pulse rounded-full bg-slate-100" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : error ? (
-          <div className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: '#fecaca' }}>
-            <p style={{ color: '#991b1b', fontSize: '14px', fontWeight: 700 }}>
-              Não foi possível carregar {isTestPage ? 'as lojas de teste' : 'os estabelecimentos ativos'}.
-            </p>
-            <p className="mt-1" style={{ color: '#64748b', fontSize: '13px', lineHeight: 1.5 }}>
-              Atualize a página ou tente novamente em alguns instantes.
-            </p>
-          </div>
-        ) : markets.length === 0 ? (
-          <div className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: '#e2e8f0' }}>
-            <p style={{ color: '#334155', fontSize: '14px', fontWeight: 700 }}>
-              {isTestPage ? 'Nenhuma loja de teste encontrada.' : 'Nenhum estabelecimento ativo encontrado.'}
-            </p>
-          </div>
-        ) : visibleMarkets.length === 0 ? (
-          <div className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: '#e2e8f0' }}>
-            <p style={{ color: '#334155', fontSize: '14px', fontWeight: 700 }}>
-              Nenhum estabelecimento encontrado nesta cidade.
-            </p>
-            <p className="mt-1" style={{ color: '#64748b', fontSize: '13px', lineHeight: 1.5 }}>
-              Escolha outra cidade para ver mais opções.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {visibleMarkets.map((market) => {
-              const favorite = favoriteMarketIds.includes(market.id);
-              const locationLabel = market.city && market.city !== market.neighborhood
-                ? `${market.neighborhood} · ${market.city}`
-                : market.neighborhood;
+        {!isTestPage && banners.length > 0 && <section className="mb-7" aria-label="Banners da plataforma"><div className="flex snap-x gap-3 overflow-x-auto pb-2 scrollbar-hide">{banners.map((banner) => <button key={banner.id} type="button" onClick={() => openBanner(banner)} className="relative h-40 min-w-full snap-center overflow-hidden rounded-3xl text-left shadow-sm sm:h-48"><img src={banner.imagem_url} alt={banner.titulo} className="h-full w-full object-cover" />{(banner.titulo || banner.subtitulo || banner.cta_text) && <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 via-black/5 to-transparent p-5 text-white"><h2 className="text-lg font-extrabold">{banner.titulo}</h2>{banner.subtitulo && <p className="mt-0.5 text-sm text-white/90">{banner.subtitulo}</p>}{banner.cta_text && <span className="mt-2 text-xs font-bold">{banner.cta_text} →</span>}</div>}</button>)}</div></section>}
 
-              return (
-                <div
-                  key={market.id}
-                  className="relative overflow-hidden rounded-2xl border bg-white text-left shadow-sm"
-                  style={{ borderColor: '#e2e8f0' }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/mercado/${market.id}`)}
-                    className="w-full text-left transition-transform active:scale-[0.99]"
-                    aria-label={`Abrir ${market.name}`}
-                  >
-                    <div className="relative h-32">
-                      <img src={market.logo} alt={market.name} className="h-full w-full object-cover" />
-                      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.55))' }} />
-                      {market.status === 'closed' && (
-                        <span
-                          className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-white"
-                          style={{ background: '#64748b', fontSize: '11px', fontWeight: 700 }}
-                        >
-                          Aberto apenas para pedidos online
-                        </span>
-                      )}
-                      <h2 className="absolute bottom-3 left-3 right-3 text-white" style={{ fontSize: '18px', fontWeight: 800 }}>
-                        {market.name}
-                      </h2>
-                    </div>
+        {!isTestPage && <section className="mb-7"><div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-extrabold text-slate-900">Categorias</h2><button type="button" onClick={() => setSelectedCategory(null)} className="text-sm font-bold text-red-600">Ver todas</button></div><div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">{categories.map(({ type, label, icon: Icon, color }) => <button key={type} type="button" onClick={() => { setView('all'); setSelectedCategory(selectedCategory === type ? null : type); }} className="min-w-[76px] text-center"><span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: `${color}14`, color }}><Icon size={26} /></span><span className="mt-2 block text-xs font-semibold text-slate-700">{label}</span></button>)}</div></section>}
 
-                    <div className="p-4">
-                      <p style={{ color: '#475569', fontSize: '13px', lineHeight: 1.5 }}>{market.description}</p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'var(--market-primary-soft-color)', color: 'var(--market-primary-color)', fontSize: '11px', fontWeight: 700 }}>
-                          <MapPin size={12} />
-                          {locationLabel}
-                        </span>
-                        <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: '#f0fdf4', color: '#15803d', fontSize: '11px', fontWeight: 700 }}>
-                          <Timer size={12} />
-                          Por ordem de pedido
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleFavoriteMarket(market.id)}
-                    className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border bg-white/95 shadow-sm transition-transform active:scale-90"
-                    style={{ borderColor: favorite ? '#fca5a5' : '#e2e8f0' }}
-                    aria-label={favorite ? `Remover ${market.name} das favoritas` : `Adicionar ${market.name} às favoritas`}
-                    aria-pressed={favorite}
-                  >
-                    <Heart size={17} fill={favorite ? '#ef4444' : 'none'} color={favorite ? '#ef4444' : '#475569'} />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <nav className="mb-5 flex gap-2" aria-label="Atalhos"><button type="button" onClick={() => { setView('all'); setSelectedCategory(null); }} className={`rounded-full px-4 py-2 text-sm font-bold ${view === 'all' ? 'bg-red-600 text-white' : 'bg-white text-slate-600 border'}`}>Início</button><button type="button" onClick={() => setView('favorites')} className={`inline-flex items-center gap-1 rounded-full px-4 py-2 text-sm font-bold ${view === 'favorites' ? 'bg-red-600 text-white' : 'bg-white text-slate-600 border'}`}><Heart size={15} />Favoritos</button><button type="button" onClick={() => setView('orders')} className={`inline-flex items-center gap-1 rounded-full px-4 py-2 text-sm font-bold ${view === 'orders' ? 'bg-red-600 text-white' : 'bg-white text-slate-600 border'}`}><ShoppingBag size={15} />Pedidos</button></nav>
+
+        <section><h2 className="mb-4 text-xl font-extrabold text-slate-900">{contentTitle}</h2>{view === 'orders' && !getAuthToken() ? <p className="rounded-2xl border bg-white p-4 text-sm text-slate-600">Entre na sua conta para escolher o estabelecimento cujos pedidos deseja acompanhar.</p> : ordersLoading ? <p className="text-sm text-slate-500">Carregando seus estabelecimentos…</p> : isLoading ? <div className="space-y-3">{[1, 2, 3].map((item) => <div key={item} className="h-32 animate-pulse rounded-2xl bg-slate-200" />)}</div> : error ? <p className="rounded-2xl border border-red-200 bg-white p-4 text-sm font-semibold text-red-700">Não foi possível carregar os estabelecimentos.</p> : visibleMarkets.length === 0 ? <p className="rounded-2xl border bg-white p-4 text-sm text-slate-600">{view === 'favorites' ? 'Você ainda não favoritou nenhuma loja.' : view === 'orders' ? 'Não encontramos pedidos em estabelecimentos disponíveis.' : 'Nenhum estabelecimento encontrado com estes filtros.'}</p> : <div className="space-y-4">{visibleMarkets.map((market) => { const favorite = favoriteMarketIds.includes(market.id); return <article key={market.id} className="relative overflow-hidden rounded-3xl border bg-white p-3 shadow-sm" style={{ borderColor: '#e5e7eb' }}><button type="button" onClick={() => navigate(view === 'orders' ? `/mercado/${market.id}/orders` : `/mercado/${market.id}`)} className="flex w-full gap-3 text-left"><img src={market.logo} alt="" className="h-28 w-28 shrink-0 rounded-2xl object-cover bg-slate-100" /><div className="min-w-0 flex-1 py-1 pr-7"><h3 className="truncate text-lg font-extrabold text-slate-900">{market.name}</h3><p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><MapPin size={14} />{market.city || market.neighborhood}</p><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{market.status === 'open' ? 'Aberto agora' : 'Pedidos online'}</span><span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600"><Timer size={12} />Por ordem de pedido</span></div>{view === 'orders' && <p className="mt-2 text-xs font-semibold text-red-600">Ver pedidos desta loja</p>}</div><ChevronRight className="my-auto text-slate-700" /></button><button type="button" onClick={() => toggleFavoriteMarket(market.id)} className="absolute right-4 top-4 rounded-full bg-white p-2 shadow-sm" aria-label={favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}><Heart size={18} fill={favorite ? '#ef4444' : 'none'} color={favorite ? '#ef4444' : '#64748b'} /></button></article>; })}</div>}</section>
       </div>
-    </div>
+    </main>
   );
 }
 
-export function TestMarketsPage() {
-  return <HomePage mode="teste" />;
-}
+export function TestMarketsPage() { return <HomePage mode="teste" />; }

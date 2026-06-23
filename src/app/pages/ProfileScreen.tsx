@@ -2,13 +2,10 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router";
 import {
-  Bell,
   ChevronRight,
-  CreditCard,
   Eye,
   EyeOff,
   Heart,
-  HelpCircle,
   Lock,
   LogOut,
   Mail,
@@ -16,7 +13,6 @@ import {
   Phone,
   Save,
   Shield,
-  ShoppingBag,
   User,
   X,
 } from "lucide-react";
@@ -28,11 +24,7 @@ import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
 const menuItems = [
   { icon: MapPin, label: "Meus endereços", path: "addresses" },
   { icon: Heart, label: "Favoritos", path: "favorites" },
-  { icon: CreditCard, label: "Métodos de pagamento", path: "add-card" },
-  { icon: ShoppingBag, label: "Meus pedidos", path: "orders" },
-  { icon: Bell, label: "Notificações", path: "notifications-feed" },
   { icon: Shield, label: "Privacidade e segurança", path: "privacy" },
-  { icon: HelpCircle, label: "Suporte", path: "support" },
 ];
 
 function onlyDigits(value: string) {
@@ -53,7 +45,7 @@ function formatPhone(value: string) {
 
 export function ProfileScreen() {
   const navigate = useNavigate();
-  const { logout, orders, favorites, tenantPath, currentMarket, currentUser, isLoggedIn, updateCurrentUser } = useApp();
+  const { logout, tenantPath, currentUser, isLoggedIn, updateCurrentUser } = useApp();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [phone, setPhone] = useState(formatPhone(currentUser?.telefone || ""));
   const [newPassword, setNewPassword] = useState("");
@@ -61,11 +53,6 @@ export function ProfileScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const appVersion = import.meta.env.VITE_APP_VERSION?.trim();
-  const footerParts = [
-    currentMarket.name,
-    appVersion ? `v${appVersion}` : null,
-  ].filter(Boolean);
 
   useEffect(() => {
     setPhone(formatPhone(currentUser?.telefone || ""));
@@ -152,6 +139,9 @@ export function ProfileScreen() {
         <h1 className="mb-3 text-white" style={{ fontSize: "18px", fontWeight: 800 }}>
           Meu Perfil
         </h1>
+        <p className="mb-3 text-white/75" style={{ fontSize: "12px" }}>
+          Informações compartilhadas entre todos os estabelecimentos.
+        </p>
 
         <div className="flex items-center gap-4">
           <div
@@ -197,23 +187,6 @@ export function ProfileScreen() {
           </button>
         </div>
 
-        <div className="mt-3 flex gap-2">
-          {[
-            { label: "Pedidos", value: orders.length },
-            { label: "Favoritos", value: favorites.length },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="flex-1 rounded-xl py-1.5 px-3 text-center backdrop-blur-sm"
-              style={{ backgroundColor: "rgba(255,255,255,0.14)" }}
-            >
-              <p className="text-white" style={{ fontSize: "16px", fontWeight: 800 }}>
-                {stat.value}
-              </p>
-              <p style={{ fontSize: "10px", color: "var(--market-primary-muted-color)" }}>{stat.label}</p>
-            </div>
-          ))}
-        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-4" style={{ background: "#f8fafc" }}>
@@ -395,8 +368,6 @@ export function ProfileScreen() {
           className="mt-4 pb-2 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center"
           style={{ fontSize: "11px", color: "#94a3b8" }}
         >
-          <span>{footerParts.join(" ")}</span>
-          <span aria-hidden="true">·</span>
           <button
             type="button"
             onClick={() => navigate(tenantPath("privacy/policy"))}
