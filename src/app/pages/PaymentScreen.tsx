@@ -922,12 +922,14 @@ export function PaymentScreen() {
         const baseSelection = selectedSavedCard
           ? {
               ...selectionFromSavedCard(selectedSavedCard),
+              gateway: "mercadopago" as const,
               card_token: cardToken.id,
               card_token_created_at: Date.now(),
               idempotency_key: createPaymentAttemptKey("saved-card"),
               installments,
             }
           : {
+              gateway: isPagarme ? "pagarme" as const : "mercadopago" as const,
               method: selected,
               card_token: cardToken.id,
               card_token_created_at: Date.now(),
@@ -964,6 +966,7 @@ export function PaymentScreen() {
 
             savePaymentSelection({
               ...savedSelection,
+              gateway: "mercadopago",
               card_token: savedCardToken.id,
               card_token_created_at: Date.now(),
               idempotency_key: createPaymentAttemptKey("saved-card"),

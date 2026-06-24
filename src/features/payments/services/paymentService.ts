@@ -4,6 +4,8 @@ const PAYMENT_SELECTION_STORAGE_KEY = 'cliente_delivery_payment_selection';
 const PAYER_STORAGE_KEY = 'cliente_delivery_payer_data';
 const CARD_TOKEN_TTL_MS = 20 * 60 * 1000;
 const MERCADO_PAGO_SECURITY_SCRIPT_URL = 'https://www.mercadopago.com/v2/security.js';
+const MERCADO_PAGO_DEVICE_ID_TIMEOUT_MS = 3000;
+const MERCADO_PAGO_DEVICE_ID_POLL_MS = 100;
 
 export type PaymentMethod = 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro';
 export type CardPaymentMethod = Exclude<PaymentMethod, 'pix' | 'dinheiro'>;
@@ -20,6 +22,7 @@ export type PayerValidationErrors = Partial<Record<keyof PayerData | 'full_name'
 
 export interface StoredPaymentSelection {
   method: PaymentMethod;
+  gateway?: 'mercadopago' | 'pagarme';
   sem_troco?: boolean;
   troco_para?: number | null;
   card_token?: string;
@@ -208,6 +211,38 @@ export function getMercadoPagoDeviceId() {
     : null;
   const deviceId = String(globalWindow.MP_DEVICE_SESSION_ID || globalWindow.deviceId || hiddenInput?.value || '').trim();
   return deviceId || undefined;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+export async function waitForMercadoPagoDeviceId(timeoutMs = MERCADO_PAGO_DEVICE_ID_TIMEOUT_MS) {
+  if (typeof window === 'undefined') return undefined;
+
+  await loadMercadoPagoSecurityScript();
+
+  const startedAt = Date.now();
+  let deviceId = getMercadoPagoDeviceId();
+
+  while (!deviceId && Date.now() - startedAt < timeoutMs) {
+    await sleep(MERCADO_PAGO_DEVICE_ID_POLL_MS);
+    deviceId = getMercadoPagoDeviceId();
+  }
+
+  return deviceId;
+}
+
+export async function requireMercadoPagoDeviceId() {
+  const deviceId = await waitForMercadoPagoDeviceId();
+
+  if (!deviceId) {
+    throw new Error('Não foi possível validar a segurança do dispositivo. Recarregue a página e tente novamente.');
+  }
+
+  return deviceId;
 }
 
 export function splitPayerFullName(name?: string) {
@@ -478,6 +513,10 @@ export async function createCardPayment(
     savePaymentSelection({ ...selection, idempotency_key: idempotencyKey });
   }
 
+  const deviceId = selection.gateway === 'pagarme'
+    ? undefined
+    : await requireMercadoPagoDeviceId();
+
   if (selection.saved_card_id) {
     if (!hasFreshCardToken(selection)) {
       throw new Error('Informe o CVV do cartão salvo antes de continuar.');
@@ -493,7 +532,7 @@ export async function createCardPayment(
           security_code_token: selection.card_token,
           installments: selection.installments || 1,
           idempotency_key: idempotencyKey,
-          device_id: getMercadoPagoDeviceId(),
+          device_id: deviceId,
           ...payer,
         },
       }
@@ -519,7 +558,7 @@ export async function createCardPayment(
         issuer_id: selection.issuer_id ?? null,
         installments: selection.installments || 1,
         idempotency_key: idempotencyKey,
-        device_id: getMercadoPagoDeviceId(),
+        device_id: deviceId,
         ...payer,
       },
     }

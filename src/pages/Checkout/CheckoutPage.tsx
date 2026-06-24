@@ -980,7 +980,13 @@ export function CheckoutPage() {
     try {
       const payer = currentIsCashPayment ? null : resolvePayerData();
       const cpfInvoicePayload = resolveCpfInvoicePayload();
-      const selection = paymentSelectionOverride ?? getStoredPaymentSelection();
+      const storedSelection = paymentSelectionOverride ?? getStoredPaymentSelection();
+      const selection = storedSelection.method === 'pix' || storedSelection.method === 'dinheiro'
+        ? storedSelection
+        : {
+            ...storedSelection,
+            gateway: storedSelection.gateway ?? checkoutConfig?.gateway ?? 'mercadopago',
+          };
       const syncedCart = await syncCartItemsBatch(marketId, cart);
       const order = await createCheckoutOrder({
         marketId,
