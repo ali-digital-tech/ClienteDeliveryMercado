@@ -919,23 +919,36 @@ export function PaymentScreen() {
         });
       } else {
         const cardToken = await createSecureCardToken(normalizedPayer!);
+        const cardTokenId = cardToken.id || "";
+        if (!cardTokenId) {
+          throw new Error("Não foi possível validar os dados do cartão.");
+        }
+
+        const resolvedPaymentMethodId = isPagarme
+          ? cardToken.payment_method_id || paymentMethodId
+          : paymentMethodId;
+
+        if (!selectedSavedCard && !resolvedPaymentMethodId) {
+          throw new Error("Não foi possível identificar a bandeira do cartão.");
+        }
+
         const baseSelection = selectedSavedCard
           ? {
               ...selectionFromSavedCard(selectedSavedCard),
-              card_token: cardToken.id,
+              card_token: cardTokenId,
               card_token_created_at: Date.now(),
               idempotency_key: createPaymentAttemptKey("saved-card"),
               installments,
             }
           : {
               method: selected,
-              card_token: cardToken.id,
+              card_token: cardTokenId,
               card_token_created_at: Date.now(),
               idempotency_key: createPaymentAttemptKey("card"),
               // The BIN lookup is authoritative. Never persist a generic "card"
               // value: Mercado Pago rejects it during payment creation.
-              payment_method_id: paymentMethodId,
-              card_bin: currentBinRef.current || undefined,
+              payment_method_id: resolvedPaymentMethodId,
+              card_bin: currentBinRef.current || cardToken.first_six_digits || undefined,
               issuer_id: issuerId,
               installments,
               cardholder_name: cardholderName.trim(),

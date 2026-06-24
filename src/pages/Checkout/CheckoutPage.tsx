@@ -240,7 +240,7 @@ function SavedCardCvvModal({
   onClose,
   onToken,
 }: {
-  card: Pick<SavedPaymentCard, 'gateway_card_id' | 'forma_pagamento' | 'payment_method_id' | 'ultimos_quatro' | 'nome_impresso'>;
+  card: Pick<SavedPaymentCard, 'gateway_card_id' | 'forma_pagamento' | 'ultimos_quatro' | 'nome_impresso'>;
   publicKey: string;
   primaryColor: string;
   unavailableLabel: string;
@@ -306,7 +306,7 @@ function SavedCardCvvModal({
       const currentContainer = document.getElementById(CHECKOUT_SAVED_CARD_CVV_FIELD_ID);
       if (currentContainer) currentContainer.innerHTML = "";
     };
-  }, [publicKey]);
+  }, [publicKey, unavailableLabel]);
 
   const handleConfirm = async () => {
     if (!isReady || !mpRef.current) {
@@ -380,7 +380,7 @@ function SavedCardCvvModal({
         <div className="mb-3 flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}>
           <Lock size={14} color="#15803d" className="flex-shrink-0" />
           <p style={{ fontSize: "12px", color: "#15803d", lineHeight: 1.4, fontWeight: 700 }}>
-            O CVV é validado em campo seguro e não é armazenado.
+            O CVV é validado em campo seguro do Mercado Pago e não é armazenado.
           </p>
         </div>
 
@@ -508,7 +508,7 @@ export function CheckoutPage() {
     const savedCard = savedPaymentCards.find((card) => card.id === pendingCvvSelection.saved_card_id);
     if (savedCard) return savedCard;
 
-    if (!pendingCvvSelection.gateway_card_id || !pendingCvvSelection.last_four_digits) return null;
+    if (!pendingCvvSelection.gateway_card_id) return null;
 
     return {
       id: pendingCvvSelection.saved_card_id,
@@ -517,7 +517,7 @@ export function CheckoutPage() {
       payment_method_id: pendingCvvSelection.payment_method_id || '',
       issuer_id: pendingCvvSelection.issuer_id ?? null,
       bandeira: pendingCvvSelection.payment_method_id || null,
-      ultimos_quatro: pendingCvvSelection.last_four_digits,
+      ultimos_quatro: pendingCvvSelection.last_four_digits || '----',
       nome_impresso: pendingCvvSelection.cardholder_name || null,
       principal: false,
       gateway_card_id: pendingCvvSelection.gateway_card_id,
@@ -635,24 +635,6 @@ export function CheckoutPage() {
       isActive = false;
     };
   }, [checkoutConfig?.capabilities?.saved_cards, marketId, paymentSelection]);
-
-  useEffect(() => {
-    if (!marketId || !checkoutConfig?.capabilities?.saved_cards || paymentSelection.method === 'pix') return;
-
-    let isActive = true;
-
-    getSavedPaymentCards(marketId)
-      .then((cards) => {
-        if (isActive) setSavedPaymentCards(cards);
-      })
-      .catch((error) => {
-        console.error('Erro ao atualizar cartões salvos:', error);
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [checkoutConfig?.capabilities?.saved_cards, marketId, paymentSelection.method, paymentSelection.saved_card_id]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -933,36 +915,33 @@ export function CheckoutPage() {
       !hasFreshCardToken(currentPaymentSelection)
     ) {
       if (currentPaymentSelection.saved_card_id) {
-        let nextSavedPaymentCards = savedPaymentCards;
-        let savedCard = nextSavedPaymentCards.find((card) => card.id === currentPaymentSelection.saved_card_id);
+        let nextSelection = currentPaymentSelection;
 
-        if (!savedCard && !currentPaymentSelection.gateway_card_id) {
+        if (!nextSelection.gateway_card_id) {
           try {
-            nextSavedPaymentCards = await getSavedPaymentCards(marketId);
-            setSavedPaymentCards(nextSavedPaymentCards);
-            savedCard = nextSavedPaymentCards.find((card) => card.id === currentPaymentSelection.saved_card_id);
+            const cards = await getSavedPaymentCards(marketId);
+            setSavedPaymentCards(cards);
+            const savedCard = cards.find((card) => card.id === currentPaymentSelection.saved_card_id);
+
+            if (savedCard) {
+              nextSelection = {
+                ...selectionFromSavedCard(savedCard),
+                installments: currentPaymentSelection.installments || 1,
+              };
+            }
           } catch (error) {
             console.error('Erro ao carregar cartão salvo para CVV:', error);
           }
         }
 
-        const selectionHasGatewayCard = Boolean(currentPaymentSelection.gateway_card_id);
-
-        if (savedCard || selectionHasGatewayCard) {
-          const nextSelection = savedCard
-            ? {
-                ...selectionFromSavedCard(savedCard),
-                installments: currentPaymentSelection.installments || 1,
-              }
-            : currentPaymentSelection;
-
+        if (nextSelection.gateway_card_id) {
           savePaymentSelection(nextSelection);
           setPaymentSelection(nextSelection);
           setPendingCvvSelection(nextSelection);
           return;
         }
 
-        showSystemNotice('Confirme o cartão salvo antes de finalizar este pagamento.');
+        showSystemNotice('Confirme o cartão salvo na tela de pagamento antes de finalizar.');
         openPaymentScreen();
         return;
       }
