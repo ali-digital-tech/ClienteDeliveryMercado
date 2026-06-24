@@ -40,6 +40,7 @@ import {
   calculatePlatformServiceFee,
   createCardPayment,
   createCashPayment,
+  createPaymentAttemptKey,
   createPixPayment,
   getCardPaymentStatusMessage,
   getMercadoPagoCheckoutConfig,
@@ -47,6 +48,7 @@ import {
   getStoredPayerData,
   getStoredPaymentSelection,
   hasFreshCardToken,
+  loadMercadoPagoSecurityScript,
   refreshPaymentById,
   resolvePixExpiration,
   savePaymentSelection,
@@ -266,7 +268,10 @@ function SavedCardCvvModal({
       }
 
       try {
-        await loadMercadoPagoSdk();
+        await Promise.all([
+          loadMercadoPagoSdk(),
+          loadMercadoPagoSecurityScript(),
+        ]);
         const MercadoPago = getMercadoPagoConstructor();
         if (cancelled || !MercadoPago) return;
 
@@ -1046,6 +1051,7 @@ export function CheckoutPage() {
       ...pendingCvvSelection,
       card_token: token.id,
       card_token_created_at: Date.now(),
+      idempotency_key: createPaymentAttemptKey("saved-card"),
       last_four_digits: token.last_four_digits || pendingCvvSelection.last_four_digits,
     };
 

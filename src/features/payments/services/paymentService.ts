@@ -3,6 +3,7 @@ import { apiRequest } from '@/shared/lib/api';
 const PAYMENT_SELECTION_STORAGE_KEY = 'cliente_delivery_payment_selection';
 const PAYER_STORAGE_KEY = 'cliente_delivery_payer_data';
 const CARD_TOKEN_TTL_MS = 20 * 60 * 1000;
+const MERCADO_PAGO_SECURITY_SCRIPT_URL = 'https://www.mercadopago.com/v2/security.js';
 
 export type PaymentMethod = 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro';
 export type CardPaymentMethod = Exclude<PaymentMethod, 'pix' | 'dinheiro'>;
@@ -30,6 +31,7 @@ export interface StoredPaymentSelection {
   card_bin?: string;
   issuer_id?: string | number | null;
   installments?: number;
+  idempotency_key?: string;
   cardholder_name?: string;
   last_four_digits?: string;
 }
@@ -159,6 +161,53 @@ export function resolvePixExpiration(
 
 export function onlyDigits(value: string | number | null | undefined) {
   return String(value || '').replace(/\D/g, '');
+}
+
+export function createPaymentAttemptKey(prefix = 'card') {
+  const randomId = globalThis.crypto?.randomUUID?.()
+    || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${prefix}-${randomId}`;
+}
+
+export function loadMercadoPagoSecurityScript() {
+  if (typeof document === 'undefined') return Promise.resolve();
+
+  const currentDeviceId = getMercadoPagoDeviceId();
+  if (currentDeviceId) return Promise.resolve();
+
+  return new Promise<void>((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      `script[src="${MERCADO_PAGO_SECURITY_SCRIPT_URL}"]`
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(), { once: true });
+      existingScript.addEventListener('error', () => reject(new Error('Não foi possível carregar a validação de segurança do Mercado Pago.')), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = MERCADO_PAGO_SECURITY_SCRIPT_URL;
+    script.async = true;
+    script.setAttribute('view', 'checkout');
+    script.setAttribute('output', 'MP_DEVICE_SESSION_ID');
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Não foi possível carregar a validação de segurança do Mercado Pago.'));
+    document.head.appendChild(script);
+  });
+}
+
+export function getMercadoPagoDeviceId() {
+  if (typeof window === 'undefined') return undefined;
+  const globalWindow = window as Window & {
+    MP_DEVICE_SESSION_ID?: string;
+    deviceId?: string;
+  };
+  const hiddenInput = typeof document !== 'undefined'
+    ? document.getElementById('deviceId') as HTMLInputElement | null
+    : null;
+  const deviceId = String(globalWindow.MP_DEVICE_SESSION_ID || globalWindow.deviceId || hiddenInput?.value || '').trim();
+  return deviceId || undefined;
 }
 
 export function splitPayerFullName(name?: string) {
@@ -422,6 +471,13 @@ export async function createCardPayment(
   payer: PayerData,
   selection: StoredPaymentSelection
 ) {
+  const idempotencyKey = selection.idempotency_key || createPaymentAttemptKey(
+    selection.saved_card_id ? 'saved-card' : 'card'
+  );
+  if (!selection.idempotency_key) {
+    savePaymentSelection({ ...selection, idempotency_key: idempotencyKey });
+  }
+
   if (selection.saved_card_id) {
     if (!hasFreshCardToken(selection)) {
       throw new Error('Informe o CVV do cartão salvo antes de continuar.');
@@ -436,6 +492,8 @@ export async function createCardPayment(
           saved_card_id: selection.saved_card_id,
           security_code_token: selection.card_token,
           installments: selection.installments || 1,
+          idempotency_key: idempotencyKey,
+          device_id: getMercadoPagoDeviceId(),
           ...payer,
         },
       }
@@ -460,6 +518,8 @@ export async function createCardPayment(
         card_bin: selection.card_bin,
         issuer_id: selection.issuer_id ?? null,
         installments: selection.installments || 1,
+        idempotency_key: idempotencyKey,
+        device_id: getMercadoPagoDeviceId(),
         ...payer,
       },
     }
