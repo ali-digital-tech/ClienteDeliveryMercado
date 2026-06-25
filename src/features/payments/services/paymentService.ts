@@ -533,6 +533,7 @@ export async function createCardPayment(
           installments: selection.installments || 1,
           idempotency_key: idempotencyKey,
           device_id: deviceId,
+          authentication_type: 'WEB',
           ...payer,
         },
       }
@@ -559,6 +560,7 @@ export async function createCardPayment(
         installments: selection.installments || 1,
         idempotency_key: idempotencyKey,
         device_id: deviceId,
+        authentication_type: 'WEB',
         ...payer,
       },
     }
