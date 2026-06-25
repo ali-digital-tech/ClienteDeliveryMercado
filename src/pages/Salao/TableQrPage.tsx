@@ -111,6 +111,13 @@ export function TableQrPage() {
   const mesa = context?.mesa;
   const comanda = context?.comanda;
   const canOrder = comanda?.status === "aberta" && Boolean(participantToken);
+  const orderingBlockedMessage = comanda?.status === "aguardando_conta"
+    ? "Conta solicitada. O cardápio está bloqueado para novos pedidos; aguarde o fechamento pelo atendente."
+    : comanda?.status === "fechada"
+      ? "Conta fechada. Aguarde o pagamento presencial."
+      : comanda && comanda.status !== "aberta"
+        ? "Esta mesa não está recebendo novos pedidos no momento."
+        : "";
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cart.reduce((sum, item) => sum + Number(item.product.price || 0) * item.quantity, 0);
   const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
@@ -138,6 +145,10 @@ export function TableQrPage() {
   useEffect(() => {
     if (comanda?.status === "aberta" && !participantToken) setPinModalOpen(true);
   }, [comanda?.id, comanda?.status, participantToken]);
+
+  useEffect(() => {
+    if (comanda && comanda.status !== "aberta") setCart([]);
+  }, [comanda?.id, comanda?.status]);
 
   const loadContext = useCallback(async (silent = false) => {
     if (!qrToken || contextLoadingRef.current) return;
@@ -310,6 +321,10 @@ export function TableQrPage() {
   };
 
   const addProduct = async (product: Product) => {
+    if (comanda?.status !== "aberta") {
+      setNotice(orderingBlockedMessage || "Mesa indisponível para novos pedidos.");
+      return;
+    }
     if (isConfigurableProduct(product)) {
       if (product.configuration) {
         setConfiguringProduct(product);
@@ -337,6 +352,11 @@ export function TableQrPage() {
   };
 
   const addConfiguredProduct = (item: any) => {
+    if (comanda?.status !== "aberta") {
+      setConfiguringProduct(null);
+      setNotice(orderingBlockedMessage || "Mesa indisponível para novos pedidos.");
+      return;
+    }
     setCart((current) => [...current, {
       lineId: crypto.randomUUID?.() || `${item.product.id}-${Date.now()}`,
       product: item.product,
@@ -361,8 +381,12 @@ export function TableQrPage() {
 
   const sendCart = async () => {
     if (!canOrder) {
-      setPinModalOpen(true);
-      setNotice("Informe o PIN da mesa para enviar o pedido.");
+      if (orderingBlockedMessage) {
+        setNotice(orderingBlockedMessage);
+      } else {
+        setPinModalOpen(true);
+        setNotice("Informe o PIN da mesa para enviar o pedido.");
+      }
       return;
     }
     if (!cart.length) return;
@@ -424,7 +448,6 @@ export function TableQrPage() {
     setNotice("");
     try {
       await salaoQrService.requestBill(qrToken, participantToken, { quantidade_pessoas_divisao: people });
-      setNotice("Conta solicitada. Novos pedidos foram bloqueados para esta mesa.");
       await loadContext(true);
     } catch (error: any) {
       setNotice(error?.message || "Não foi possível solicitar a conta.");
@@ -581,9 +604,9 @@ export function TableQrPage() {
           </div>
         )}
 
-        {comanda && comanda.status !== "aberta" && (
+        {orderingBlockedMessage && (
           <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">
-            {comanda.status === "fechada" ? "Conta fechada. Aguarde o pagamento presencial." : "Conta solicitada. Novos pedidos estão bloqueados."}
+            {orderingBlockedMessage}
           </div>
         )}
 
@@ -669,7 +692,8 @@ export function TableQrPage() {
                         <span className="text-sm font-extrabold text-slate-950">{money(product.price)}</span>
                         <button
                           onClick={() => void addProduct(product)}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white active:scale-95"
+                          disabled={comanda?.status !== "aberta"}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white active:scale-95 disabled:opacity-40 disabled:active:scale-100"
                           style={{ backgroundColor: "var(--market-primary-color)" }}
                           aria-label={`Adicionar ${product.name}`}
                         >
