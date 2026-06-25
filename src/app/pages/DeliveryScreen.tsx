@@ -6,11 +6,13 @@ import {
   Store,
   Clock,
   Truck,
+  ExternalLink,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import {
   formatAddressLine,
   formatAddressLocation,
+  buildGoogleMapsSearchUrl,
   getAddressCoordinates,
   getDeliveryAreas,
   getMyAddresses,
@@ -50,6 +52,11 @@ export function DeliveryScreen() {
   const serviceFee = calculatePlatformServiceFee(total, checkoutConfig?.platform_split);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
   const establishmentLabels = getEstablishmentLabels(currentMarket.establishmentType);
+  const pickupLatitude = Number(currentMarket.latitude);
+  const pickupLongitude = Number(currentMarket.longitude);
+  const pickupMapsUrl = Number.isFinite(pickupLatitude) && Number.isFinite(pickupLongitude)
+    ? buildGoogleMapsSearchUrl(pickupLatitude, pickupLongitude)
+    : null;
 
   useEffect(() => {
     setMode(getStoredCheckoutMode(marketId));
@@ -307,6 +314,24 @@ export function DeliveryScreen() {
               >
                 {currentMarket.address}
               </p>
+
+              {pickupMapsUrl && (
+                <a
+                  href={pickupMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1"
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    backgroundColor: "var(--market-primary-soft-color)",
+                    color: "var(--market-primary-color)",
+                  }}
+                >
+                  Ver localizacao no Google Maps
+                  <ExternalLink size={12} />
+                </a>
+              )}
 
               <span
                 className="rounded-full px-2 py-0.5 mt-2 inline-block"

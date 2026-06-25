@@ -15,6 +15,7 @@ import {
   Lock,
   ReceiptText,
   X,
+  ExternalLink,
 } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { Checkbox } from '@/app/components/ui/checkbox';
@@ -24,6 +25,7 @@ import { getEstablishmentLabels } from '@/features/markets';
 import {
   formatAddressLine,
   formatAddressLocation,
+  buildGoogleMapsSearchUrl,
   getAddressCoordinates,
   getDeliveryAreas,
   getMyAddresses,
@@ -476,6 +478,11 @@ export function CheckoutPage() {
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
   const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const establishmentLabels = getEstablishmentLabels(currentMarket.establishmentType);
+  const pickupLatitude = Number(currentMarket.latitude);
+  const pickupLongitude = Number(currentMarket.longitude);
+  const pickupMapsUrl = Number.isFinite(pickupLatitude) && Number.isFinite(pickupLongitude)
+    ? buildGoogleMapsSearchUrl(pickupLatitude, pickupLongitude)
+    : null;
   const storedPayerData = getStoredPayerData();
   const payerValidation = validatePayerData(storedPayerData);
   const hasPayerData = payerValidation.isValid;
@@ -1236,11 +1243,30 @@ export function CheckoutPage() {
               </div>
 
               {isPickup ? (
-                <p style={{ fontSize: "13px", lineHeight: 1.5, color: "#64748b" }}>
-                  {currentMarket.name}
-                  <br />
-                  {currentMarket.address || `Endereço ${establishmentLabels.fromThe} não informado`}
-                </p>
+                <>
+                  <p style={{ fontSize: "13px", lineHeight: 1.5, color: "#64748b" }}>
+                    {currentMarket.name}
+                    <br />
+                    {currentMarket.address || `Endereço ${establishmentLabels.fromThe} não informado`}
+                  </p>
+                  {pickupMapsUrl && (
+                    <a
+                      href={pickupMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1"
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 800,
+                        backgroundColor: "var(--market-primary-soft-color)",
+                        color: "var(--market-primary-color)",
+                      }}
+                    >
+                      Ver localizacao no Google Maps
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
+                </>
               ) : selectedAddress ? (
                 <>
                   <p style={{ fontSize: "13px", lineHeight: 1.5, color: "#64748b" }}>

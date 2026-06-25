@@ -11,6 +11,8 @@ export interface Market {
   city: string;
   cities: string[];
   address: string;
+  latitude?: number | null;
+  longitude?: number | null;
   deliveryEstimate: string;
   minimumOrder: number;
   deliveryFee: number;

@@ -13,6 +13,15 @@ interface ApiStore {
   bairro?: string | null;
   cidade?: string | null;
   estado?: string | null;
+  endereco_rua?: string | null;
+  endereco_numero?: string | number | null;
+  endereco_complemento?: string | null;
+  endereco_bairro?: string | null;
+  endereco_cidade?: string | null;
+  endereco_estado?: string | null;
+  endereco_cep?: string | null;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
   status?: string | null;
   aberta_agora?: boolean | null;
   cidades_atendidas?: string[] | null;
@@ -72,7 +81,7 @@ function resolveEstablishmentType(store: ApiStore): EstablishmentType {
 
   const searchableText = `${store.nome || ''} ${store.descricao || ''}`.toLowerCase();
   if (/lanchonete|hamburguer|burger|pizza|pastel|salgado/.test(searchableText)) return 'lanchonete';
-  if (/restaurante|marmita|almoço|jantar|prato/.test(searchableText)) return 'restaurante';
+  if (/restaurante|marmita|almoco|almoço|jantar|prato/.test(searchableText)) return 'restaurante';
 
   return 'mercado';
 }
@@ -101,16 +110,29 @@ function normalizeCities(store: ApiStore) {
   return [...uniqueCities.values()];
 }
 
+function formatStoreAddress(store: ApiStore) {
+  const street = store.endereco_rua || store.endereco || store.rua || store.logradouro;
+  const number = store.endereco_numero ?? store.numero;
+  const neighborhood = store.endereco_bairro || store.bairro;
+  const city = store.endereco_cidade || store.cidade;
+  const state = store.endereco_estado || store.estado;
+
+  return [
+    [street, number].filter(Boolean).join(', '),
+    store.endereco_complemento,
+    neighborhood,
+    [city, state].filter(Boolean).join(' - '),
+    store.endereco_cep,
+  ].filter(Boolean).join(' - ');
+}
+
 function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market {
-  const street = store.endereco || store.rua || store.logradouro;
-  const address = [
-    [street, store.numero].filter(Boolean).join(', '),
-    store.bairro,
-    [store.cidade, store.estado].filter(Boolean).join(' - '),
-  ].filter(Boolean).join(' · ');
+  const address = formatStoreAddress(store);
   const establishmentType = resolveEstablishmentType(store);
   const labels = getEstablishmentLabels(establishmentType);
   const cities = normalizeCities(store);
+  const latitude = toNumber(store.latitude, Number.NaN);
+  const longitude = toNumber(store.longitude, Number.NaN);
   const paymentMethods = Array.isArray(store.formas_pagamento)
     ? store.formas_pagamento
     : Array.isArray(config.formas_pagamento)
@@ -124,10 +146,12 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
     establishmentType,
     configurableMenuEnabled: store.cardapio_configuravel_ativo === true,
     digitalLabel: labels.digital,
-    neighborhood: store.bairro || cities[0] || 'Sua região',
-    city: store.cidade?.trim() || cities[0] || '',
+    neighborhood: store.endereco_bairro || store.bairro || cities[0] || 'Sua regiao',
+    city: store.endereco_cidade?.trim() || store.cidade?.trim() || cities[0] || '',
     cities,
-    address: address || store.bairro || store.cidade || 'Endereço da loja não informado',
+    address: address || store.endereco_bairro || store.bairro || store.endereco_cidade || store.cidade || 'Endereco da loja nao informado',
+    latitude: Number.isFinite(latitude) ? latitude : null,
+    longitude: Number.isFinite(longitude) ? longitude : null,
     deliveryEstimate: '',
     minimumOrder: toNumber(store.valor_minimo_pedido),
     // The fee is resolved from the selected delivery area during checkout.
