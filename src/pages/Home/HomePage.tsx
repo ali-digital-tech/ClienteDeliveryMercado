@@ -90,7 +90,7 @@ export function HomePage({ mode = 'principal' }: { mode?: 'principal' | 'teste' 
   const contentTitle = view === 'favorites' ? 'Lojas favoritas' : view === 'orders' ? 'Onde você tem pedidos' : selectedCategory ? categories.find((item) => item.type === selectedCategory)?.label || 'Estabelecimentos' : 'Estabelecimentos em destaque';
 
   return (
-    <main className="min-h-full overflow-y-auto bg-[#f8fafc] pb-8">
+    <main className="h-full overflow-y-auto bg-[#f8fafc] pb-8">
       <div className="mx-auto w-full max-w-3xl px-4 py-7 sm:py-10">
         <header className="mb-5 flex items-start justify-between gap-4">
           <div><h1 className="text-slate-950" style={{ fontSize: '28px', fontWeight: 800 }}>Olá, {firstName(userName)}! <span aria-hidden>👋</span></h1><p className="mt-1 text-slate-500" style={{ fontSize: '16px' }}>Onde você deseja comprar hoje?</p></div>
