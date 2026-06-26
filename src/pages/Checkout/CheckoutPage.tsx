@@ -717,12 +717,18 @@ export function CheckoutPage() {
     };
   }, [marketId]);
 
+  const refreshCheckoutConfig = useCallback(async () => {
+    const config = await getMercadoPagoCheckoutConfig(marketId);
+    setCheckoutConfig(config);
+    return config;
+  }, [marketId]);
+
   useEffect(() => {
     if (!marketId) return;
 
     let isActive = true;
 
-    getMercadoPagoCheckoutConfig(marketId)
+    refreshCheckoutConfig()
       .then((config) => {
         if (isActive) setCheckoutConfig(config);
       })
@@ -734,7 +740,7 @@ export function CheckoutPage() {
     return () => {
       isActive = false;
     };
-  }, [marketId]);
+  }, [marketId, refreshCheckoutConfig]);
 
   useEffect(() => {
     if (
@@ -1139,6 +1145,31 @@ export function CheckoutPage() {
       !hasFreshCardToken(currentPaymentSelection)
     ) {
       if (currentPaymentSelection.saved_card_id) {
+        let latestCheckoutConfig = checkoutConfig;
+
+        if (
+          !latestCheckoutConfig ||
+          latestCheckoutConfig.gateway !== 'mercadopago' ||
+          !latestCheckoutConfig.public_key ||
+          !latestCheckoutConfig.capabilities?.saved_cards
+        ) {
+          try {
+            latestCheckoutConfig = await refreshCheckoutConfig();
+          } catch (error) {
+            console.error('Erro ao atualizar configuracao de pagamento para CVV:', error);
+          }
+        }
+
+        if (
+          latestCheckoutConfig?.gateway !== 'mercadopago' ||
+          !latestCheckoutConfig.public_key ||
+          !latestCheckoutConfig.capabilities?.saved_cards
+        ) {
+          showSystemNotice(`Pagamento online nao configurado para ${establishmentLabels.thisWithArticle}.`);
+          openPaymentScreen();
+          return;
+        }
+
         let nextSavedPaymentCards = savedPaymentCards;
         let savedCard = nextSavedPaymentCards.find((card) => card.id === currentPaymentSelection.saved_card_id);
 
