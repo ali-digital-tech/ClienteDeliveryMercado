@@ -329,8 +329,17 @@ export function getCardPaymentStatusMessage(status?: string | null, statusDetail
   }
 
   if (['rejeitado', 'rejected', 'cancelado', 'cancelled', 'failed'].includes(normalizedStatus)) {
+    if (normalizedDetail.includes('cc_rejected_bad_filled_security_code')) {
+      return 'Pagamento recusado: o codigo de seguranca do cartao esta incorreto. Confira o CVV e tente novamente.';
+    }
+    if (normalizedDetail.includes('cc_rejected_bad_filled_date')) {
+      return 'Pagamento recusado: confira a validade do cartao.';
+    }
+    if (normalizedDetail.includes('cc_rejected_bad_filled_card_number')) {
+      return 'Pagamento recusado: confira o numero do cartao.';
+    }
     if (normalizedDetail.includes('cc_rejected_high_risk')) {
-      return 'O Mercado Pago recusou esta compra por segurança. Não repita o mesmo pagamento agora; aguarde alguns minutos ou use PIX/outro cartão.';
+      return 'Pagamento recusado na validacao de seguranca. Confira o CVV e os dados do cartao; se estiverem corretos, aguarde alguns minutos ou use PIX/outro cartao.';
     }
     if (normalizedDetail.includes('cc_rejected_insufficient_amount')) {
       return 'Pagamento recusado: limite ou saldo insuficiente no cartão.';
