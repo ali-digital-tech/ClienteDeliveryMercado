@@ -102,6 +102,11 @@ export interface MercadoPagoPaymentResult {
   qr_code_base64?: string | null;
   ticket_url?: string | null;
   date_of_expiration?: string | null;
+  three_ds_info?: {
+    external_resource_url: string;
+    creq: string;
+  } | null;
+  requires_3ds_challenge?: boolean | null;
 }
 
 export interface LocalPayment {
@@ -344,6 +349,18 @@ export function getCardPaymentStatusMessage(status?: string | null, statusDetail
   }
 
   return 'Pagamento ainda não aprovado. Confira a forma de pagamento e tente novamente.';
+}
+
+export function isThreeDsChallengeRequired(result?: MercadoPagoPaymentResult | null) {
+  return Boolean(
+    result?.requires_3ds_challenge ||
+    (
+      result?.status === 'pending' &&
+      result?.status_detail === 'pending_challenge' &&
+      result?.three_ds_info?.external_resource_url &&
+      result?.three_ds_info?.creq
+    )
+  );
 }
 
 export function getStoredPayerData(): Partial<PayerData> {

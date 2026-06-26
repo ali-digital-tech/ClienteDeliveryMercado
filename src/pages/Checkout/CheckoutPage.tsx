@@ -50,6 +50,7 @@ import {
   getStoredPayerData,
   getStoredPaymentSelection,
   hasFreshCardToken,
+  isThreeDsChallengeRequired,
   loadMercadoPagoSecurityScript,
   refreshPaymentById,
   resolvePixExpiration,
@@ -65,7 +66,10 @@ import {
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
 
 const PIX_POLL_INTERVAL_MS = 5000;
+const THREE_DS_POLL_INTERVAL_MS = 4000;
+const THREE_DS_POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const PIX_TERMINAL_STATUSES = new Set(['rejeitado', 'cancelado', 'expirado', 'estornado']);
+const CARD_TERMINAL_STATUSES = new Set(['rejeitado', 'cancelado', 'expirado', 'estornado']);
 const BRASILIA_TIME_ZONE = 'America/Sao_Paulo';
 
 interface BusinessHour {
@@ -423,6 +427,123 @@ function SavedCardCvvModal({
   );
 }
 
+function ThreeDsChallengeModal({
+  result,
+  primaryColor,
+  challengeStatus,
+  onClose,
+}: {
+  result: MercadoPagoPaymentResult;
+  primaryColor: string;
+  challengeStatus: 'waiting' | 'checking' | 'failed';
+  onClose: () => void;
+}) {
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    if (submittedRef.current) return;
+    const frame = frameRef.current;
+    const info = result.three_ds_info;
+    if (!frame?.contentWindow || !info?.external_resource_url || !info.creq) return;
+
+    submittedRef.current = true;
+    const frameDocument = frame.contentWindow.document;
+    frameDocument.open();
+    frameDocument.write('<!doctype html><html><body></body></html>');
+    frameDocument.close();
+
+    const form = frameDocument.createElement('form');
+    form.method = 'post';
+    form.action = info.external_resource_url;
+    form.target = frame.name;
+
+    const creqInput = frameDocument.createElement('input');
+    creqInput.type = 'hidden';
+    creqInput.name = 'creq';
+    creqInput.value = info.creq;
+    form.appendChild(creqInput);
+    frameDocument.body.appendChild(form);
+    form.submit();
+  }, [result]);
+
+  const statusLabel = challengeStatus === 'checking'
+    ? 'Confirmando pagamento'
+    : challengeStatus === 'failed'
+      ? 'Autenticacao pendente'
+      : 'Autenticacao do banco';
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 px-3 pb-3 pt-8 sm:items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="three-ds-title"
+    >
+      <div className="max-h-[calc(100vh-2rem)] w-full max-w-[540px] overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl" style={{ border: "1px solid var(--market-primary-border-color)" }}>
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h3 id="three-ds-title" style={{ fontSize: "16px", fontWeight: 900, color: "var(--market-primary-color)" }}>
+              Confirmar compra
+            </h3>
+            <p className="mt-1" style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.45 }}>
+              {statusLabel}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2"
+            style={{ backgroundColor: "var(--market-primary-soft-color)" }}
+            aria-label="Fechar"
+          >
+            <X size={16} color="var(--market-primary-color)" />
+          </button>
+        </div>
+
+        <div className="mb-3 flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+          {challengeStatus === 'checking' ? (
+            <Loader2 size={15} color="#15803d" className="flex-shrink-0 animate-spin" />
+          ) : (
+            <Lock size={15} color="#15803d" className="flex-shrink-0" />
+          )}
+          <p style={{ fontSize: "12px", color: "#15803d", lineHeight: 1.4, fontWeight: 700 }}>
+            Conclua a validacao para que o banco autorize o cartao.
+          </p>
+        </div>
+
+        <iframe
+          ref={frameRef}
+          id="mp-three-ds-frame"
+          name="mp-three-ds-frame"
+          title="Autenticacao 3DS"
+          className="w-full rounded-xl border"
+          style={{
+            height: "min(600px, calc(100vh - 220px))",
+            minHeight: "440px",
+            borderColor: "var(--market-primary-border-color)",
+          }}
+        />
+
+        {challengeStatus === 'failed' && (
+          <p className="mt-3 rounded-xl px-3 py-2" style={{ backgroundColor: "#fffbeb", color: "#92400e", fontSize: "12px", fontWeight: 700 }}>
+            Ainda nao recebemos a confirmacao final. Consulte seus pedidos em instantes ou escolha outra forma de pagamento.
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-3 w-full rounded-xl px-4 py-3 text-white"
+          style={{ backgroundColor: primaryColor, fontSize: "13px", fontWeight: 800 }}
+        >
+          Acompanhar pagamento
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -448,6 +569,7 @@ export function CheckoutPage() {
   const [pixSecondsRemaining, setPixSecondsRemaining] = useState(0);
   const [pixInitialSeconds, setPixInitialSeconds] = useState(1);
   const [pixStatus, setPixStatus] = useState<'idle' | 'waiting' | 'expired' | 'failed'>('idle');
+  const [threeDsStatus, setThreeDsStatus] = useState<'idle' | 'waiting' | 'checking' | 'failed'>('idle');
   const [isCancellingPix, setIsCancellingPix] = useState(false);
   const [pixCodeCopied, setPixCodeCopied] = useState(false);
   const [pixFailureMessage, setPixFailureMessage] = useState('');
@@ -462,6 +584,7 @@ export function CheckoutPage() {
   const [savedPaymentCards, setSavedPaymentCards] = useState<SavedPaymentCard[]>([]);
   const [pendingCvvSelection, setPendingCvvSelection] = useState<StoredPaymentSelection | null>(null);
   const pixExpirationCheckedRef = useRef(false);
+  const threeDsStartedAtRef = useRef<number | null>(null);
 
   const orderType = getStoredCheckoutMode(marketId);
   const isPickup = orderType === 'pickup';
@@ -503,6 +626,7 @@ export function CheckoutPage() {
   const isCashPayment = paymentSelection.method === 'dinheiro';
   const paymentReady = isCashPayment || hasPayerData;
   const isPixWaiting = Boolean(paymentResult?.qr_code && pixStatus === 'waiting');
+  const isThreeDsWaiting = Boolean(isThreeDsChallengeRequired(paymentResult) && ['waiting', 'checking'].includes(threeDsStatus));
   const canChooseAnotherPayment = Boolean(paymentResult?.qr_code && ['expired', 'failed'].includes(pixStatus));
   const pixProgress = paymentResult?.qr_code
     ? Math.max(0, Math.min(100, (pixSecondsRemaining / pixInitialSeconds) * 100))
@@ -806,6 +930,14 @@ export function CheckoutPage() {
     }
   };
 
+  const closeThreeDsChallenge = () => {
+    setThreeDsStatus('failed');
+    const pendingOrderId = pendingOrder?.id;
+    if (pendingOrderId) {
+      navigate(`${tenantPath("payment-recovery")}?orderId=${encodeURIComponent(pendingOrderId)}`);
+    }
+  };
+
   const resolveCpfInvoicePayload = () => {
     if (savedCpfInvoiceDefault) {
       return {
@@ -898,6 +1030,73 @@ export function CheckoutPage() {
     };
   }, [completeConfirmedOrder, paymentResult, pendingOrder, pixStatus]);
 
+  useEffect(() => {
+    if (!paymentResult?.payment.id || !pendingOrder || !isThreeDsChallengeRequired(paymentResult)) return;
+    if (!['waiting', 'checking'].includes(threeDsStatus)) return;
+
+    let cancelled = false;
+    const startedAt = threeDsStartedAtRef.current || Date.now();
+    threeDsStartedAtRef.current = startedAt;
+
+    const checkStatus = async () => {
+      try {
+        const payment = await refreshPaymentById(paymentResult.payment.id);
+        if (cancelled) return;
+
+        if (payment.status === 'aprovado') {
+          setThreeDsStatus('checking');
+          await completeConfirmedOrder(
+            {
+              ...paymentResult,
+              payment: {
+                ...paymentResult.payment,
+                status: payment.status,
+                gateway_pagamento_id: payment.gateway_pagamento_id,
+                pago_em: payment.pago_em,
+              },
+              status: payment.status_gateway_raw || payment.status,
+              status_detail: payment.status_detalhado || null,
+            },
+            pendingOrder
+          );
+          return;
+        }
+
+        if (CARD_TERMINAL_STATUSES.has(payment.status)) {
+          setThreeDsStatus('failed');
+          showSystemNotice(getCardPaymentStatusMessage(payment.status, payment.status_detalhado));
+          await refreshOrders();
+          return;
+        }
+
+        if (Date.now() - startedAt > THREE_DS_POLL_TIMEOUT_MS) {
+          setThreeDsStatus('failed');
+          await refreshOrders();
+        }
+      } catch (error) {
+        console.error('Erro ao consultar status do 3DS:', error);
+      }
+    };
+
+    const handleMessage = (event: MessageEvent) => {
+      const status = (event.data as { status?: unknown } | null)?.status;
+      if (status === 'COMPLETE') {
+        setThreeDsStatus('checking');
+        void checkStatus();
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    const intervalId = window.setInterval(checkStatus, THREE_DS_POLL_INTERVAL_MS);
+    void checkStatus();
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('message', handleMessage);
+      window.clearInterval(intervalId);
+    };
+  }, [completeConfirmedOrder, paymentResult, pendingOrder, refreshOrders, threeDsStatus]);
+
   const handleFinalize = async (paymentSelectionOverride?: StoredPaymentSelection) => {
     if (cart.length === 0) {
       showSystemNotice('Seu carrinho está vazio.');
@@ -981,6 +1180,8 @@ export function CheckoutPage() {
 
     setIsSubmitting(true);
     setPixStatus('idle');
+    setThreeDsStatus('idle');
+    threeDsStartedAtRef.current = null;
     setPixCodeCopied(false);
     setPixFailureMessage('');
 
@@ -1021,6 +1222,14 @@ export function CheckoutPage() {
 
       if (result.payment.status === 'aprovado') {
         await completeConfirmedOrder(result, order);
+        return;
+      }
+
+      if (isThreeDsChallengeRequired(result)) {
+        setPendingOrder(order);
+        setThreeDsStatus('waiting');
+        threeDsStartedAtRef.current = Date.now();
+        await refreshOrders();
         return;
       }
 
@@ -1641,6 +1850,15 @@ export function CheckoutPage() {
         />
       )}
 
+      {isThreeDsChallengeRequired(paymentResult) && ['waiting', 'checking', 'failed'].includes(threeDsStatus) && paymentResult && (
+        <ThreeDsChallengeModal
+          result={paymentResult}
+          primaryColor={primaryColor}
+          challengeStatus={threeDsStatus === 'idle' ? 'waiting' : threeDsStatus}
+          onClose={closeThreeDsChallenge}
+        />
+      )}
+
       {paymentResult?.qr_code && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 px-3 pb-3 pt-8 sm:items-center sm:p-6"
@@ -1755,7 +1973,7 @@ export function CheckoutPage() {
       >
         <button
           onClick={canChooseAnotherPayment ? resetPixPayment : () => void handleFinalize()}
-          disabled={isSubmitting || isPixWaiting}
+          disabled={isSubmitting || isPixWaiting || isThreeDsWaiting}
           className="w-full rounded-2xl py-4 text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
           style={{ backgroundColor: meetsMinimumOrder ? "var(--market-primary-color)" : "#9ca3af" }}
         >
@@ -1764,6 +1982,8 @@ export function CheckoutPage() {
               ? "Processando..."
               : isPixWaiting
                 ? "Aguardando pagamento PIX"
+                : isThreeDsWaiting
+                  ? "Aguardando autenticacao do cartao"
                 : canChooseAnotherPayment
                   ? "Escolher outra forma de pagamento"
                   : meetsMinimumOrder
