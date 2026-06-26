@@ -171,10 +171,10 @@ export function onlyDigits(value: string | number | null | undefined) {
   return String(value || '').replace(/\D/g, '');
 }
 
-export function createPaymentAttemptKey(prefix = 'card') {
+export function createPaymentAttemptKey(prefix = 'card', pedidoId?: string) {
   const randomId = globalThis.crypto?.randomUUID?.()
     || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return `${prefix}-${randomId}`;
+  return pedidoId ? `${prefix}-${pedidoId}-${randomId}` : `${prefix}-${randomId}`;
 }
 
 export function loadMercadoPagoSecurityScript() {
@@ -313,6 +313,17 @@ export function getStoredPaymentSelection(): StoredPaymentSelection {
 
 export function savePaymentSelection(selection: StoredPaymentSelection) {
   localStorage.setItem(PAYMENT_SELECTION_STORAGE_KEY, JSON.stringify(selection));
+}
+
+export function stripPaymentAttemptData(selection: StoredPaymentSelection): StoredPaymentSelection {
+  const {
+    card_token,
+    card_token_created_at,
+    idempotency_key,
+    ...stableSelection
+  } = selection;
+
+  return stableSelection;
 }
 
 export function hasFreshCardToken(selection: StoredPaymentSelection) {
@@ -532,12 +543,10 @@ export async function createCardPayment(
   payer: PayerData,
   selection: StoredPaymentSelection
 ) {
-  const idempotencyKey = selection.idempotency_key || createPaymentAttemptKey(
-    selection.saved_card_id ? 'saved-card' : 'card'
+  const idempotencyKey = createPaymentAttemptKey(
+    selection.saved_card_id ? 'saved-card' : 'card',
+    pedidoId
   );
-  if (!selection.idempotency_key) {
-    savePaymentSelection({ ...selection, idempotency_key: idempotencyKey });
-  }
 
   const deviceId = selection.gateway === 'pagarme'
     ? undefined
@@ -548,14 +557,46 @@ export async function createCardPayment(
       throw new Error('Informe o CVV do cartão salvo antes de continuar.');
     }
 
+    try {
+      const response = await apiRequest<{ data: MercadoPagoPaymentResult }>(
+        '/payment-gateways/payment/saved-card',
+        {
+          method: 'POST',
+          body: {
+            pedido_id: pedidoId,
+            saved_card_id: selection.saved_card_id,
+            security_code_token: selection.card_token,
+            installments: selection.installments || 1,
+            idempotency_key: idempotencyKey,
+            device_id: deviceId,
+            authentication_type: 'WEB',
+            ...payer,
+          },
+        }
+      );
+
+      return response.data;
+    } finally {
+      savePaymentSelection(stripPaymentAttemptData(selection));
+    }
+  }
+
+  if (!hasFreshCardToken(selection) || !selection.payment_method_id) {
+    throw new Error('Confirme os dados do cartão antes de continuar.');
+  }
+
+  try {
     const response = await apiRequest<{ data: MercadoPagoPaymentResult }>(
-      '/payment-gateways/payment/saved-card',
+      '/payment-gateways/payment/card',
       {
         method: 'POST',
         body: {
           pedido_id: pedidoId,
-          saved_card_id: selection.saved_card_id,
-          security_code_token: selection.card_token,
+          forma_pagamento: selection.method,
+          card_token: selection.card_token,
+          payment_method_id: selection.payment_method_id,
+          card_bin: selection.card_bin,
+          issuer_id: selection.issuer_id ?? null,
           installments: selection.installments || 1,
           idempotency_key: idempotencyKey,
           device_id: deviceId,
@@ -566,33 +607,9 @@ export async function createCardPayment(
     );
 
     return response.data;
+  } finally {
+    savePaymentSelection(stripPaymentAttemptData(selection));
   }
-
-  if (!hasFreshCardToken(selection) || !selection.payment_method_id) {
-    throw new Error('Confirme os dados do cartão antes de continuar.');
-  }
-
-  const response = await apiRequest<{ data: MercadoPagoPaymentResult }>(
-    '/payment-gateways/payment/card',
-    {
-      method: 'POST',
-      body: {
-        pedido_id: pedidoId,
-        forma_pagamento: selection.method,
-        card_token: selection.card_token,
-        payment_method_id: selection.payment_method_id,
-        card_bin: selection.card_bin,
-        issuer_id: selection.issuer_id ?? null,
-        installments: selection.installments || 1,
-        idempotency_key: idempotencyKey,
-        device_id: deviceId,
-        authentication_type: 'WEB',
-        ...payer,
-      },
-    }
-  );
-
-  return response.data;
 }
 
 export interface PagarmeCardData {

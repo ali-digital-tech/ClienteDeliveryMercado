@@ -42,7 +42,6 @@ import {
   calculatePlatformServiceFee,
   createCardPayment,
   createCashPayment,
-  createPaymentAttemptKey,
   createPixPayment,
   getCardPaymentStatusMessage,
   getMercadoPagoCheckoutConfig,
@@ -56,6 +55,7 @@ import {
   resolvePixExpiration,
   savePaymentSelection,
   selectionFromSavedCard,
+  stripPaymentAttemptData,
   validatePayerData,
   type MercadoPagoCheckoutConfig,
   type MercadoPagoPaymentResult,
@@ -1244,6 +1244,10 @@ export function CheckoutPage() {
             ? await createCashPayment(order.id, selection)
             : await createCardPayment(order.id, payer as PayerData, selection);
 
+      if (selection.method !== 'pix' && selection.method !== 'dinheiro') {
+        setPaymentSelection(stripPaymentAttemptData(selection));
+      }
+
       setPaymentResult(result);
 
       if (selection.method === 'dinheiro') {
@@ -1304,7 +1308,6 @@ export function CheckoutPage() {
       ...pendingCvvSelection,
       card_token: token.id,
       card_token_created_at: Date.now(),
-      idempotency_key: createPaymentAttemptKey("saved-card"),
       last_four_digits: token.last_four_digits || pendingCvvSelection.last_four_digits,
     };
 

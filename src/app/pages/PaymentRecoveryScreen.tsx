@@ -17,6 +17,7 @@ import {
   savePaymentSelection,
   selectionFromSavedCard,
   splitPayerFullName,
+  stripPaymentAttemptData,
   validatePayerData,
   type LocalPayment,
   type MercadoPagoPaymentResult,
@@ -296,6 +297,10 @@ export function PaymentRecoveryScreen() {
         : selection.method === "dinheiro"
           ? await createCashPayment(order.rawId || order.id, selection)
           : await createCardPayment(order.rawId || order.id, payerData as PayerData, selection);
+
+      if (selection.method !== "pix" && selection.method !== "dinheiro") {
+        setPaymentSelection(stripPaymentAttemptData(selection));
+      }
 
       setPayment(resultToOrderPayment(result));
       await refreshOrders();

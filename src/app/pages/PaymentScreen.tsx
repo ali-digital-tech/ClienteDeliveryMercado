@@ -5,7 +5,6 @@ import { useApp } from '@/app/providers/AppProvider';
 import { getStoredCheckoutMode } from '@/features/orders/services/checkoutModeService';
 import { getDeliveryAreas, getMyAddresses, resolveSelectedAddress, type CustomerAddress } from '@/features/addresses';
 import {
-  createPaymentAttemptKey,
   getMercadoPagoCheckoutConfig,
   getSavedPaymentCards,
   getStoredPayerData,
@@ -925,7 +924,6 @@ export function PaymentScreen() {
               gateway: "mercadopago" as const,
               card_token: cardToken.id,
               card_token_created_at: Date.now(),
-              idempotency_key: createPaymentAttemptKey("saved-card"),
               installments,
             }
           : {
@@ -933,7 +931,6 @@ export function PaymentScreen() {
               method: selected,
               card_token: cardToken.id,
               card_token_created_at: Date.now(),
-              idempotency_key: createPaymentAttemptKey("card"),
               // The BIN lookup is authoritative. Never persist a generic "card"
               // value: Mercado Pago rejects it during payment creation.
               payment_method_id: paymentMethodId,
@@ -969,7 +966,6 @@ export function PaymentScreen() {
               gateway: "mercadopago",
               card_token: savedCardToken.id,
               card_token_created_at: Date.now(),
-              idempotency_key: createPaymentAttemptKey("saved-card"),
               installments,
             });
           }
