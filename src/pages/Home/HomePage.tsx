@@ -11,6 +11,7 @@ import { authService } from '@/features/auth';
 import { getAuthToken } from '@/shared/lib/api';
 import { getOrdersByMarketId } from '@/features/orders';
 import { usePlatformBanners, type PlatformBanner } from '@/features/platformBanners';
+import logoEntregai from '@/assets/brand/logo-entregai.svg';
 
 type HomeView = 'all' | 'favorites' | 'orders';
 
@@ -93,7 +94,19 @@ export function HomePage({ mode = 'principal' }: { mode?: 'principal' | 'teste' 
     <main className="h-full overflow-y-auto bg-[#f8fafc] pb-8">
       <div className="mx-auto w-full max-w-3xl px-4 py-7 sm:py-10">
         <header className="mb-5 flex items-start justify-between gap-4">
-          <div><h1 className="text-slate-950" style={{ fontSize: '28px', fontWeight: 800 }}>Olá, {firstName(userName)}! <span aria-hidden>👋</span></h1><p className="mt-1 text-slate-500" style={{ fontSize: '16px' }}>Onde você deseja comprar hoje?</p></div>
+          <div className="min-w-0">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                <img src={logoEntregai} alt="" className="h-11 w-11 object-contain" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-extrabold uppercase tracking-wide text-slate-500">Entregaí</p>
+                <p className="truncate text-sm font-semibold text-slate-700">Delivery local, do seu jeito</p>
+              </div>
+            </div>
+            <h1 className="text-slate-950" style={{ fontSize: '28px', fontWeight: 800 }}>Olá, {firstName(userName)}!</h1>
+            <p className="mt-1 text-slate-500" style={{ fontSize: '16px' }}>Onde você deseja comprar hoje?</p>
+          </div>
           <button aria-label="Abrir perfil" type="button" className="flex h-11 w-11 items-center justify-center rounded-full border bg-white text-slate-700 shadow-sm" onClick={() => navigate(markets[0] ? `/mercado/${markets[0].id}/profile` : '/')}><UserRound size={21} /></button>
         </header>
 
