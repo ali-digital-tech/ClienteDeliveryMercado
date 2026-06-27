@@ -47,12 +47,18 @@ type ParticipantSession = {
 
 type TrackedOrderItem = {
   id: string;
+  participante_id?: string | null;
   nome_produto: string;
   nome_variacao?: string | null;
   quantidade: number;
   preco_total: number;
   observacoes?: string | null;
   status: "enviado" | "recebido" | "preparando" | "pronto" | "entregue" | "cancelado";
+  enviado_por?: string | null;
+  autor_tipo?: "cliente" | "garcom" | "atendimento" | string | null;
+  autor_nome?: string | null;
+  autor_label?: string | null;
+  meu_pedido?: boolean | null;
   criado_em: string;
   selecoes: Array<{ nome_grupo: string; nome_opcao: string; quantidade: number }>;
 };
@@ -503,7 +509,7 @@ export function TableQrPage() {
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               <button
                 className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25"
-                aria-label="Meus pedidos"
+                aria-label="Histórico da mesa"
                 onClick={() => {
                   setView("orders");
                   void loadOrderTracking();
@@ -856,8 +862,8 @@ function TableQrOrderTracking({
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="rounded-full bg-white p-2 shadow-sm" aria-label="Voltar ao cardápio"><ChevronLeft className="h-5 w-5" /></button>
             <div>
-              <h1 className="text-lg font-extrabold text-slate-900">Meus pedidos</h1>
-              <p className="text-xs text-slate-500">Acompanhe o preparo em tempo real</p>
+              <h1 className="text-lg font-extrabold text-slate-900">Histórico da mesa</h1>
+              <p className="text-xs text-slate-500">Todos os pedidos desta comanda em tempo real</p>
             </div>
           </div>
           <button
@@ -874,26 +880,35 @@ function TableQrOrderTracking({
           <div className="rounded-2xl bg-white px-5 py-12 text-center shadow-sm">
             <ListOrdered className="mx-auto h-11 w-11 text-slate-300" />
             <p className="mt-3 font-extrabold text-slate-800">Valide o PIN da mesa</p>
-            <p className="mt-1 text-sm text-slate-500">Depois da validação, seus pedidos e os status da cozinha aparecerão aqui.</p>
+            <p className="mt-1 text-sm text-slate-500">Depois da validação, os pedidos da mesa e os status da cozinha aparecerão aqui.</p>
           </div>
         ) : loading && items.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-sm font-semibold text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /> Carregando seus pedidos...</div>
+          <div className="flex flex-col items-center gap-2 py-16 text-sm font-semibold text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /> Carregando histórico da mesa...</div>
         ) : items.length === 0 ? (
           <div className="rounded-2xl bg-white px-5 py-12 text-center shadow-sm">
             <UtensilsCrossed className="mx-auto h-11 w-11 text-slate-300" />
-            <p className="mt-3 font-extrabold text-slate-800">Você ainda não enviou pedidos</p>
-            <p className="mt-1 text-sm text-slate-500">Os itens enviados para a cozinha aparecerão aqui.</p>
+            <p className="mt-3 font-extrabold text-slate-800">Nenhum pedido nesta mesa</p>
+            <p className="mt-1 text-sm text-slate-500">Os itens enviados pelo cliente ou pelo garçom aparecerão aqui.</p>
           </div>
         ) : (
           <div className="space-y-3">
             {items.map((item) => {
               const status = kdsStatus[item.status] || kdsStatus.enviado;
+              const authorLabel = item.autor_label
+                || (item.autor_tipo === "garcom"
+                  ? `Pedido adicionado pelo garçom - ${item.autor_nome || "Garçom"}`
+                  : item.autor_tipo === "atendimento"
+                    ? `Pedido adicionado pelo atendimento - ${item.autor_nome || "Atendimento"}`
+                    : item.autor_nome || "Cliente");
               return (
                 <article key={item.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h2 className="text-sm font-extrabold text-slate-950">{item.nome_produto}</h2>
                       {item.nome_variacao && <p className="mt-0.5 text-xs font-semibold text-slate-600">{item.nome_variacao}</p>}
+                      <p className={`mt-1 text-xs font-bold ${item.autor_tipo === "cliente" ? "text-blue-700" : "text-amber-700"}`}>
+                        {authorLabel}{item.meu_pedido ? " · seu pedido" : ""}
+                      </p>
                     </div>
                     <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ color: status.color, backgroundColor: status.background }}>
                       {status.label}
