@@ -42,6 +42,14 @@ export function getAuthToken() {
   return localStorage.getItem('token') ?? localStorage.getItem('authToken');
 }
 
+export function getRefreshToken() {
+  return localStorage.getItem('refresh_token');
+}
+
+export function hasStoredSession() {
+  return Boolean(getAuthToken() || getRefreshToken());
+}
+
 export function clearAuthTokens() {
   localStorage.removeItem('token');
   localStorage.removeItem('authToken');
@@ -75,8 +83,8 @@ function shouldRefresh(path: string) {
     .some((authPath) => path.includes(authPath));
 }
 
-async function refreshSession() {
-  const refreshToken = localStorage.getItem('refresh_token');
+export async function refreshSession() {
+  const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 
   if (!refreshRequest) {
@@ -109,6 +117,11 @@ async function refreshSession() {
   }
 
   return refreshRequest;
+}
+
+export async function ensureAuthenticatedSession() {
+  if (getAuthToken()) return true;
+  return refreshSession();
 }
 
 async function sendRequest(path: string, options: ApiRequestOptions, token: string | null) {
@@ -148,7 +161,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
   if (!response.ok) {
     const initialMessage = payload?.message || payload?.error?.message || payload?.error || '';
-    const canRefresh = token && shouldRefresh(path) && isSessionExpiredError(response.status, String(initialMessage));
+    const canRefresh = hasStoredSession() && shouldRefresh(path) && isSessionExpiredError(response.status, String(initialMessage));
 
     if (canRefresh) {
       const refreshed = await refreshSession();

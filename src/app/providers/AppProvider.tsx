@@ -13,7 +13,7 @@ import { useOrdersStore, type Order } from '@/features/orders';
 import { isConfigurableProduct, type Product } from '@/features/products';
 import { disableCustomerPush, listenForCustomerPush, refreshCustomerPushIfGranted } from '@/features/notifications';
 import { showSystemNotice } from '@/shared/components/SystemNoticeModal';
-import { getAuthToken, onSessionExpired } from '@/shared/lib/api';
+import { hasStoredSession, onSessionExpired } from '@/shared/lib/api';
 
 const FAVORITES_STORAGE_KEY = 'cliente_delivery_favorites_by_market';
 const DEFAULT_MARKET_PRIMARY_COLOR = '#122a4c';
@@ -160,7 +160,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     const normalizedPath = path.replace(/^\/+/, '');
     return normalizedPath ? `/mercado/${marketId}/${normalizedPath}` : `/mercado/${marketId}`;
   }, [marketId]);
-  const isAuthenticatedForAction = useCallback(() => Boolean(currentUser || getAuthToken()), [currentUser]);
+  const isAuthenticatedForAction = useCallback(() => Boolean(currentUser || hasStoredSession()), [currentUser]);
   const requireCustomerLogin = useCallback((state: Record<string, unknown> = {}) => {
     showSystemNotice('Entre na sua conta para continuar.');
     navigate(tenantPath('login'), {
@@ -279,7 +279,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
   }, [location.hash, location.pathname, location.search, navigate, tenantPath]);
 
   useEffect(() => {
-    if (sessionValidatedRef.current || !getAuthToken()) return;
+    if (sessionValidatedRef.current || !hasStoredSession()) return;
 
     sessionValidatedRef.current = true;
     let isActive = true;

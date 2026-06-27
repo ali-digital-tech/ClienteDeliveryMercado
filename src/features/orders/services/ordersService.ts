@@ -5,7 +5,7 @@ import { resolvePixExpiration } from '@/features/payments';
 import type { Order } from '../types/order';
 import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
-const ORDER_ITEMS_CACHE_KEY = 'cliente_delivery_order_items_by_order_v2';
+const ORDER_ITEMS_CACHE_KEY = 'cliente_delivery_order_items_by_order_v3';
 const ORDER_ITEMS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const ORDERS_PAGE_SIZE = 100;
 
@@ -313,6 +313,23 @@ function isSellableStoreProduct(product: Product | null, marketId: string) {
   return Boolean(product && product.marketId === marketId && product.price > 0);
 }
 
+async function fetchCurrentProductForRepeat(item: ApiCartItem, marketId: string): Promise<Product | null> {
+  const identifiers = [item.produto_loja_id, item.produto_id]
+    .filter((value): value is string => Boolean(value))
+    .filter((value, index, values) => values.indexOf(value) === index);
+
+  for (const identifier of identifiers) {
+    try {
+      const product = await getProductById(marketId, identifier);
+      if (isSellableStoreProduct(product, marketId)) return product;
+    } catch {
+      // Try the next identifier before considering the item unavailable.
+    }
+  }
+
+  return null;
+}
+
 async function mapCartItemToOrderItem(item: ApiCartItem, marketId: string): Promise<Order['items'][number] | null> {
   const qty = toNumber(item.quantidade);
   if (qty <= 0) return null;
@@ -336,43 +353,11 @@ async function mapCartItemToOrderItem(item: ApiCartItem, marketId: string): Prom
   };
   const embeddedProduct = resolveProductFromCartItem(item, marketId);
   if (isSellableStoreProduct(embeddedProduct, marketId)) {
-    return { product: { ...(embeddedProduct as Product), price: toNumber(item.preco_unitario) || embeddedProduct!.price }, qty, ...metadata };
+    return { product: embeddedProduct as Product, qty, ...metadata };
   }
 
-  if (item.nome_produto) {
-    return {
-      product: {
-        id: item.produto_loja_id || item.produto_id || item.client_line_id || item.nome_produto,
-        catalogProductId: item.produto_id || item.produto_loja_id || '',
-        marketId,
-        name: item.nome_produto,
-        brand: '',
-        price: toNumber(item.preco_unitario),
-        saleType: item.tipo_venda || 'unidade',
-        minQty: 1,
-        stepQty: 1,
-        priceUnit: item.unidade_medida || 'un',
-        image: '',
-        category: 'pedido',
-        unit: item.unidade_medida || 'un',
-        description: '',
-        purchaseMode: selections.length || item.nome_variacao ? 'configuravel' : 'simples',
-        stockMode: 'disponibilidade',
-        hasVariations: Boolean(item.nome_variacao),
-      },
-      qty,
-      ...metadata,
-    };
-  }
-
-  if (!item.produto_id) return null;
-
-  try {
-    const product = await getProductById(marketId, item.produto_id);
-    return isSellableStoreProduct(product, marketId) ? { product: product as Product, qty, ...metadata } : null;
-  } catch {
-    return null;
-  }
+  const product = await fetchCurrentProductForRepeat(item, marketId);
+  return product ? { product, qty, ...metadata } : null;
 }
 
 async function getOrderItemsFromCart(order: Order): Promise<Order['items']> {

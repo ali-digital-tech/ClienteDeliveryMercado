@@ -36,7 +36,7 @@ import { formatCartQuantity, getCartLineCount, syncCartItemsBatch } from '@/feat
 import { ProductImage } from '@/features/products';
 import { createCheckoutOrder } from '@/features/orders/services/ordersService';
 import { getStoredCheckoutMode } from '@/features/orders/services/checkoutModeService';
-import { apiRequest, getAuthToken } from '@/shared/lib/api';
+import { apiRequest, ensureAuthenticatedSession } from '@/shared/lib/api';
 import {
   cancelPayment,
   calculatePlatformServiceFee,
@@ -1116,7 +1116,9 @@ export function CheckoutPage() {
       return;
     }
 
-    if (!currentUser && !getAuthToken()) {
+    const hasSession = currentUser || await ensureAuthenticatedSession();
+
+    if (!hasSession) {
       navigate(tenantPath("login"), {
         state: {
           redirectTo: `${location.pathname}${location.search}${location.hash}`,
