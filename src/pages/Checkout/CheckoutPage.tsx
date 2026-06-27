@@ -41,14 +41,16 @@ import {
   cancelPayment,
   calculatePlatformServiceFee,
   createCardPayment,
-  createCashPayment,
+  createPaymentOnDelivery,
   createPixPayment,
+  getCardPaymentCorrectionMessage,
   getCardPaymentStatusMessage,
   getMercadoPagoCheckoutConfig,
   getSavedPaymentCards,
   getStoredPayerData,
   getStoredPaymentSelection,
   hasFreshCardToken,
+  isCardPaymentCorrectionRequired,
   isThreeDsChallengeRequired,
   loadMercadoPagoSecurityScript,
   refreshPaymentById,
@@ -1243,7 +1245,7 @@ export function CheckoutPage() {
         selection.method === 'pix'
           ? await createPixPayment(order.id, payer as PayerData)
           : selection.method === 'dinheiro'
-            ? await createCashPayment(order.id, selection)
+            ? await createPaymentOnDelivery(order.id, selection)
             : await createCardPayment(order.id, payer as PayerData, selection);
 
       if (selection.method !== 'pix' && selection.method !== 'dinheiro') {
@@ -1284,6 +1286,20 @@ export function CheckoutPage() {
         pixExpirationCheckedRef.current = false;
         setPixStatus('waiting');
         await refreshOrders();
+        return;
+      }
+
+      if (isCardPaymentCorrectionRequired(result.payment.status, result.status_detail)) {
+        showSystemNotice(getCardPaymentCorrectionMessage(result.status_detail));
+        await refreshOrders();
+        if (selection.saved_card_id) {
+          const stableSelection = stripPaymentAttemptData(selection);
+          savePaymentSelection(stableSelection);
+          setPaymentSelection(stableSelection);
+          setPendingCvvSelection(stableSelection);
+          return;
+        }
+        openPaymentScreen();
         return;
       }
 

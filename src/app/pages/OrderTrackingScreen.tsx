@@ -60,11 +60,11 @@ function formatCurrency(value: number | undefined) {
   return `R$ ${(value || 0).toFixed(2).replace(".", ",")}`;
 }
 
-function formatPaymentMethod(method?: string | null) {
+function formatPaymentMethod(method?: string | null, paymentOnDeliveryMethod?: string | null) {
   if (method === "pix") return "PIX";
   if (method === "cartao_credito") return "Cartão de crédito";
   if (method === "cartao_debito") return "Cartão de débito";
-  if (method === "dinheiro") return "Dinheiro";
+  if (method === "dinheiro") return paymentOnDeliveryMethod === "cartao" ? "Cartão na entrega" : "Dinheiro";
   return "Pagamento";
 }
 
@@ -411,6 +411,7 @@ export function OrderTrackingScreen() {
   const hasDeliveryFee = Boolean(selectedOrder.deliveryFee && selectedOrder.deliveryFee > 0);
   const serviceFee = selectedOrder.payment?.applicationFee || 0;
   const cashPayment = selectedOrder.payment?.method === "dinheiro" ? selectedOrder.payment : null;
+  const isCardOnDelivery = cashPayment?.paymentOnDeliveryMethod === "cartao";
   const isFinished = ["entregue", "nao_entregue", "cancelado"].includes(selectedOrder.status);
   const assignedDriver = selectedOrder.type === "delivery" ? selectedOrder.deliveryInfo?.driver : null;
   const assignedVehicle = selectedOrder.type === "delivery" ? formatVehicle(selectedOrder) : null;
@@ -942,7 +943,7 @@ export function OrderTrackingScreen() {
               <div className="flex justify-between">
                 <span style={{ fontSize: "13px", color: "#64748b" }}>Pagamento</span>
                 <span style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>
-                  {formatPaymentMethod(selectedOrder.payment.method)}
+                  {formatPaymentMethod(selectedOrder.payment.method, selectedOrder.payment.paymentOnDeliveryMethod)}
                 </span>
               </div>
             )}
@@ -950,10 +951,12 @@ export function OrderTrackingScreen() {
             {cashPayment && (
               <div className="rounded-xl px-3 py-2" style={{ backgroundColor: "#f8fafc", border: "1px solid #e2e8f0" }}>
                 <p style={{ fontSize: "12px", color: "#64748b", fontWeight: 700 }}>
-                  Troco
+                  {isCardOnDelivery ? "Cobrança" : "Troco"}
                 </p>
                 <p style={{ fontSize: "13px", color: "#334155", fontWeight: 800 }}>
-                  {cashPayment.noChange
+                  {isCardOnDelivery
+                    ? "Cobrar com cartão na entrega"
+                    : cashPayment.noChange
                     ? "Não precisa de troco"
                     : `Troco para ${formatCurrency(cashPayment.changeFor || 0)} · devolver ${formatCurrency(cashPayment.changeValue || 0)}`}
                 </p>

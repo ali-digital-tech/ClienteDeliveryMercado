@@ -23,6 +23,7 @@ export type PayerValidationErrors = Partial<Record<keyof PayerData | 'full_name'
 export interface StoredPaymentSelection {
   method: PaymentMethod;
   gateway?: 'mercadopago' | 'pagarme';
+  pagamento_entrega_tipo?: 'dinheiro' | 'cartao';
   sem_troco?: boolean;
   troco_para?: number | null;
   card_token?: string;
@@ -92,6 +93,7 @@ export interface MercadoPagoPaymentResult {
     sem_troco?: boolean | null;
     troco_para?: string | number | null;
     troco_valor?: string | number | null;
+    pagamento_entrega_tipo?: 'dinheiro' | 'cartao' | string | null;
   };
   mp_payment_id: string | number;
   provider_payment_id?: string | number;
@@ -129,6 +131,7 @@ export interface LocalPayment {
   sem_troco?: boolean | null;
   troco_para?: string | number | null;
   troco_valor?: string | number | null;
+  pagamento_entrega_tipo?: 'dinheiro' | 'cartao' | string | null;
 }
 
 function normalizeAmount(value: string | number | null | undefined) {
@@ -394,6 +397,53 @@ export function getCardPaymentStatusMessage(status?: string | null, statusDetail
   return 'Pagamento ainda não aprovado. Confira a forma de pagamento e tente novamente.';
 }
 
+export function isCardPaymentCorrectionRequired(status?: string | null, statusDetail?: string | null) {
+  const normalizedStatus = String(status || '').trim().toLowerCase();
+  const normalizedDetail = String(statusDetail || '').trim().toLowerCase();
+
+  if (!['rejeitado', 'rejected', 'cancelado', 'cancelled', 'failed'].includes(normalizedStatus)) {
+    return false;
+  }
+
+  return [
+    'cc_rejected_bad_filled_security_code',
+    'cc_rejected_bad_filled_card_number',
+    'cc_rejected_bad_filled_date',
+    'cc_rejected_bad_filled_other',
+  ].some((detail) => normalizedDetail.includes(detail));
+}
+
+export function getCardPaymentCorrectionMessage(statusDetail?: string | null) {
+  const normalizedDetail = String(statusDetail || '').trim().toLowerCase();
+
+  if (normalizedDetail.includes('cc_rejected_bad_filled_security_code')) {
+    return 'CVV inválido. Informe novamente o código de segurança do cartão.';
+  }
+
+  if (normalizedDetail.includes('cc_rejected_bad_filled_card_number')) {
+    return 'Dados do cartão inválidos. Informe o CVV novamente; se continuar, cadastre o cartão de novo.';
+  }
+
+  if (normalizedDetail.includes('cc_rejected_bad_filled_date')) {
+    return 'Validade do cartão inválida. Confira o cartão antes de tentar novamente.';
+  }
+
+  return 'Confira os dados do cartão antes de tentar novamente.';
+}
+
+export function isRecoverableCardRejection(
+  method?: string | null,
+  status?: string | null,
+  statusDetail?: string | null
+) {
+  const normalizedMethod = String(method || '').trim().toLowerCase();
+  const normalizedStatus = String(status || '').trim().toLowerCase();
+
+  return ['cartao_credito', 'cartao_debito'].includes(normalizedMethod)
+    && ['rejeitado', 'rejected', 'cancelado', 'cancelled', 'failed'].includes(normalizedStatus)
+    && !isCardPaymentCorrectionRequired(normalizedStatus, statusDetail);
+}
+
 export function isThreeDsChallengeRequired(result?: MercadoPagoPaymentResult | null) {
   return Boolean(
     result?.requires_3ds_challenge ||
@@ -504,14 +554,15 @@ export async function createPixPayment(pedidoId: string, payer: PayerData) {
   return response.data;
 }
 
-export async function createCashPayment(
+export async function createPaymentOnDelivery(
   pedidoId: string,
-  selection: StoredPaymentSelection
+  selection: Pick<StoredPaymentSelection, 'sem_troco' | 'troco_para' | 'pagamento_entrega_tipo'>
 ): Promise<MercadoPagoPaymentResult> {
-  const response = await apiRequest<{ data: LocalPayment }>('/pagamentos/dinheiro', {
+  const response = await apiRequest<{ data: LocalPayment }>('/pagamentos/entrega', {
     method: 'POST',
     body: {
       pedido_id: pedidoId,
+      pagamento_entrega_tipo: selection.pagamento_entrega_tipo || 'dinheiro',
       sem_troco: selection.sem_troco !== false,
       troco_para: selection.sem_troco === false ? selection.troco_para ?? null : null,
     },
@@ -531,6 +582,7 @@ export async function createCashPayment(
       sem_troco: payment.sem_troco ?? null,
       troco_para: payment.troco_para ?? null,
       troco_valor: payment.troco_valor ?? null,
+      pagamento_entrega_tipo: payment.pagamento_entrega_tipo ?? null,
     },
     mp_payment_id: payment.id,
     status: payment.status,

@@ -72,6 +72,7 @@ interface ApiOrder {
     forma_pagamento?: string | null;
     valor?: string | number | null;
     status?: string | null;
+    status_detalhado?: string | null;
     application_fee?: string | number | null;
     gateway_pagamento_id?: string | null;
     qr_code?: string | null;
@@ -83,6 +84,7 @@ interface ApiOrder {
     sem_troco?: boolean | null;
     troco_para?: string | number | null;
     troco_valor?: string | number | null;
+    pagamento_entrega_tipo?: 'dinheiro' | 'cartao' | string | null;
   } | null;
   reembolsos?: Array<{
     id: string;
@@ -417,6 +419,7 @@ function mapOrder(order: ApiOrder): Order {
       id: order.pagamento.id,
       method: order.pagamento.forma_pagamento || '',
       status: order.pagamento.status || '',
+      statusDetail: order.pagamento.status_detalhado || null,
       value: toNumber(order.pagamento.valor),
       applicationFee: toNumber(order.pagamento.application_fee),
       gatewayPaymentId: order.pagamento.gateway_pagamento_id || null,
@@ -431,6 +434,7 @@ function mapOrder(order: ApiOrder): Order {
       noChange: order.pagamento.sem_troco === true,
       changeFor: order.pagamento.troco_para == null ? null : toNumber(order.pagamento.troco_para),
       changeValue: order.pagamento.troco_valor == null ? null : toNumber(order.pagamento.troco_valor),
+      paymentOnDeliveryMethod: order.pagamento.pagamento_entrega_tipo || null,
     } : null,
     refunds: Array.isArray(order.reembolsos)
       ? order.reembolsos.map((refund) => ({

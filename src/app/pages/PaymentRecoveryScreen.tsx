@@ -3,21 +3,18 @@ import { useNavigate, useSearchParams } from "react-router";
 import { CheckCircle2, ChevronLeft, Copy, CreditCard, Loader2, QrCode, RefreshCw } from "lucide-react";
 import { useApp } from "@/app/providers/AppProvider";
 import {
-  createCashPayment,
-  createCardPayment,
+  createPaymentOnDelivery,
   createPixPayment,
-  getSavedPaymentCards,
+  getCardPaymentCorrectionMessage,
   getStoredPayerData,
-  getStoredPaymentSelection,
-  hasFreshCardToken,
+  isCardPaymentCorrectionRequired,
+  isRecoverableCardRejection,
   PayerDataForm,
   refreshPaymentById,
   resolvePixExpiration,
   savePayerData,
   savePaymentSelection,
-  selectionFromSavedCard,
   splitPayerFullName,
-  stripPaymentAttemptData,
   validatePayerData,
   type LocalPayment,
   type MercadoPagoPaymentResult,
@@ -30,7 +27,8 @@ import { showSystemNotice } from "@/shared/components/SystemNoticeModal";
 
 const PAYMENT_POLL_INTERVAL_MS = 5000;
 const PENDING_STATUSES = new Set(["pendente", "em_processamento"]);
-type SubmittingPaymentAction = "pix" | "selected-method" | null;
+type SubmittingPaymentAction = "pix" | "delivery" | null;
+type DeliveryPaymentMethod = "dinheiro" | "cartao";
 
 function matchesOrder(order: Order, orderId: string) {
   const normalized = orderId.replace(/^#/, "");
@@ -53,6 +51,7 @@ function toOrderPayment(payment: LocalPayment): OrderPayment {
     id: payment.id,
     method: payment.forma_pagamento,
     status: payment.status,
+    statusDetail: payment.status_detalhado || null,
     value: Number(payment.valor || 0),
     gatewayPaymentId: payment.gateway_pagamento_id || null,
     qrCode: payment.qr_code || null,
@@ -63,6 +62,7 @@ function toOrderPayment(payment: LocalPayment): OrderPayment {
       : payment.data_expiracao || null,
     paidAt: payment.pago_em || null,
     createdAt: payment.criado_em || null,
+    paymentOnDeliveryMethod: payment.pagamento_entrega_tipo || null,
   };
 }
 
@@ -71,6 +71,7 @@ function resultToOrderPayment(result: MercadoPagoPaymentResult): OrderPayment {
     id: result.payment.id,
     method: result.payment.forma_pagamento,
     status: result.payment.status,
+    statusDetail: result.status_detail || null,
     value: Number(result.payment.valor || 0),
     gatewayPaymentId: result.payment.gateway_pagamento_id || null,
     qrCode: result.qr_code || null,
@@ -80,6 +81,7 @@ function resultToOrderPayment(result: MercadoPagoPaymentResult): OrderPayment {
       ? resolvePixExpiration(result.date_of_expiration)
       : result.date_of_expiration || null,
     paidAt: result.payment.status === "aprovado" ? new Date().toISOString() : null,
+    paymentOnDeliveryMethod: result.payment.pagamento_entrega_tipo || null,
   };
 }
 
@@ -122,7 +124,10 @@ export function PaymentRecoveryScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(0);
-  const [paymentSelection, setPaymentSelection] = useState<StoredPaymentSelection>(() => getStoredPaymentSelection());
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryPaymentMethod>("cartao");
+  const [deliveryNoChange, setDeliveryNoChange] = useState(true);
+  const [deliveryChangeFor, setDeliveryChangeFor] = useState("");
 
   const expiresAt = payment?.expiresAt ? new Date(payment.expiresAt).getTime() : 0;
   const isCanceled = order?.status === "cancelado";
@@ -138,26 +143,11 @@ export function PaymentRecoveryScreen() {
       && payment.qrCode
       && !isPending,
   );
-  const selectedMethod = paymentSelection.method;
-  const isCashPayment = selectedMethod === "dinheiro";
-  const selectedMethodLabel =
-    selectedMethod === "pix"
-      ? "PIX"
-      : selectedMethod === "dinheiro"
-        ? "Dinheiro"
-      : selectedMethod === "cartao_debito"
-        ? "Cartão de débito"
-        : "Cartão de crédito";
-  const needsSavedCardCvv = Boolean(
-    selectedMethod !== "pix" && !isCashPayment && paymentSelection.saved_card_id && !hasFreshCardToken(paymentSelection)
-  );
-  const needsCardConfirmation = Boolean(
-    selectedMethod !== "pix" && !isCashPayment && !paymentSelection.saved_card_id && !hasFreshCardToken(paymentSelection)
-  );
   const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
   const payerValidation = validatePayerData(payer);
   const pixActionDisabled = Boolean(submittingAction) || !payerValidation.isValid;
-  const selectedMethodActionDisabled = Boolean(submittingAction) || (!isCashPayment && !payerValidation.isValid);
+  const recoveryAllowsDelivery = isRecoverableCardRejection(payment?.method, payment?.status, payment?.statusDetail);
+  const correctionRequired = isCardPaymentCorrectionRequired(payment?.status, payment?.statusDetail);
 
   const openTracking = useCallback(() => {
     navigate(`${tenantPath("order-tracking")}?orderId=${encodeURIComponent(orderId)}`, { replace: true });
@@ -204,28 +194,6 @@ export function PaymentRecoveryScreen() {
   }, [order?.payment]);
 
   useEffect(() => {
-    if (!marketId || paymentSelection.method === "pix" || paymentSelection.method === "dinheiro") return;
-
-    let active = true;
-    getSavedPaymentCards(marketId)
-      .then((cards) => {
-        if (!active || paymentSelection.saved_card_id || hasFreshCardToken(paymentSelection)) return;
-        const savedCard = cards.find((card) => card.principal) || cards[0] || null;
-        if (!savedCard) return;
-        const selection = selectionFromSavedCard(savedCard);
-        setPaymentSelection(selection);
-        savePaymentSelection(selection);
-      })
-      .catch((error) => {
-        console.error("Erro ao carregar cartão salvo:", error);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [marketId, paymentSelection]);
-
-  useEffect(() => {
     if (isPaid || isCanceled) {
       if (isPaid && !isCanceled) markPostPaymentPushPromptFromRecovery();
       openTracking();
@@ -265,52 +233,64 @@ export function PaymentRecoveryScreen() {
     });
   };
 
-  const createPayment = async (forcePix = false) => {
+  const createPix = async () => {
     if (!order) return;
     if (isCanceled) {
       openTracking();
       return;
     }
 
-    setSubmittingAction(forcePix ? "pix" : "selected-method");
+    setSubmittingAction("pix");
     try {
-      const selection = forcePix ? { method: "pix" as const } : paymentSelection;
-      const payerData = selection.method === "dinheiro" ? null : resolvePayerData(payer);
-      if (payerData) {
-        savePayerData(payerData);
-        setPayer(payerData);
-      }
+      const selection = { method: "pix" as const };
+      const payerData = resolvePayerData(payer);
+      savePayerData(payerData);
+      setPayer(payerData);
+      savePaymentSelection(selection);
 
-      if (forcePix) {
-        savePaymentSelection(selection);
-        setPaymentSelection(selection);
-      }
-
-      if (!forcePix && selection.method !== "pix" && selection.method !== "dinheiro" && !hasFreshCardToken(selection)) {
-        savePaymentSelection(selection);
-        choosePaymentMethod();
-        return;
-      }
-
-      const result = selection.method === "pix"
-        ? await createPixPayment(order.rawId || order.id, payerData as PayerData)
-        : selection.method === "dinheiro"
-          ? await createCashPayment(order.rawId || order.id, selection)
-          : await createCardPayment(order.rawId || order.id, payerData as PayerData, selection);
-
-      if (selection.method !== "pix" && selection.method !== "dinheiro") {
-        setPaymentSelection(stripPaymentAttemptData(selection));
-      }
-
+      const result = await createPixPayment(order.rawId || order.id, payerData);
       setPayment(resultToOrderPayment(result));
       await refreshOrders();
 
-      if (selection.method === "dinheiro" || result.payment.status === "aprovado") {
+      if (result.payment.status === "aprovado") {
         markPostPaymentPushPromptFromRecovery();
         openTracking();
       }
     } catch (error) {
       showSystemNotice(error || "Não foi possível iniciar o pagamento.");
+    } finally {
+      setSubmittingAction(null);
+    }
+  };
+
+  const createDeliveryPayment = async () => {
+    if (!order) return;
+    if (isCanceled) {
+      openTracking();
+      return;
+    }
+
+    const parsedChange = Number(deliveryChangeFor.replace(/\./g, "").replace(",", "."));
+    const selection: StoredPaymentSelection = {
+      method: "dinheiro",
+      pagamento_entrega_tipo: deliveryMethod,
+      sem_troco: deliveryMethod === "cartao" || deliveryNoChange,
+      troco_para: deliveryMethod === "dinheiro" && !deliveryNoChange && Number.isFinite(parsedChange)
+        ? parsedChange
+        : null,
+    };
+
+    setSubmittingAction("delivery");
+    try {
+      const result = await createPaymentOnDelivery(order.rawId || order.id, selection);
+      savePaymentSelection(selection);
+      setPayment(resultToOrderPayment(result));
+      await refreshOrders();
+      markPostPaymentPushPromptFromRecovery();
+      setDeliveryModalOpen(false);
+      openTracking();
+    } catch (error) {
+      showSystemNotice(error || "Não foi possível registrar o pagamento na entrega.");
     } finally {
       setSubmittingAction(null);
     }
@@ -424,32 +404,80 @@ export function PaymentRecoveryScreen() {
                   {hasExpiredPix ? "O PIX anterior não está mais válido" : isPending ? "Pagamento ainda pendente" : "Pagamento não concluído"}
                 </p>
                 <p style={{ color: "#92400e", fontSize: "12px", lineHeight: 1.45 }}>
-                  Gere um novo PIX ou escolha outra forma de pagamento para resgatar este pedido.
+                  {correctionRequired
+                    ? getCardPaymentCorrectionMessage(payment?.statusDetail)
+                    : recoveryAllowsDelivery
+                      ? "Pague com PIX ou combine o pagamento na entrega para resgatar este pedido."
+                      : "Gere um novo PIX para resgatar este pedido."}
                 </p>
               </div>
             </div>
 
-            <button onClick={() => void createPayment(true)} disabled={pixActionDisabled} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
+            <button onClick={() => void createPix()} disabled={pixActionDisabled} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
               {submittingAction === "pix" ? <Loader2 className="animate-spin" size={16} /> : <QrCode size={16} />}
-              {payerValidation.isValid ? "Gerar novo PIX" : "Complete os dados do pagador"}
-            </button>
-            <button onClick={choosePaymentMethod} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3" style={{ backgroundColor: "var(--market-primary-soft-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
-              <CreditCard size={16} />
-              Alterar forma de pagamento
+              {payerValidation.isValid ? "Pagar com PIX" : "Complete os dados do pagador"}
             </button>
 
-            {selectedMethod !== "pix" && (
-              <button onClick={() => void createPayment()} disabled={selectedMethodActionDisabled} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 disabled:opacity-60" style={{ borderColor: "var(--market-primary-border-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
-                {submittingAction === "selected-method" ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
-                {needsSavedCardCvv
-                  ? "Informar CVV do cartão salvo"
-                  : needsCardConfirmation
-                    ? "Confirmar dados do cartão"
-                    : isCashPayment
-                      ? "Finalizar com Dinheiro"
-                      : `Tentar com ${selectedMethodLabel}`}
+            {recoveryAllowsDelivery ? (
+              <button onClick={() => setDeliveryModalOpen(true)} disabled={Boolean(submittingAction)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-soft-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
+                <CreditCard size={16} />
+                Pagar na Entrega
               </button>
-            )}
+            ) : correctionRequired ? (
+              <button onClick={choosePaymentMethod} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3" style={{ backgroundColor: "var(--market-primary-soft-color)", color: "var(--market-primary-color)", fontSize: "13px", fontWeight: 800 }}>
+                <CreditCard size={16} />
+                Corrigir dados do cartão
+              </button>
+            ) : null}
+          </div>
+        )}
+
+        {deliveryModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-end bg-black/40 px-4 pb-4 sm:items-center sm:justify-center sm:pb-0">
+            <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-xl">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <h2 style={{ color: "#0f172a", fontSize: "16px", fontWeight: 900 }}>Pagar na entrega</h2>
+                  <p className="mt-1" style={{ color: "#64748b", fontSize: "12px", lineHeight: 1.45 }}>
+                    Escolha como o entregador ou atendente deve cobrar este pedido.
+                  </p>
+                </div>
+                <button onClick={() => setDeliveryModalOpen(false)} className="rounded-full px-3 py-1 text-sm font-bold" style={{ backgroundColor: "#f1f5f9", color: "#334155" }}>
+                  Fechar
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setDeliveryMethod("cartao")} className="rounded-xl border px-3 py-3 text-left" style={{ borderColor: deliveryMethod === "cartao" ? "var(--market-primary-color)" : "#e2e8f0", backgroundColor: deliveryMethod === "cartao" ? "var(--market-primary-soft-color)" : "#fff" }}>
+                  <span className="block" style={{ color: "#0f172a", fontSize: "13px", fontWeight: 900 }}>Cartão</span>
+                  <span className="block" style={{ color: "#64748b", fontSize: "11px" }}>Maquininha na entrega</span>
+                </button>
+                <button type="button" onClick={() => setDeliveryMethod("dinheiro")} className="rounded-xl border px-3 py-3 text-left" style={{ borderColor: deliveryMethod === "dinheiro" ? "var(--market-primary-color)" : "#e2e8f0", backgroundColor: deliveryMethod === "dinheiro" ? "var(--market-primary-soft-color)" : "#fff" }}>
+                  <span className="block" style={{ color: "#0f172a", fontSize: "13px", fontWeight: 900 }}>Dinheiro</span>
+                  <span className="block" style={{ color: "#64748b", fontSize: "11px" }}>Com ou sem troco</span>
+                </button>
+              </div>
+
+              {deliveryMethod === "dinheiro" && (
+                <div className="mt-3 rounded-xl border border-slate-200 p-3">
+                  <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                    <input type="checkbox" checked={deliveryNoChange} onChange={(event) => setDeliveryNoChange(event.target.checked)} />
+                    Não preciso de troco
+                  </label>
+                  {!deliveryNoChange && (
+                    <label className="mt-3 block text-xs font-bold text-slate-600">
+                      Troco para
+                      <input value={deliveryChangeFor} onChange={(event) => setDeliveryChangeFor(event.target.value)} placeholder="0,00" inputMode="decimal" className="mt-1 w-full rounded-xl border px-3 py-3 text-sm outline-none" />
+                    </label>
+                  )}
+                </div>
+              )}
+
+              <button onClick={() => void createDeliveryPayment()} disabled={submittingAction === "delivery" || (deliveryMethod === "dinheiro" && !deliveryNoChange && !deliveryChangeFor)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-white disabled:opacity-60" style={{ backgroundColor: "var(--market-primary-color)", fontSize: "13px", fontWeight: 900 }}>
+                {submittingAction === "delivery" ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
+                Confirmar pagamento na entrega
+              </button>
+            </div>
           </div>
         )}
 

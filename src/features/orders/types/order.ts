@@ -15,6 +15,7 @@ export interface OrderPayment {
   id: string;
   method: 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro' | string;
   status: string;
+  statusDetail?: string | null;
   value: number;
   applicationFee?: number;
   gatewayPaymentId?: string | null;
@@ -27,6 +28,7 @@ export interface OrderPayment {
   noChange?: boolean;
   changeFor?: number | null;
   changeValue?: number | null;
+  paymentOnDeliveryMethod?: 'dinheiro' | 'cartao' | string | null;
 }
 
 export interface OrderCancellationRequest {
