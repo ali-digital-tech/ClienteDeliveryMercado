@@ -36,12 +36,14 @@ interface ApiStore {
   horario_fechamento?: string | null;
   tipo_estabelecimento?: EstablishmentType | null;
   cardapio_configuravel_ativo?: boolean | null;
+  permitir_configurar_cpf_na_nota?: boolean | null;
   formas_pagamento?: string[] | null;
 }
 
 interface ApiStoreConfig {
   whatsapp_suporte?: string | null;
   formas_pagamento?: string[] | null;
+  permitir_cpf_na_nota_cliente?: boolean | null;
 }
 
 export type MarketListMode = 'principal' | 'teste';
@@ -145,6 +147,7 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
     description: store.descricao || `${labels.singularCapitalized} com entrega de produtos selecionados.`,
     establishmentType,
     configurableMenuEnabled: store.cardapio_configuravel_ativo === true,
+    allowCpfOnInvoice: store.permitir_configurar_cpf_na_nota !== false && config.permitir_cpf_na_nota_cliente !== false,
     digitalLabel: labels.digital,
     neighborhood: store.endereco_bairro || store.bairro || cities[0] || 'Sua regiao',
     city: store.endereco_cidade?.trim() || store.cidade?.trim() || cities[0] || '',

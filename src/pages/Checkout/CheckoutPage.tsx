@@ -602,6 +602,7 @@ export function CheckoutPage() {
   const itemCount = getCartLineCount(cart);
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
   const primaryColor = currentMarket?.primaryColor || "var(--market-primary-color)";
+  const cpfInvoiceEnabled = currentMarket.allowCpfOnInvoice !== false;
   const establishmentLabels = getEstablishmentLabels(currentMarket.establishmentType);
   const pickupLatitude = Number(currentMarket.latitude);
   const pickupLongitude = Number(currentMarket.longitude);
@@ -657,6 +658,7 @@ export function CheckoutPage() {
     } satisfies SavedPaymentCard;
   }, [marketId, pendingCvvSelection, savedPaymentCards]);
   const savedCpfInvoiceDefault = Boolean(
+    cpfInvoiceEnabled &&
     effectiveCustomerProfile?.cpf &&
     effectiveCustomerProfile?.cpf_na_nota_padrao
   );
@@ -803,7 +805,7 @@ export function CheckoutPage() {
         if (!isActive) return;
         setCustomerProfile(profile);
 
-        if (profile.cpf_na_nota_padrao && profile.cpf) {
+        if (cpfInvoiceEnabled && profile.cpf_na_nota_padrao && profile.cpf) {
           setCpfInvoice(formatCpf(profile.cpf));
           setWantsCpfInvoice(true);
           setSaveCpfAsDefault(false);
@@ -821,7 +823,7 @@ export function CheckoutPage() {
     return () => {
       isActive = false;
     };
-  }, [currentUser]);
+  }, [cpfInvoiceEnabled, currentUser]);
 
   const resolvePayerData = (): PayerData => {
     const payer = getStoredPayerData();
@@ -947,6 +949,14 @@ export function CheckoutPage() {
   };
 
   const resolveCpfInvoicePayload = () => {
+    if (!cpfInvoiceEnabled) {
+      return {
+        cpfNaNota: false,
+        cpf: null,
+        saveCpfAsDefault: false,
+      };
+    }
+
     if (savedCpfInvoiceDefault) {
       return {
         cpfNaNota: true,
@@ -1657,6 +1667,7 @@ export function CheckoutPage() {
         </div>
 
         {/* CPF na nota */}
+        {cpfInvoiceEnabled && (
         <div
           className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
           style={{ border: "1px solid var(--market-primary-border-color)" }}
@@ -1762,6 +1773,7 @@ export function CheckoutPage() {
             </>
           )}
         </div>
+        )}
 
         {/* Totals */}
         <div
