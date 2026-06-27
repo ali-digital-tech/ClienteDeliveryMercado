@@ -212,6 +212,7 @@ export function TableQrPage() {
         page: nextPage,
         perPage: PRODUCTS_PER_PAGE,
         categoryId: selectedCategoryId,
+        priceContext: "salao",
       });
       setProducts((current) => (append ? [...current, ...catalog.products] : catalog.products));
       setPage(catalog.page || nextPage);
@@ -338,7 +339,9 @@ export function TableQrPage() {
       }
       try {
         setConfiguringLoading(true);
-        const detailed = await getProductById(marketId, product.storeProductId || product.id);
+        const detailed = await getProductById(marketId, product.storeProductId || product.id, {
+          priceContext: "salao",
+        });
         if (!detailed?.configuration) throw new Error("Configuração indisponível");
         setConfiguringProduct(detailed);
       } catch (error: any) {

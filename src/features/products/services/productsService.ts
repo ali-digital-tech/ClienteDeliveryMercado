@@ -113,6 +113,7 @@ interface ApiProductConfiguration {
 export interface ProductListFilters {
   categoryId?: string | null;
   search?: string;
+  priceContext?: 'app' | 'salao';
   promotionActive?: boolean;
   featured?: boolean;
   immediateConsumption?: boolean;
@@ -280,6 +281,7 @@ export async function getProductsByMarketId(
       destaque: filters.featured,
       consumo_imediato: filters.immediateConsumption,
       mais_vendidos: filters.bestsellers,
+      contexto_preco: filters.priceContext,
       page: filters.useOffsetPagination ? undefined : page,
       per_page: requestedLimit,
       limit: filters.useOffsetPagination ? requestedLimit : undefined,
@@ -316,10 +318,18 @@ export async function getProductsByMarketId(
   };
 }
 
-export async function getProductById(marketId: string, productId: string): Promise<Product | null> {
+export async function getProductById(
+  marketId: string,
+  productId: string,
+  options: { priceContext?: 'app' | 'salao' } = {},
+): Promise<Product | null> {
   if (!marketId || !productId) return null;
 
-  const response: any = await apiRequest(`/lojas/${marketId}/produtos/${productId}`);
+  const response: any = await apiRequest(`/lojas/${marketId}/produtos/${productId}`, {
+    params: {
+      contexto_preco: options.priceContext,
+    },
+  });
   const product = response?.data;
 
   if (!product || product.ativo_na_loja === false || product.produto_ativo === false) return null;
