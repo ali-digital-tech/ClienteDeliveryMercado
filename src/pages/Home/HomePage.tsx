@@ -11,9 +11,9 @@ import { authService } from '@/features/auth';
 import { getAuthToken } from '@/shared/lib/api';
 import { getOrdersByMarketId } from '@/features/orders';
 import { usePlatformBanners, type PlatformBanner } from '@/features/platformBanners';
-import logoEntregai from '@/assets/brand/logo-entregai.svg';
 
 type HomeView = 'all' | 'favorites' | 'orders';
+const LOGO_REAL = '/icons/pwa-logo-192.png';
 
 const categories: Array<{ type: EstablishmentType; label: string; icon: typeof Store; color: string }> = [
   { type: 'mercado', label: 'Mercados', icon: Store, color: '#ef4444' },
@@ -97,7 +97,7 @@ export function HomePage({ mode = 'principal' }: { mode?: 'principal' | 'teste' 
           <div className="min-w-0">
             <div className="mb-4 flex items-center gap-3">
               <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-                <img src={logoEntregai} alt="" className="h-11 w-11 object-contain" />
+                <img src={LOGO_REAL} alt="" className="h-12 w-12 object-contain" />
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-extrabold uppercase tracking-wide text-slate-500">Entregaí</p>
