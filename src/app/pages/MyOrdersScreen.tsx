@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type TouchEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   ChevronRight,
@@ -232,8 +232,11 @@ export function MyOrdersScreen() {
   const navigate = useNavigate();
   const { orders, addToCart, addConfiguredItem, cartCount, isLoggedIn, refreshOrders, tenantPath } = useApp();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
   const [repeatingOrderId, setRepeatingOrderId] = useState<string | null>(null);
   const [visibleOrderCount, setVisibleOrderCount] = useState(ORDERS_BATCH_SIZE);
+  const touchStartYRef = useRef<number | null>(null);
+  const refreshingRef = useRef(false);
   const visibleOrders = orders.slice(0, visibleOrderCount);
 
   useEffect(() => {
@@ -251,6 +254,57 @@ export function MyOrdersScreen() {
       isActive = false;
     };
   }, [isLoggedIn, refreshOrders]);
+
+  const handleRefreshOrders = useCallback(async () => {
+    if (!isLoggedIn || refreshingRef.current) return;
+
+    refreshingRef.current = true;
+    setVisibleOrderCount(ORDERS_BATCH_SIZE);
+    setIsLoadingOrders(true);
+
+    try {
+      await refreshOrders();
+    } finally {
+      refreshingRef.current = false;
+      setIsLoadingOrders(false);
+    }
+  }, [isLoggedIn, refreshOrders]);
+
+  const handleTouchStart = useCallback((event: TouchEvent<HTMLDivElement>) => {
+    if (event.currentTarget.scrollTop > 0) {
+      touchStartYRef.current = null;
+      return;
+    }
+
+    touchStartYRef.current = event.touches[0]?.clientY ?? null;
+  }, []);
+
+  const handleTouchMove = useCallback((event: TouchEvent<HTMLDivElement>) => {
+    if (isLoadingOrders || touchStartYRef.current === null) return;
+
+    const deltaY = (event.touches[0]?.clientY ?? 0) - touchStartYRef.current;
+    const isAtTop = event.currentTarget.scrollTop <= 0;
+
+    if (!isAtTop || deltaY <= 0) {
+      setPullDistance(0);
+      return;
+    }
+
+    if (deltaY > 8) {
+      event.preventDefault();
+      setPullDistance(Math.min(deltaY * 0.45, 64));
+    }
+  }, [isLoadingOrders]);
+
+  const handleTouchEnd = useCallback(() => {
+    const shouldRefresh = pullDistance >= 52;
+    touchStartYRef.current = null;
+    setPullDistance(0);
+
+    if (shouldRefresh) {
+      void handleRefreshOrders();
+    }
+  }, [handleRefreshOrders, pullDistance]);
 
   const handleRepeat = async (order: Order) => {
     const orderId = order.rawId || order.id;
@@ -370,8 +424,23 @@ export function MyOrdersScreen() {
 
       <div
         className="flex-1 overflow-y-auto px-4 pt-4 pb-4"
-        style={{ background: "#f8fafc" }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        style={{ background: "#f8fafc", overscrollBehaviorY: "contain" }}
       >
+        {(pullDistance > 0 || (isLoadingOrders && orders.length > 0)) && (
+          <div
+            className="mb-2 flex items-center justify-center overflow-hidden transition-[height]"
+            style={{ height: isLoadingOrders ? "36px" : `${pullDistance}px` }}
+          >
+            <div className="flex items-center justify-center rounded-full bg-white shadow-sm" style={{ width: "30px", height: "30px", border: "1px solid var(--market-primary-border-color)" }}>
+              <RefreshCw className={isLoadingOrders ? "animate-spin" : ""} size={15} color="var(--market-primary-color)" />
+            </div>
+          </div>
+        )}
+
         {isLoadingOrders && orders.length === 0 ? (
           <div className="flex flex-col items-center py-20 gap-3">
             <Loader2 className="animate-spin" size={28} color="var(--market-primary-color)" />
