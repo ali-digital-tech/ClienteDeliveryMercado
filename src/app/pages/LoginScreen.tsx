@@ -217,7 +217,7 @@ export function LoginScreen() {
         });
         setEmailCode("");
         setMode("confirm");
-        showSystemNotice("Enviamos um código de confirmação para seu e-mail.");
+        showSystemNotice("Enviamos um código para seu e-mail. Verifique também a caixa de spam ou lixo eletrônico.");
         return;
       }
 
@@ -250,7 +250,7 @@ export function LoginScreen() {
 
     try {
       const response = await authService.resendEmailConfirmation(email.trim(), storeId);
-      showSystemNotice(response.message || "Se a conta estiver pendente, enviaremos um novo código.");
+      showSystemNotice(response.message || "Enviamos um código para seu e-mail. Verifique também a caixa de spam ou lixo eletrônico.");
     } catch (error: any) {
       showSystemNotice(error?.message || "Não foi possível reenviar o código.");
     } finally {
