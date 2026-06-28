@@ -37,6 +37,7 @@ interface ApiStore {
   tipo_estabelecimento?: EstablishmentType | null;
   cardapio_configuravel_ativo?: boolean | null;
   permitir_configurar_cpf_na_nota?: boolean | null;
+  exibir_avaliacao_experiencia_compra?: boolean | null;
   formas_pagamento?: string[] | null;
 }
 
@@ -148,6 +149,7 @@ function mapStoreToMarket(store: ApiStore, config: ApiStoreConfig = {}): Market 
     establishmentType,
     configurableMenuEnabled: store.cardapio_configuravel_ativo === true,
     allowCpfOnInvoice: store.permitir_configurar_cpf_na_nota !== false && config.permitir_cpf_na_nota_cliente !== false,
+    showOrderExperienceFeedback: store.exibir_avaliacao_experiencia_compra !== false,
     digitalLabel: labels.digital,
     neighborhood: store.endereco_bairro || store.bairro || cities[0] || 'Sua regiao',
     city: store.endereco_cidade?.trim() || store.cidade?.trim() || cities[0] || '',

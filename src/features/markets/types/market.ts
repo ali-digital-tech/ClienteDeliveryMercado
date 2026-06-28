@@ -7,6 +7,7 @@ export interface Market {
   establishmentType: EstablishmentType;
   configurableMenuEnabled: boolean;
   allowCpfOnInvoice: boolean;
+  showOrderExperienceFeedback: boolean;
   digitalLabel: string;
   neighborhood: string;
   city: string;

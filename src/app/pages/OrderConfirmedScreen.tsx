@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { CheckCircle2, Home, Eye, KeyRound, CreditCard } from "lucide-react";
 import { useApp } from '@/app/providers/AppProvider';
 import { PostPaymentPushPrompt } from "@/features/notifications";
+import { submitOrderExperienceFeedback, type OrderExperienceFeedback } from "@/features/orders/services/ordersService";
 import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
 const statusLabels = {
@@ -18,6 +19,32 @@ const statusLabels = {
 };
 
 const statusStepIds = ["recebido", "confirmado", "separacao", "saiu", "entregue"];
+const feedbackStorageKey = (orderId: string) => `cliente_delivery_order_experience_feedback:${orderId}`;
+const experienceFeedbackOptions: Array<{
+  value: OrderExperienceFeedback;
+  label: string;
+  imageUrl: string;
+  selectedClassName: string;
+}> = [
+  {
+    value: "ruim",
+    label: "Ruim",
+    imageUrl: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f641/512.webp",
+    selectedClassName: "scale-110 bg-red-50 ring-red-300",
+  },
+  {
+    value: "bom",
+    label: "Bom",
+    imageUrl: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f642/512.webp",
+    selectedClassName: "scale-110 bg-amber-50 ring-amber-300",
+  },
+  {
+    value: "otimo",
+    label: "Ótimo",
+    imageUrl: "https://fonts.gstatic.com/s/e/notoemoji/latest/1f929/512.webp",
+    selectedClassName: "scale-110 bg-emerald-50 ring-emerald-300",
+  },
+];
 
 function getCurrentStepIndex(status: string | undefined) {
   if (status === "pendente") return 0;
@@ -38,6 +65,9 @@ export function OrderConfirmedScreen() {
   const [savedReceiptKey, setSavedReceiptKey] = useState<string | null>(null);
   const [savedPaymentMethod, setSavedPaymentMethod] = useState<string | null>(null);
   const [savedPaymentStatus, setSavedPaymentStatus] = useState<string | null>(null);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState<OrderExperienceFeedback | null>(null);
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const normalizedOrderId = (rawOrderId || orderId).replace(/^#/, "");
   const apiOrder = orders.find((order) => (
     [order.rawId, order.id, order.number]
@@ -90,6 +120,40 @@ export function OrderConfirmedScreen() {
     setRawOrderId(order?.rawId || order?.id || "");
     setTimeout(() => setShow(true), 100);
   }, [cartTotal, discount]);
+
+  useEffect(() => {
+    const feedbackOrderId = rawOrderId || orderId;
+    if (!feedbackOrderId || currentMarket.showOrderExperienceFeedback === false) return;
+
+    try {
+      if (sessionStorage.getItem(feedbackStorageKey(feedbackOrderId))) return;
+    } catch {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setFeedbackVisible(true), 650);
+    return () => window.clearTimeout(timer);
+  }, [currentMarket.showOrderExperienceFeedback, orderId, rawOrderId]);
+
+  const handleExperienceFeedback = async (value: OrderExperienceFeedback) => {
+    const feedbackOrderId = rawOrderId || orderId;
+    if (!feedbackOrderId || feedbackSubmitting) return;
+
+    setSelectedFeedback(value);
+    setFeedbackSubmitting(true);
+
+    try {
+      await submitOrderExperienceFeedback(feedbackOrderId, value);
+      sessionStorage.setItem(feedbackStorageKey(feedbackOrderId), value);
+    } catch (error) {
+      console.error("Erro ao registrar avaliação da experiência:", error);
+    } finally {
+      window.setTimeout(() => {
+        setFeedbackVisible(false);
+        setFeedbackSubmitting(false);
+      }, 850);
+    }
+  };
 
   const handleTrackOrder = () => {
     // Keep the orders screen behind tracking so browser back cannot reopen this confirmation.
@@ -448,8 +512,47 @@ export function OrderConfirmedScreen() {
       <PostPaymentPushPrompt
         isLoggedIn={isLoggedIn}
         primaryColor={currentMarket.primaryColor || "var(--market-primary-color)"}
-        delayMs={900}
+        delayMs={feedbackVisible ? 2200 : 900}
       />
+      {feedbackVisible && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/35 px-5 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Como foi a experiência da sua compra?"
+        >
+          <div className="w-full max-w-sm rounded-3xl bg-white px-5 py-6 text-center shadow-2xl ring-1 ring-slate-200">
+            <h2 className="text-xl font-extrabold leading-tight text-slate-950">
+              Como foi a experiência da sua compra?
+            </h2>
+            <div className="mt-6 grid grid-cols-3 gap-3">
+              {experienceFeedbackOptions.map((option) => {
+                const selected = selectedFeedback === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-label={option.label}
+                    disabled={feedbackSubmitting && !selected}
+                    onClick={() => handleExperienceFeedback(option.value)}
+                    className={[
+                      "flex aspect-square items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-slate-200 transition duration-300 active:scale-95 disabled:opacity-60",
+                      selected ? option.selectedClassName : "hover:scale-105 hover:bg-white",
+                    ].join(" ")}
+                  >
+                    <img
+                      src={option.imageUrl}
+                      alt=""
+                      className={selected ? "h-20 w-20 animate-bounce" : "h-16 w-16"}
+                      draggable={false}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

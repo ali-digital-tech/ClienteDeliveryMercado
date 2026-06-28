@@ -562,3 +562,15 @@ export async function requestOrderCancellation(orderId: string) {
     method: 'POST',
   });
 }
+
+export type OrderExperienceFeedback = 'ruim' | 'bom' | 'otimo';
+
+export async function submitOrderExperienceFeedback(orderId: string, avaliacao: OrderExperienceFeedback) {
+  return apiRequest<{ data?: unknown; message?: string }>(`/pedidos/${orderId}/avaliacao-experiencia`, {
+    method: 'POST',
+    body: {
+      avaliacao,
+      origem: 'pwa_cliente',
+    },
+  });
+}
