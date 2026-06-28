@@ -22,7 +22,7 @@ const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> =
     message: "Faça login para continuar.",
   },
   {
-    test: /invalid token format|invalid or expired token|jwt expired|token expired|invalid token|invalid jwt|invalid refresh token|unauthorized/i,
+    test: /invalid token format|invalid or expired token|jwt expired|token expired|invalid jwt|invalid refresh token|unauthorized/i,
     message: "Sua sessão expirou. Entre novamente para continuar.",
   },
   {
@@ -46,16 +46,40 @@ const TECHNICAL_MESSAGE_MAP: Array<{ test: RegExp; message: FriendlyMessage }> =
     message: "Este CPF já está cadastrado.",
   },
   {
-    test: /email already registered/i,
-    message: "Este e-mail já está cadastrado.",
+    test: /user with this email address has already been registered|email.*already.*registered|email already registered|already been registered/i,
+    message: "Este e-mail já está cadastrado. Entre na sua conta ou use a recuperação de senha.",
   },
   {
-    test: /phone number already registered/i,
-    message: "Este telefone já está cadastrado.",
+    test: /phone number already registered|telefone.*já está cadastrado/i,
+    message: "Este telefone já está cadastrado. Use outro número ou entre na conta existente.",
   },
   {
     test: /customer already registered/i,
-    message: "Já existe um cadastro com esses dados.",
+    message: "Já existe uma conta com esses dados. Confira as informações ou entre na conta existente.",
+  },
+  {
+    test: /name is required|nome.*obrigat[oó]rio/i,
+    message: "Informe seu nome completo para criar a conta.",
+  },
+  {
+    test: /phone number must be a valid phone number|telefone.*inv[aá]lido/i,
+    message: "Informe um telefone válido com DDD.",
+  },
+  {
+    test: /phone.*is required|telefone.*obrigat[oó]rio/i,
+    message: "Informe seu telefone para criar a conta.",
+  },
+  {
+    test: /password.*at least 6 characters|senha.*pelo menos 6 caracteres/i,
+    message: "A senha deve ter pelo menos 6 caracteres.",
+  },
+  {
+    test: /código de confirmação deve ter 6 dígitos|token.*6/i,
+    message: "Digite o código de 6 dígitos enviado para seu e-mail.",
+  },
+  {
+    test: /otp.*expired|token.*expired|invalid.*otp|invalid.*token|código.*expirado|código.*inválido/i,
+    message: "Código inválido ou expirado. Confira o código recebido ou solicite um novo.",
   },
   {
     test: /coupon validated successfully/i,
@@ -225,7 +249,7 @@ function extractMessage(value: unknown): string {
 
 export function getFriendlyMessage(
   value: unknown,
-  fallback = "Não foi possível concluir a operação. Tente novamente.",
+  fallback = "Não foi possível concluir a operação. Confira os dados informados e tente novamente.",
 ) {
   const rawMessage = extractMessage(value).trim();
 
