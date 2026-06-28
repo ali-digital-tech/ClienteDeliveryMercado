@@ -26,6 +26,11 @@ export interface RegisterCustomerPayload {
   accepted_privacy_policy_id?: string;
 }
 
+export interface EmailConfirmationPayload {
+  email: string;
+  token: string;
+}
+
 export interface LoginResponse {
   access_token: string;
   refresh_token?: string;

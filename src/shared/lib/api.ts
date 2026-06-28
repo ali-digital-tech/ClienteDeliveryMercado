@@ -79,7 +79,7 @@ export function onSessionExpired(handler: (message: string) => void) {
 }
 
 function shouldRefresh(path: string) {
-  return !['/auth/login', '/auth/refresh', '/auth/forgot-password', '/auth/reset-password']
+  return !['/auth/login', '/auth/refresh', '/auth/forgot-password', '/auth/reset-password', '/auth/verify-email', '/auth/resend-email-confirmation']
     .some((authPath) => path.includes(authPath));
 }
 

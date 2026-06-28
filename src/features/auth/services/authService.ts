@@ -1,5 +1,5 @@
 import { apiRequest, clearAuthTokens } from '@/shared/lib/api';
-import type { AuthUser, ForgotPasswordResponse, LoginCredentials, LoginResponse, RegisterCustomerPayload } from '../types/auth';
+import type { AuthUser, EmailConfirmationPayload, ForgotPasswordResponse, LoginCredentials, LoginResponse, RegisterCustomerPayload } from '../types/auth';
 
 const AUTH_TOKEN_KEY = 'token';
 const AUTH_USER_KEY = 'user';
@@ -62,6 +62,33 @@ export const authService = {
       method: 'POST',
       body: {
         ...payload,
+      } as any,
+    });
+  },
+
+  async verifyEmailConfirmation(payload: EmailConfirmationPayload, storeId: string | undefined) {
+    const lojaId = normalizeStoreId(storeId);
+
+    return apiRequest<LoginResponse>('/auth/verify-email', {
+      method: 'POST',
+      body: {
+        email: payload.email,
+        token: payload.token,
+        userType: 'cliente',
+        ...(lojaId ? { loja_id: lojaId } : {}),
+      } as any,
+    });
+  },
+
+  async resendEmailConfirmation(email: string, storeId: string | undefined) {
+    const lojaId = normalizeStoreId(storeId);
+
+    return apiRequest<{ message: string }>('/auth/resend-email-confirmation', {
+      method: 'POST',
+      body: {
+        email,
+        userType: 'cliente',
+        ...(lojaId ? { loja_id: lojaId } : {}),
       } as any,
     });
   },

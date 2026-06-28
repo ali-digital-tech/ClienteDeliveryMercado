@@ -16,17 +16,18 @@ export function LoginScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { addToCart, currentMarket, login, marketId, tenantPath, toggleFavorite } = useApp();
+  const { addToCart, confirmEmail, currentMarket, login, marketId, tenantPath, toggleFavorite } = useApp();
   const recoveryParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const resetAccessToken = searchParams.get("access_token") || recoveryParams.get("access_token") || "";
   const resetRefreshToken = searchParams.get("refresh_token") || recoveryParams.get("refresh_token") || undefined;
   const [logoFailed, setLogoFailed] = useState(false);
-  const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">(resetAccessToken ? "reset" : "login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset" | "confirm">(resetAccessToken ? "reset" : "login");
   const [showPass, setShowPass] = useState(false);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [emailCode, setEmailCode] = useState("");
   const [name, setName] = useState("");
   const [privacyPolicy, setPrivacyPolicy] = useState<LegalDocument | null>(null);
   const [privacyPolicyError, setPrivacyPolicyError] = useState("");
@@ -34,6 +35,32 @@ export function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const showMarketLogo = Boolean(currentMarket.logo && !logoFailed);
   const primaryColor = currentMarket.primaryColor || "var(--market-primary-color)";
+
+  const completeAuthenticatedNavigation = async () => {
+    const navigationState = location.state as {
+      redirectTo?: string;
+      pendingCartProductId?: string;
+      pendingCartQuantity?: number;
+      pendingFavoriteProductId?: string;
+    } | null;
+    const pendingProduct = navigationState?.pendingCartProductId
+      ? await getProductById(marketId, navigationState.pendingCartProductId)
+      : null;
+
+    if (pendingProduct) {
+      await addToCart(pendingProduct, navigationState?.pendingCartQuantity);
+    }
+
+    if (navigationState?.pendingFavoriteProductId) {
+      toggleFavorite(navigationState.pendingFavoriteProductId);
+    }
+
+    if (navigationState?.redirectTo) {
+      navigate(navigationState.redirectTo, { replace: true });
+    } else {
+      navigate(-1);
+    }
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -71,6 +98,35 @@ export function LoginScreen() {
         showSystemNotice(response.message || "Verifique seu e-mail para redefinir a senha.");
       } catch (error: any) {
         showSystemNotice(error?.message || "Não foi possível iniciar a recuperação.");
+      } finally {
+        setLoading(false);
+      }
+
+      return;
+    }
+
+    if (mode === "confirm") {
+      const token = onlyDigits(emailCode);
+
+      if (!email.trim()) {
+        showSystemNotice("Informe seu e-mail.");
+        return;
+      }
+
+      if (token.length !== 6) {
+        showSystemNotice("Informe o código de 6 dígitos enviado por e-mail.");
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        await confirmEmail({ email: email.trim(), token });
+        showSystemNotice("E-mail confirmado com sucesso.");
+        setEmailCode("");
+        await completeAuthenticatedNavigation();
+      } catch (error: any) {
+        showSystemNotice(error?.message || "Código inválido ou expirado.");
       } finally {
         setLoading(false);
       }
@@ -159,35 +215,44 @@ export function LoginScreen() {
           privacy_policy_accepted: privacyAccepted,
           accepted_privacy_policy_id: privacyPolicy?.id,
         });
+        setEmailCode("");
+        setMode("confirm");
+        showSystemNotice("Enviamos um código de confirmação para seu e-mail.");
+        return;
       }
 
       await login({ email: email.trim(), password });
-
-      const navigationState = location.state as {
-        redirectTo?: string;
-        pendingCartProductId?: string;
-        pendingCartQuantity?: number;
-        pendingFavoriteProductId?: string;
-      } | null;
-      const pendingProduct = navigationState?.pendingCartProductId
-        ? await getProductById(marketId, navigationState.pendingCartProductId)
-        : null;
-
-      if (pendingProduct) {
-        await addToCart(pendingProduct, navigationState?.pendingCartQuantity);
-      }
-
-      if (navigationState?.pendingFavoriteProductId) {
-        toggleFavorite(navigationState.pendingFavoriteProductId);
-      }
-
-      if (navigationState?.redirectTo) {
-        navigate(navigationState.redirectTo, { replace: true });
-      } else {
-        navigate(-1);
-      }
+      await completeAuthenticatedNavigation();
     } catch (error: any) {
-      showSystemNotice(error || "Não foi possível autenticar. Verifique seus dados.");
+      const errorCode = error?.payload?.error?.code;
+      if (mode === "login" && errorCode === "EMAIL_NOT_CONFIRMED") {
+        setEmailCode("");
+        setMode("confirm");
+        showSystemNotice("Confirme seu e-mail com o código enviado para continuar.");
+        return;
+      }
+
+      showSystemNotice(error?.message || "Não foi possível autenticar. Verifique seus dados.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendEmailCode = async () => {
+    const storeId = currentMarket.id || marketId;
+
+    if (!email.trim()) {
+      showSystemNotice("Informe seu e-mail.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await authService.resendEmailConfirmation(email.trim(), storeId);
+      showSystemNotice(response.message || "Se a conta estiver pendente, enviaremos um novo código.");
+    } catch (error: any) {
+      showSystemNotice(error?.message || "Não foi possível reenviar o código.");
     } finally {
       setLoading(false);
     }
@@ -241,7 +306,7 @@ export function LoginScreen() {
           className="overflow-hidden rounded-3xl bg-white p-5"
           style={{ border: "1px solid #e2e8f0", boxShadow: "0 16px 40px rgba(15, 23, 42, 0.09)" }}
         >
-          {mode !== "reset" && (
+          {(mode === "login" || mode === "signup") && (
             <div className="mb-6 flex rounded-2xl p-1" style={{ backgroundColor: "#f1f5f9" }}>
               {(["login", "signup"] as const).map((tab) => {
                 const selected = mode === tab;
@@ -274,16 +339,20 @@ export function LoginScreen() {
                   ? "Crie sua conta"
                   : mode === "forgot"
                     ? "Recupere sua senha"
-                    : "Nova senha"}
+                    : mode === "confirm"
+                      ? "Confirme seu e-mail"
+                      : "Nova senha"}
             </h1>
             <p className="mt-1.5" style={{ color: "#64748b", fontSize: "13px", lineHeight: 1.5 }}>
               {mode === "login"
                 ? "Entre para acompanhar pedidos e aproveitar ofertas."
                 : mode === "signup"
-                  ? "Cadastre-se para começar suas compras."
+                  ? "Cadastre-se para começar suas compras. Enviaremos um código por e-mail."
                   : mode === "forgot"
                     ? "Enviaremos um link seguro para seu e-mail."
-                    : "Defina uma senha nova para sua conta."}
+                    : mode === "confirm"
+                      ? "Digite o código enviado para liberar o acesso à sua conta."
+                      : "Defina uma senha nova para sua conta."}
             </p>
           </div>
 
@@ -340,7 +409,26 @@ export function LoginScreen() {
               </label>
             )}
 
-            {mode !== "forgot" && (
+            {mode === "confirm" && (
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-600">Código de confirmação</span>
+                <div className="flex items-center gap-3 rounded-xl px-3.5 py-3" style={{ border: "1px solid var(--market-primary-border-color)", backgroundColor: "#f8fafc" }}>
+                  <ShieldCheck size={18} color={primaryColor} />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="000000"
+                    maxLength={6}
+                    value={emailCode}
+                    onChange={(event) => setEmailCode(onlyDigits(event.target.value).slice(0, 6))}
+                    className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                  />
+                </div>
+              </label>
+            )}
+
+            {mode !== "forgot" && mode !== "confirm" && (
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-slate-600">
                   {mode === "login" ? "Senha" : "Nova senha"}
@@ -435,15 +523,29 @@ export function LoginScreen() {
               {loading
                 ? "Aguarde..."
                 : mode === "login"
-                  ? "Entrar na conta"
+                    ? "Entrar na conta"
                   : mode === "signup"
                     ? "Criar minha conta"
                     : mode === "forgot"
                       ? "Enviar instruções"
-                      : "Redefinir senha"}
+                      : mode === "confirm"
+                        ? "Confirmar e entrar"
+                        : "Redefinir senha"}
             </button>
 
-            {(mode === "forgot" || mode === "reset") && (
+            {mode === "confirm" && (
+              <button
+                type="button"
+                onClick={handleResendEmailCode}
+                disabled={loading}
+                className="mt-1 text-sm font-semibold disabled:cursor-wait disabled:opacity-70"
+                style={{ color: primaryColor }}
+              >
+                Reenviar código
+              </button>
+            )}
+
+            {(mode === "forgot" || mode === "reset" || mode === "confirm") && (
               <button
                 type="button"
                 onClick={() => {

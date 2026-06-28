@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useMarketContext } from '@/contexts/MarketContext';
-import { authService, type AuthUser, type LoginCredentials } from '@/features/auth';
+import { authService, type AuthUser, type EmailConfirmationPayload, type LoginCredentials } from '@/features/auth';
 import {
   useCartStore,
   type AppliedCoupon,
@@ -91,6 +91,7 @@ interface AppState {
   cartTotal: number;
   cartPulseKey: number;
   login: (credentials: LoginCredentials) => Promise<AuthUser>;
+  confirmEmail: (payload: EmailConfirmationPayload) => Promise<AuthUser>;
   logout: () => void;
   updateCurrentUser: (user: AuthUser) => void;
   refreshOrders: () => Promise<Order[]>;
@@ -245,6 +246,16 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
     void refreshCustomerPushIfGranted().catch(() => {});
     return user;
   }, [refreshOrders]);
+
+  const confirmEmail = useCallback(async (payload: EmailConfirmationPayload) => {
+    const session = await authService.verifyEmailConfirmation(payload, storeId);
+    const user = authService.persistSession(session);
+    sessionExpiredHandledRef.current = false;
+    setCurrentUser(user);
+    void refreshOrders();
+    void refreshCustomerPushIfGranted().catch(() => {});
+    return user;
+  }, [refreshOrders, storeId]);
 
   const logout = useCallback(() => {
     void disableCustomerPush().catch(() => {});
@@ -411,7 +422,7 @@ export function AppProvider({ children, marketId }: { children: React.ReactNode;
       currentScreen: '',
       addToCart, addConfiguredItem, updateConfiguredItem, removeFromCart, updateQty, clearCart,
       toggleFavorite, isFavorite, applyCoupon, placeOrder,
-      cartCount, cartTotal, cartPulseKey, login, logout, updateCurrentUser, refreshOrders, tenantPath,
+      cartCount, cartTotal, cartPulseKey, login, confirmEmail, logout, updateCurrentUser, refreshOrders, tenantPath,
     }}>
       {children}
     </AppContext.Provider>
