@@ -11,9 +11,9 @@ import { authService } from '@/features/auth';
 import { getAuthToken } from '@/shared/lib/api';
 import { getOrdersByMarketId } from '@/features/orders';
 import { usePlatformBanners, type PlatformBanner } from '@/features/platformBanners';
+import logoTransparent from '@/assets/brand/LogoFavicon.png';
 
 type HomeView = 'all' | 'favorites' | 'orders';
-const LOGO_REAL = '/icons/pwa-logo-192.png';
 
 const categories: Array<{ type: EstablishmentType; label: string; icon: typeof Store; color: string }> = [
   { type: 'mercado', label: 'Mercados', icon: Store, color: '#ef4444' },
@@ -96,8 +96,8 @@ export function HomePage({ mode = 'principal' }: { mode?: 'principal' | 'teste' 
         <header className="mb-5 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="mb-4 flex items-center gap-3">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-                <img src={LOGO_REAL} alt="" className="h-12 w-12 object-contain" />
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center">
+                <img src={logoTransparent} alt="" className="h-14 w-14 object-contain" />
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-extrabold uppercase tracking-wide text-slate-500">Entregaí</p>
