@@ -20,7 +20,7 @@ import {
 import { useApp } from '@/app/providers/AppProvider';
 import { Checkbox } from '@/app/components/ui/checkbox';
 import { BannerRenderer, useBanners } from '@/features/banners';
-import { authService, type AuthUser } from '@/features/auth';
+import { type AuthUser } from '@/features/auth';
 import { getEstablishmentLabels } from '@/features/markets';
 import {
   formatAddressLine,
@@ -798,31 +798,18 @@ export function CheckoutPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    let isActive = true;
+    setCustomerProfile(currentUser);
 
-    authService.getCurrentCustomer()
-      .then((profile) => {
-        if (!isActive) return;
-        setCustomerProfile(profile);
+    if (cpfInvoiceEnabled && currentUser.cpf_na_nota_padrao && currentUser.cpf) {
+      setCpfInvoice(formatCpf(currentUser.cpf));
+      setWantsCpfInvoice(true);
+      setSaveCpfAsDefault(false);
+      return;
+    }
 
-        if (cpfInvoiceEnabled && profile.cpf_na_nota_padrao && profile.cpf) {
-          setCpfInvoice(formatCpf(profile.cpf));
-          setWantsCpfInvoice(true);
-          setSaveCpfAsDefault(false);
-          return;
-        }
-
-        if (profile.cpf) {
-          setCpfInvoice(formatCpf(profile.cpf));
-        }
-      })
-      .catch((error) => {
-        console.error('Erro ao carregar perfil do cliente:', error);
-      });
-
-    return () => {
-      isActive = false;
-    };
+    if (currentUser.cpf) {
+      setCpfInvoice(formatCpf(currentUser.cpf));
+    }
   }, [cpfInvoiceEnabled, currentUser]);
 
   const resolvePayerData = (): PayerData => {
