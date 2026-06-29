@@ -66,6 +66,15 @@ export function EntregaiAnimatedSplash({
 
         {hasStoreBrand ? (
           <div className="entregai-splash__store-lockup">
+            <div className="entregai-splash__store-card entregai-splash__store-card--entregai">
+              <span className="entregai-splash__store-logo-box entregai-splash__store-logo-box--entregai">
+                <img className="entregai-splash__store-logo" src={logoSymbol} alt="" draggable={false} />
+              </span>
+              <span className="entregai-splash__store-name entregai-splash__store-name--entregai">Entregaí</span>
+            </div>
+
+            <span className="entregai-splash__store-plus" aria-hidden="true">+</span>
+
             <div className="entregai-splash__store-card entregai-splash__store-card--market">
               <span className="entregai-splash__store-logo-box">
                 {storeLogo && !storeLogoFailed ? (
@@ -81,15 +90,6 @@ export function EntregaiAnimatedSplash({
                 )}
               </span>
               <span className="entregai-splash__store-name">{storeName || 'Sua loja'}</span>
-            </div>
-
-            <span className="entregai-splash__store-plus" aria-hidden="true">+</span>
-
-            <div className="entregai-splash__store-card entregai-splash__store-card--entregai">
-              <span className="entregai-splash__store-logo-box entregai-splash__store-logo-box--entregai">
-                <img className="entregai-splash__store-logo" src={logoSymbol} alt="" draggable={false} />
-              </span>
-              <img className="entregai-splash__store-entregai-name" src={logoName} alt="Entregai" draggable={false} />
             </div>
 
             <span className="entregai-splash__store-loading">Carregando loja</span>

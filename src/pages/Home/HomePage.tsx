@@ -99,6 +99,15 @@ export function HomePage({
   }, []);
 
   useEffect(() => {
+    markets.forEach((market) => {
+      if (!market.logo) return;
+      const image = new window.Image();
+      image.decoding = "async";
+      image.src = market.logo;
+    });
+  }, [markets]);
+
+  useEffect(() => {
     if (view !== "orders" || !getAuthToken()) return;
     let cancelled = false;
     setOrdersLoading(true);
