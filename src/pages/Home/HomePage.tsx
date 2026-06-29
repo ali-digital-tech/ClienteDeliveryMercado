@@ -197,7 +197,7 @@ export function HomePage({
                   Entregaí
                 </p>
                 <p className="truncate text-sm font-semibold text-slate-700">
-                  Delivery de Yhago
+                  Delivery local, do seu jeito
                 </p>
               </div>
             </div>
