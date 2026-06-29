@@ -15,6 +15,7 @@ export function MarketProvider({ children, marketId }: { children: React.ReactNo
   const [isLoading, setIsLoading] = useState(true);
 
   const reloadMarket = useCallback(async () => {
+    setCurrentMarket(null);
     setIsLoading(true);
     try {
       const market = await getMarketById(marketId);

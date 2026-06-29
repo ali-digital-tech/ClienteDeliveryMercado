@@ -67,6 +67,10 @@
   padding: 0 24px;
 }
 
+.entregai-splash__brand--store {
+  margin-top: 0;
+}
+
 .entregai-splash__glow {
   position: absolute;
   width: min(356px, 86vw);
@@ -158,6 +162,128 @@
   transform: translateY(max(-112px, -26.5vw));
 }
 
+.entregai-splash__store-lockup {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: minmax(116px, 152px) 24px minmax(116px, 152px);
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: min(420px, 94vw);
+  opacity: 0;
+  transform: translateY(26px) scale(0.96);
+  animation: entregaiStoreLockupIn 700ms cubic-bezier(0.22, 1, 0.36, 1) 560ms forwards;
+}
+
+.entregai-splash__store-card {
+  display: flex;
+  min-width: 0;
+  min-height: 168px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(18px);
+}
+
+.entregai-splash__store-card--market {
+  animation: entregaiStoreCardIn 680ms cubic-bezier(0.18, 0.9, 0.24, 1.25) 720ms both;
+}
+
+.entregai-splash__store-card--entregai {
+  animation: entregaiStoreCardIn 680ms cubic-bezier(0.18, 0.9, 0.24, 1.25) 850ms both;
+}
+
+.entregai-splash__store-logo-box {
+  display: flex;
+  width: 82px;
+  height: 82px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 12px 26px rgba(2, 8, 23, 0.2);
+}
+
+.entregai-splash__store-logo-box--entregai {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.entregai-splash__store-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.entregai-splash__store-initials {
+  color: #122a4c;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.entregai-splash__store-name {
+  display: -webkit-box;
+  max-width: calc(100% - 22px);
+  min-height: 34px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.entregai-splash__store-entregai-name {
+  display: block;
+  width: 112px;
+  height: 112px;
+  transform: translateY(-38px);
+}
+
+.entregai-splash__store-plus {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  opacity: 0;
+  transform: scale(0.7);
+  animation: entregaiStorePlusIn 360ms cubic-bezier(0.18, 0.9, 0.24, 1.25) 980ms forwards;
+}
+
+.entregai-splash__store-loading {
+  grid-column: 1 / -1;
+  justify-self: center;
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.entregai-splash__store-loading::after {
+  content: "";
+  display: inline-block;
+  width: 24px;
+  margin-left: 4px;
+  overflow: hidden;
+  vertical-align: bottom;
+  animation: entregaiLoadingDots 1200ms steps(4, end) infinite;
+}
+
 @keyframes entregaiBgIn {
   to {
     opacity: 1;
@@ -237,6 +363,80 @@
   }
 }
 
+@keyframes entregaiStoreLockupIn {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes entregaiStoreCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes entregaiStorePlusIn {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes entregaiLoadingDots {
+  0% {
+    content: "";
+  }
+
+  25% {
+    content: ".";
+  }
+
+  50% {
+    content: "..";
+  }
+
+  75%,
+  100% {
+    content: "...";
+  }
+}
+
+@media (max-width: 360px) {
+  .entregai-splash__store-lockup {
+    grid-template-columns: minmax(108px, 1fr) 18px minmax(108px, 1fr);
+    gap: 8px;
+    width: min(330px, 94vw);
+  }
+
+  .entregai-splash__store-card {
+    min-height: 154px;
+    border-radius: 24px;
+  }
+
+  .entregai-splash__store-logo-box {
+    width: 72px;
+    height: 72px;
+    border-radius: 21px;
+  }
+
+  .entregai-splash__store-entregai-name {
+    width: 100px;
+    height: 100px;
+    transform: translateY(-34px);
+  }
+
+  .entregai-splash__store-name {
+    font-size: 13px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .entregai-splash,
   .entregai-splash.is-exiting,
@@ -244,7 +444,11 @@
   .entregai-splash__trail,
   .entregai-splash__icon-stage,
   .entregai-splash__icon-reveal,
-  .entregai-splash__name-stage {
+  .entregai-splash__name-stage,
+  .entregai-splash__store-lockup,
+  .entregai-splash__store-card,
+  .entregai-splash__store-plus,
+  .entregai-splash__store-loading::after {
     animation-duration: 1ms;
     animation-delay: 0ms;
   }

@@ -1,7 +1,9 @@
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate, Outlet, useParams } from 'react-router';
 import { AppProvider } from '@/app/providers/AppProvider';
-import { MarketProvider } from '@/contexts/MarketContext';
+import { MarketProvider, useMarketContext } from '@/contexts/MarketContext';
 import { DesktopSidebar } from '@/shared/components/DesktopSidebar';
+import { EntregaiAnimatedSplash } from '@/shared/components/EntregaiAnimatedSplash';
 import { PwaInstallBanner } from '@/shared/components/PwaInstallBanner';
 
 export function MarketLayout() {
@@ -13,6 +15,27 @@ export function MarketLayout() {
 
   return (
     <MarketProvider marketId={marketId}>
+      <MarketLayoutContent marketId={marketId} />
+    </MarketProvider>
+  );
+}
+
+function MarketLayoutContent({ marketId }: { marketId: string }) {
+  const { currentMarket, isLoading } = useMarketContext();
+  const [showEntrySplash, setShowEntrySplash] = useState(true);
+
+  useEffect(() => {
+    setShowEntrySplash(true);
+  }, [marketId]);
+
+  const handleEntrySplashFinish = useCallback(() => {
+    setShowEntrySplash(false);
+  }, []);
+
+  const shouldShowEntrySplash = isLoading || showEntrySplash;
+
+  return (
+    <>
       <AppProvider marketId={marketId}>
         <>
           <div className="size-full flex overflow-hidden" style={{ background: '#f1f5f9' }}>
@@ -30,7 +53,19 @@ export function MarketLayout() {
           <PwaInstallBanner />
         </>
       </AppProvider>
-    </MarketProvider>
+
+      {shouldShowEntrySplash ? (
+        <div className="fixed inset-0 z-[9998] flex">
+          <EntregaiAnimatedSplash
+            autoFinish={!isLoading && Boolean(currentMarket)}
+            finishAfterMs={1800}
+            onFinish={handleEntrySplashFinish}
+            storeLogo={currentMarket?.logo}
+            storeName={currentMarket?.name}
+          />
+        </div>
+      ) : null}
+    </>
   );
 }
 
