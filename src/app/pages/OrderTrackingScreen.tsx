@@ -835,7 +835,11 @@ export function OrderTrackingScreen() {
             </div>
           ) : orderItems.length > 0 ? (
             <div className="flex flex-col gap-3">
-              {orderItems.map(({ product, qty, variationName, selections, notes, lineId }) => (
+              {orderItems.map(({ product, qty, unitPrice, totalPrice, variationName, selections, notes, lineId }) => {
+                const displayUnitPrice = unitPrice ?? product.price;
+                const displayTotalPrice = totalPrice ?? displayUnitPrice * qty;
+
+                return (
                 <div key={lineId || product.id} className="flex items-start gap-3">
                   <ProductImage
                     src={product.image}
@@ -854,7 +858,7 @@ export function OrderTrackingScreen() {
                       {product.name}
                     </p>
                     <p style={{ fontSize: "12px", color: "#64748b" }}>
-                      {formatCartQuantity(qty)} {qty === 1 ? "item" : "itens"} · {formatCurrency(product.price)}
+                      {formatCartQuantity(qty)} {qty === 1 ? "item" : "itens"} · {formatCurrency(displayUnitPrice)}
                     </p>
                     {variationName && <p style={{ fontSize: "11px", color: "#64748b" }}>Tamanho: {variationName}</p>}
                     {(selections || []).map(selection => (
@@ -868,10 +872,11 @@ export function OrderTrackingScreen() {
                   </div>
 
                   <p style={{ fontSize: "13px", fontWeight: 800, color: "var(--market-primary-color)" }}>
-                    {formatCurrency(product.price * qty)}
+                    {formatCurrency(displayTotalPrice)}
                   </p>
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p style={{ fontSize: "13px", color: "#64748b", lineHeight: 1.5 }}>

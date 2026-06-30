@@ -5,7 +5,7 @@ import { resolvePixExpiration } from '@/features/payments';
 import type { Order } from '../types/order';
 import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
-const ORDER_ITEMS_CACHE_KEY = 'cliente_delivery_order_items_by_order_v3';
+const ORDER_ITEMS_CACHE_KEY = 'cliente_delivery_order_items_by_order_v4';
 const ORDER_ITEMS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const ORDERS_PAGE_SIZE = 100;
 
@@ -131,6 +131,7 @@ interface ApiCartItem {
   unidade_medida?: string | null;
   tipo_venda?: 'unidade' | 'peso' | null;
   preco_unitario?: string | number | null;
+  preco_total?: string | number | null;
   observacoes?: string | null;
   selecoes?: Array<{
     grupo_id: string;
@@ -315,6 +316,18 @@ function isSellableStoreProduct(product: Product | null, marketId: string) {
   return Boolean(product && product.marketId === marketId && product.price > 0);
 }
 
+function getOrderItemPrices(item: ApiCartItem, qty: number) {
+  const totalPrice = toNumber(item.preco_total);
+  const unitPrice = totalPrice > 0 && qty > 0
+    ? totalPrice / qty
+    : toNumber(item.preco_unitario);
+
+  return {
+    unitPrice,
+    totalPrice: totalPrice > 0 ? totalPrice : unitPrice * qty,
+  };
+}
+
 async function fetchCurrentProductForRepeat(item: ApiCartItem, marketId: string): Promise<Product | null> {
   const identifiers = [item.produto_loja_id, item.produto_id]
     .filter((value): value is string => Boolean(value))
@@ -336,6 +349,7 @@ async function mapCartItemToOrderItem(item: ApiCartItem, marketId: string): Prom
   const qty = toNumber(item.quantidade);
   if (qty <= 0) return null;
 
+  const prices = getOrderItemPrices(item, qty);
   const selections = (item.selecoes || []).map(selection => ({
     groupId: selection.grupo_id,
     optionId: selection.opcao_id,
@@ -355,11 +369,11 @@ async function mapCartItemToOrderItem(item: ApiCartItem, marketId: string): Prom
   };
   const embeddedProduct = resolveProductFromCartItem(item, marketId);
   if (isSellableStoreProduct(embeddedProduct, marketId)) {
-    return { product: embeddedProduct as Product, qty, ...metadata };
+    return { product: embeddedProduct as Product, qty, ...prices, ...metadata };
   }
 
   const product = await fetchCurrentProductForRepeat(item, marketId);
-  return product ? { product, qty, ...metadata } : null;
+  return product ? { product, qty, ...prices, ...metadata } : null;
 }
 
 async function getOrderItemsFromCart(order: Order): Promise<Order['items']> {

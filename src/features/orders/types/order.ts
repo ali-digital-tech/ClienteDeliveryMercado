@@ -5,6 +5,8 @@ export interface OrderItem {
   lineId?: string;
   product: Product;
   qty: number;
+  unitPrice?: number;
+  totalPrice?: number;
   variationName?: string;
   productStoreVariationId?: string;
   selections?: CartItemSelection[];
