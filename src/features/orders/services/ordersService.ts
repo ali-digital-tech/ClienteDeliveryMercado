@@ -14,6 +14,9 @@ interface ApiOrder {
   loja_id?: string;
   carrinho_id?: string | null;
   numero_pedido?: string | null;
+  numero_comanda_data?: string | null;
+  numero_comanda_diario?: string | number | null;
+  numero_comanda_codigo?: string | null;
   status?: string | null;
   tipo_pedido?: string | null;
   subtotal?: string | number | null;
@@ -411,6 +414,10 @@ function mapOrder(order: ApiOrder): Order {
     id: order.numero_pedido ? `#${order.numero_pedido}` : order.id,
     rawId: order.id,
     number: order.numero_pedido || undefined,
+    dailyTicketNumber: order.numero_comanda_codigo ||
+      (order.numero_comanda_diario
+        ? String(order.numero_comanda_diario).padStart(5, '0')
+        : undefined),
     marketId: order.loja_id || '',
     cartId: order.carrinho_id || undefined,
     date: formatDate(order.realizado_em || order.criado_em),

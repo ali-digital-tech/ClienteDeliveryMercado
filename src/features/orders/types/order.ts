@@ -65,6 +65,7 @@ export interface Order {
   id: string;
   rawId?: string;
   number?: string;
+  dailyTicketNumber?: string;
   marketId: string;
   cartId?: string;
   date: string;
