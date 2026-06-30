@@ -39,7 +39,7 @@ import { getStoredCheckoutMode } from '@/features/orders/services/checkoutModeSe
 import { apiRequest, ensureAuthenticatedSession } from '@/shared/lib/api';
 import {
   cancelPayment,
-  calculatePlatformServiceFee,
+  calculateCheckoutAmountBreakdown,
   createCardPayment,
   createPaymentOnDelivery,
   createPixPayment,
@@ -595,7 +595,13 @@ export function CheckoutPage() {
   );
   const deliveryFee = Math.max(0, Number(selectedDeliveryArea?.taxa_entrega || 0));
   const effectiveDeliveryFee = isPickup ? 0 : deliveryFee;
-  const total = Math.max(cartTotal - discount + effectiveDeliveryFee, 0);
+  const amountBreakdown = calculateCheckoutAmountBreakdown({
+    subtotal: cartTotal,
+    discount,
+    deliveryFee: effectiveDeliveryFee,
+    platformSplit: checkoutConfig?.platform_split,
+  });
+  const total = amountBreakdown.total;
   const minimumOrder = Math.max(0, currentMarket.minimumOrder || 0);
   const missingMinimumOrder = Math.max(0, minimumOrder - cartTotal);
   const meetsMinimumOrder = minimumOrder <= 0 || missingMinimumOrder <= 0;
@@ -635,7 +641,7 @@ export function CheckoutPage() {
     ? Math.max(0, Math.min(100, (pixSecondsRemaining / pixInitialSeconds) * 100))
     : 0;
   const effectiveCustomerProfile = customerProfile || currentUser;
-  const serviceFee = calculatePlatformServiceFee(total, checkoutConfig?.platform_split);
+  const serviceFee = amountBreakdown.serviceFee;
   const selectedSavedCardForCvv = useMemo(() => {
     if (!pendingCvvSelection?.saved_card_id) return null;
 
@@ -1781,7 +1787,7 @@ export function CheckoutPage() {
                   color: "#334155",
                 }}
               >
-                R$ {cartTotal.toFixed(2).replace('.', ',')}
+                R$ {amountBreakdown.subtotal.toFixed(2).replace('.', ',')}
               </span>
             </div>
 

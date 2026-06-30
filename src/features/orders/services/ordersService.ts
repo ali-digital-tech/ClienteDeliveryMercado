@@ -1,7 +1,7 @@
 import { apiRequest, getAuthToken, unwrapList } from '@/shared/lib/api';
 import { getProductById, mapStoreProduct } from '@/features/products';
 import type { Product } from '@/features/products';
-import { resolvePixExpiration } from '@/features/payments';
+import { calculateSubtotalExcludingServiceFee, resolvePixExpiration } from '@/features/payments';
 import type { Order } from '../types/order';
 import { formatBrasiliaDate } from '@/shared/lib/dateTime';
 
@@ -405,6 +405,7 @@ function mapOrder(order: ApiOrder): Order {
   const subtotal = toNumber(order.subtotal);
   const discount = toNumber(order.desconto);
   const deliveryFee = toNumber(order.taxa_entrega);
+  const serviceFee = toNumber(order.pagamento?.application_fee);
 
   return {
     id: order.numero_pedido ? `#${order.numero_pedido}` : order.id,
@@ -424,7 +425,7 @@ function mapOrder(order: ApiOrder): Order {
     receiptKey: order.chave_recebimento || null,
     items: [],
     itemCount: toNumber(order.carrinho_quantidade_produtos),
-    subtotal,
+    subtotal: calculateSubtotalExcludingServiceFee(subtotal, serviceFee),
     discount,
     deliveryFee,
     total: toNumber(order.total),
@@ -435,7 +436,7 @@ function mapOrder(order: ApiOrder): Order {
       status: order.pagamento.status || '',
       statusDetail: order.pagamento.status_detalhado || null,
       value: toNumber(order.pagamento.valor),
-      applicationFee: toNumber(order.pagamento.application_fee),
+      applicationFee: serviceFee,
       gatewayPaymentId: order.pagamento.gateway_pagamento_id || null,
       qrCode: order.pagamento.qr_code || null,
       qrCodeBase64: order.pagamento.qr_code_base64 || null,

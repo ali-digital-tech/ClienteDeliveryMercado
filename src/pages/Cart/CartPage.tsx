@@ -9,7 +9,7 @@ import { formatCartQuantity, getCartLineCount, getNextCartQuantity } from '@/fea
 import { getEstablishmentLabels } from '@/features/markets';
 import { getDeliveryAreas } from '@/features/addresses';
 import {
-  calculatePlatformServiceFee,
+  calculateCheckoutAmountBreakdown,
   getMercadoPagoCheckoutConfig,
   type MercadoPagoCheckoutConfig,
 } from '@/features/payments';
@@ -94,8 +94,14 @@ export function CartPage() {
   const suggestedProductsDrag = useHorizontalDragScroll<HTMLDivElement>();
 
   const deliveryFee = Math.max(0, currentMarket?.deliveryFee || 0);
-  const total = Math.max(cartTotal - discount + deliveryFee, 0);
-  const serviceFee = calculatePlatformServiceFee(total, checkoutConfig?.platform_split);
+  const amountBreakdown = calculateCheckoutAmountBreakdown({
+    subtotal: cartTotal,
+    discount,
+    deliveryFee,
+    platformSplit: checkoutConfig?.platform_split,
+  });
+  const total = amountBreakdown.total;
+  const serviceFee = amountBreakdown.serviceFee;
   const itemCount = getCartLineCount(cart);
   const primaryColor = currentMarket?.primaryColor || 'var(--market-primary-color)';
   const establishmentLabels = getEstablishmentLabels(currentMarket?.establishmentType);
@@ -370,7 +376,7 @@ export function CartPage() {
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between">
                   <span className="text-gray-500" style={{ fontSize: '13px' }}>Subtotal</span>
-                  <span className="text-gray-800" style={{ fontSize: '13px', fontWeight: 600 }}>R$ {cartTotal.toFixed(2).replace('.', ',')}</span>
+                  <span className="text-gray-800" style={{ fontSize: '13px', fontWeight: 600 }}>R$ {amountBreakdown.subtotal.toFixed(2).replace('.', ',')}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between">

@@ -27,7 +27,7 @@ import {
 } from '@/features/orders/services/checkoutModeService';
 import { getEstablishmentLabels } from '@/features/markets';
 import {
-  calculatePlatformServiceFee,
+  calculateCheckoutAmountBreakdown,
   getMercadoPagoCheckoutConfig,
   type MercadoPagoCheckoutConfig,
 } from '@/features/payments';
@@ -40,16 +40,20 @@ export function DeliveryScreen() {
   const [checkoutConfig, setCheckoutConfig] = useState<MercadoPagoCheckoutConfig | null>(null);
   const [deliveryAreas, setDeliveryAreas] = useState<Array<{ cidade: string; bairro: string; taxa_entrega: string | number; tempo_estimado_minutos: number }>>([]);
 
-  const discountedSubtotal = Math.max(cartTotal - discount, 0);
   const selectedDeliveryArea = deliveryAreas.find((area) => area.cidade.toLocaleLowerCase() === (selectedAddress?.cidade || '').trim().toLocaleLowerCase() && area.bairro.toLocaleLowerCase() === (selectedAddress?.bairro || '').trim().toLocaleLowerCase());
   const deliveryFee = Math.max(0, Number(selectedDeliveryArea?.taxa_entrega || 0));
   const minimumOrder = Math.max(0, currentMarket.minimumOrder || 0);
   const missingMinimumOrder = Math.max(0, minimumOrder - cartTotal);
   const meetsMinimumOrder = minimumOrder <= 0 || missingMinimumOrder <= 0;
 
-
-  const total = discountedSubtotal + (mode === "delivery" ? deliveryFee : 0);
-  const serviceFee = calculatePlatformServiceFee(total, checkoutConfig?.platform_split);
+  const amountBreakdown = calculateCheckoutAmountBreakdown({
+    subtotal: cartTotal,
+    discount,
+    deliveryFee: mode === "delivery" ? deliveryFee : 0,
+    platformSplit: checkoutConfig?.platform_split,
+  });
+  const total = amountBreakdown.total;
+  const serviceFee = amountBreakdown.serviceFee;
   const selectedCoordinates = selectedAddress ? getAddressCoordinates(selectedAddress) : null;
   const establishmentLabels = getEstablishmentLabels(currentMarket.establishmentType);
   const pickupLatitude = Number(currentMarket.latitude);
@@ -366,7 +370,7 @@ export function DeliveryScreen() {
                 color: "#334155",
               }}
             >
-              R$ {cartTotal.toFixed(2).replace('.', ',')}
+              R$ {amountBreakdown.subtotal.toFixed(2).replace('.', ',')}
             </span>
           </div>
 

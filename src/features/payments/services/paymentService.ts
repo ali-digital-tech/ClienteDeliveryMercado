@@ -139,6 +139,10 @@ function normalizeAmount(value: string | number | null | undefined) {
   return Number.isFinite(amount) ? amount : 0;
 }
 
+function roundCurrency(value: number) {
+  return Number(Math.max(0, value).toFixed(2));
+}
+
 export function calculatePlatformServiceFee(
   totalAmount: number,
   platformSplit?: PlatformSplitConfig | null,
@@ -158,6 +162,43 @@ export function calculatePlatformServiceFee(
 
   const normalizedFee = Number(fee.toFixed(2));
   return Math.max(0, Math.min(normalizedFee, amount));
+}
+
+export function calculateSubtotalExcludingServiceFee(
+  subtotal: string | number | null | undefined,
+  serviceFee: string | number | null | undefined,
+) {
+  const grossSubtotal = roundCurrency(normalizeAmount(subtotal));
+  const fee = roundCurrency(normalizeAmount(serviceFee));
+
+  return roundCurrency(grossSubtotal - Math.min(fee, grossSubtotal));
+}
+
+export function calculateCheckoutAmountBreakdown({
+  subtotal,
+  discount = 0,
+  deliveryFee = 0,
+  platformSplit,
+}: {
+  subtotal: string | number | null | undefined;
+  discount?: string | number | null;
+  deliveryFee?: string | number | null;
+  platformSplit?: PlatformSplitConfig | null;
+}) {
+  const grossSubtotal = roundCurrency(normalizeAmount(subtotal));
+  const normalizedDiscount = roundCurrency(normalizeAmount(discount));
+  const normalizedDeliveryFee = roundCurrency(normalizeAmount(deliveryFee));
+  const total = roundCurrency(grossSubtotal - normalizedDiscount + normalizedDeliveryFee);
+  const serviceFee = calculatePlatformServiceFee(total, platformSplit);
+
+  return {
+    grossSubtotal,
+    subtotal: calculateSubtotalExcludingServiceFee(grossSubtotal, serviceFee),
+    discount: normalizedDiscount,
+    deliveryFee: normalizedDeliveryFee,
+    serviceFee,
+    total,
+  };
 }
 
 export function resolvePixExpiration(
